@@ -1,0 +1,1 @@
+Self-update example for ps5-native-app-boilerplate. See docs/SELF_UPDATE.md.

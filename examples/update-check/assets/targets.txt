@@ -1,0 +1,14 @@
+# Titles the example checks besides itself: a title ID, one space, and the
+# content version to pretend is installed. Lines of any other shape are ignored.
+#
+# These exercise each answer the catalog can give. The apps named here are
+# listed on homebrew.page; what the catalog says about them changes over time.
+#
+# A listed app, as if an old copy were installed: update available.
+PPSA99002 01.000.000
+# The same app, as if a newer copy than any release were installed: up to date.
+PPSA99002 99.999.999
+# A title ID reserved in the catalog with no release yet: not available.
+PPSA99009 01.000.000
+# A title ID that isn't in the catalog: not listed (HTTP 404).
+PPSA00000 01.000.000
