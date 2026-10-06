@@ -21,7 +21,8 @@ void config_defaults(Settings *s)
     s->analog = true;
     s->cover_style = COVER_FLAT;
     s->cover_download = true;
-    s->ui_sounds = true;
+    s->ui_sound = 0;  /* Soft */
+    s->ui_volume = 1; /* 50 % */
 }
 
 static bool as_bool(const char *v)
@@ -78,8 +79,12 @@ void config_load(Settings *s, const char *path)
             s->cover_style = atoi(value) % COVER_STYLE_COUNT;
         else if (strcmp(key, "cover_download") == 0)
             s->cover_download = as_bool(value);
-        else if (strcmp(key, "ui_sounds") == 0)
-            s->ui_sounds = as_bool(value);
+        else if (strcmp(key, "ui_sounds") == 0 && !as_bool(value))
+            s->ui_sound = 5; /* older config: sounds off -> SFX_STYLE_OFF */
+        else if (strcmp(key, "ui_sound") == 0)
+            s->ui_sound = atoi(value) % 6;
+        else if (strcmp(key, "ui_volume") == 0)
+            s->ui_volume = atoi(value) % 4;
     }
     fclose(f);
 }
@@ -95,11 +100,11 @@ bool config_save(const Settings *s, const char *path)
             "# PSXS5 settings\n"
             "aspect=%d\nsmooth=%d\nshow_fps=%d\nregion=%d\nforce_hle=%d\n"
             "dithering=%d\ncd_fast=%d\nanalog=%d\nstate_slot=%d\nlast_game=%d\n"
-            "cover_style=%d\ncover_download=%d\nui_sounds=%d\n"
+            "cover_style=%d\ncover_download=%d\nui_sound=%d\nui_volume=%d\n"
             "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\n",
             s->aspect, s->smooth, s->show_fps, s->region, s->force_hle, s->dithering,
             s->cd_fast, s->analog, s->state_slot, s->last_game, s->cover_style,
-            s->cover_download, s->ui_sounds, s->integer_scale, s->internal_res, s->upscale,
+            s->cover_download, s->ui_sound, s->ui_volume, s->integer_scale, s->internal_res, s->upscale,
             s->upscale_filter, s->stick_dpad);
     bool ok = fclose(f) == 0;
     return ok && rename(temp, path) == 0;
