@@ -15,9 +15,14 @@ void covers_stop(void);
 /* Main thread, once per frame: uploads finished images, requests the covers
  * around `center` and frees the ones far away. */
 void covers_update(int center);
+/* The same for a filtered or sorted shelf: view[k] is the library index at
+ * shelf position k, center_pos the selected position. */
+void covers_update_view(const int *view, int count, int center_pos);
 
 /* Texture for game `index`; a generated title card until the art is ready. */
 PlatTexture *covers_get(int index);
+/* Average colour of a loaded cover (0 until it has loaded). */
+uint32_t covers_color(int index);
 
 /* Downloads still queued, for the "Downloading covers" indicator. */
 int covers_downloading(void);

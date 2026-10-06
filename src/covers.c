@@ -42,6 +42,7 @@ typedef struct
     bool placeholder; /* texture is a title card, real art may still arrive */
     uint8_t *pixels;
     int w, h;
+    uint32_t color; /* average colour, for the shelf's background tint */
     /* copies, so the worker never touches the Library */
     char title[96];
     char serial[16];
@@ -216,6 +217,16 @@ static int worker_main(void *unused)
             slots[index].pixels = px;
             slots[index].w = w;
             slots[index].h = h;
+            /* average of a sparse grid, darkened towards the theme */
+            uint64_t sum[3] = {0, 0, 0};
+            int samples = 0;
+            for (int y = h / 16; y < h; y += h / 8 + 1)
+                for (int x = w / 16; x < w; x += w / 8 + 1, ++samples)
+                    for (int c = 0; c < 3; ++c)
+                        sum[c] += px[((size_t)y * w + x) * 4 + c];
+            if (samples)
+                slots[index].color = 0xff000000u | (uint32_t)(sum[0] / samples) << 16 |
+                                     (uint32_t)(sum[1] / samples) << 8 | (uint32_t)(sum[2] / samples);
             slots[index].placeholder = placeholder;
             slots[index].state = SLOT_READY;
         }
@@ -289,6 +300,12 @@ void covers_stop(void)
 
 void covers_update(int center)
 {
+    covers_update_view(NULL, slot_count, center);
+}
+
+/* view[k] = library index shown at shelf position k (NULL: the library order). */
+void covers_update_view(const int *view, int count, int center_pos)
+{
     if (!slots)
         return;
     SDL_LockMutex(lock);
@@ -308,9 +325,30 @@ void covers_update(int center)
         ++uploads;
     }
     /* free far textures, request near ones nearest-first */
+    static int *distance;
+    static int distance_size;
+    if (distance_size < slot_count)
+    {
+        int *grown = realloc(distance, sizeof(int) * (size_t)slot_count);
+        if (!grown)
+        {
+            SDL_UnlockMutex(lock);
+            return;
+        }
+        distance = grown;
+        distance_size = slot_count;
+    }
+    for (int i = 0; i < slot_count; ++i)
+        distance[i] = 1 << 30;
+    for (int k = 0; k < count; ++k)
+    {
+        int i = view ? view[k] : k;
+        if (i >= 0 && i < slot_count)
+            distance[i] = k > center_pos ? k - center_pos : center_pos - k;
+    }
     for (int i = 0; i < slot_count; ++i)
     {
-        int d = i > center ? i - center : center - i;
+        int d = distance[i];
         if (d > KEEP_RADIUS && slots[i].state == SLOT_LOADED)
         {
             plat_texture_free(slots[i].texture);
@@ -321,7 +359,10 @@ void covers_update(int center)
     for (int d = 0; d <= LOAD_RADIUS; ++d)
         for (int side = -1; side <= 1; side += 2)
         {
-            int i = center + d * side;
+            int k = center_pos + d * side;
+            if (k < 0 || k >= count)
+                continue;
+            int i = view ? view[k] : k;
             if (i < 0 || i >= slot_count || slots[i].state != SLOT_EMPTY || queue_len >= QUEUE_SIZE)
                 continue;
             slots[i].state = SLOT_QUEUED;
@@ -337,6 +378,12 @@ void covers_update(int center)
 PlatTexture *covers_get(int index)
 {
     return (slots && index >= 0 && index < slot_count) ? slots[index].texture : NULL;
+}
+
+uint32_t covers_color(int index)
+{
+    return (slots && index >= 0 && index < slot_count && slots[index].texture) ? slots[index].color
+                                                                               : 0;
 }
 
 int covers_downloading(void)

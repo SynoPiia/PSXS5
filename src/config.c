@@ -23,6 +23,12 @@ void config_defaults(Settings *s)
     s->cover_download = true;
     s->ui_sound = 0;  /* Soft */
     s->ui_volume = 1; /* 50 % */
+    s->rumble = true;
+    s->quick_resume = true;
+    s->update_check = true;
+    s->rumble_strength = 3;
+    for (int i = 0; i < 16; ++i)
+        s->button_map[i] = (int8_t)i;
 }
 
 static bool as_bool(const char *v)
@@ -30,12 +36,12 @@ static bool as_bool(const char *v)
     return strcmp(v, "1") == 0 || strcmp(v, "true") == 0 || strcmp(v, "on") == 0;
 }
 
-void config_load(Settings *s, const char *path)
+/* Applies the keys in a file over what *s already holds. */
+static bool config_apply(Settings *s, const char *path)
 {
-    config_defaults(s);
     FILE *f = fopen(path, "r");
     if (!f)
-        return;
+        return false;
     char line[256];
     while (fgets(line, sizeof(line), f))
     {
@@ -87,8 +93,73 @@ void config_load(Settings *s, const char *path)
             s->language = atoi(value) % 5;
         else if (strcmp(key, "ui_volume") == 0)
             s->ui_volume = atoi(value) % 4;
+        else if (strcmp(key, "rumble") == 0)
+            s->rumble = as_bool(value);
+        else if (strcmp(key, "rumble_strength") == 0)
+            s->rumble_strength = atoi(value) % 4;
+        else if (strcmp(key, "sort_mode") == 0)
+            s->sort_mode = atoi(value) % 8;
+        else if (strcmp(key, "widescreen") == 0)
+            s->widescreen = as_bool(value);
+        else if (strcmp(key, "multitap") == 0)
+            s->multitap = as_bool(value);
+        else if (strcmp(key, "rewind") == 0)
+            s->rewind = as_bool(value);
+        else if (strcmp(key, "quick_resume") == 0)
+            s->quick_resume = as_bool(value);
+        else if (strcmp(key, "crt") == 0)
+            s->crt = atoi(value) % 3;
+        else if (strcmp(key, "border") == 0)
+            s->border = atoi(value) % 3;
+        else if (strcmp(key, "remote") == 0)
+            s->remote = as_bool(value);
+        else if (strcmp(key, "update_check") == 0)
+            s->update_check = as_bool(value);
+        else if (strcmp(key, "background") == 0)
+            s->background = atoi(value) % 2;
+        else if (strcmp(key, "shelf_category") == 0)
+            s->shelf_category = atoi(value) % 16;
+        else if (strcmp(key, "button_map") == 0)
+        {
+            char *p = value;
+            for (int i = 0; i < 16 && *p; ++i)
+            {
+                int v = (int)strtol(p, &p, 10);
+                s->button_map[i] = (int8_t)(v >= -1 && v < 16 ? v : i);
+                if (*p == ',')
+                    ++p;
+            }
+        }
     }
     fclose(f);
+    return true;
+}
+
+void config_load(Settings *s, const char *path)
+{
+    config_defaults(s);
+    config_apply(s, path);
+}
+
+bool config_load_game(Settings *out, const Settings *global, const char *path)
+{
+    *out = *global;
+    if (!config_apply(out, path))
+        return false;
+    /* these always follow the console-wide settings */
+    out->last_game = global->last_game;
+    out->cover_style = global->cover_style;
+    out->cover_download = global->cover_download;
+    out->ui_sound = global->ui_sound;
+    out->ui_volume = global->ui_volume;
+    out->language = global->language;
+    out->sort_mode = global->sort_mode;
+    out->shelf_category = global->shelf_category;
+    out->background = global->background;
+    out->remote = global->remote;
+    out->update_check = global->update_check;
+    out->quick_resume = global->quick_resume;
+    return true;
 }
 
 bool config_save(const Settings *s, const char *path)
@@ -103,11 +174,20 @@ bool config_save(const Settings *s, const char *path)
             "aspect=%d\nsmooth=%d\nshow_fps=%d\nregion=%d\nforce_hle=%d\n"
             "dithering=%d\ncd_fast=%d\nanalog=%d\nstate_slot=%d\nlast_game=%d\n"
             "cover_style=%d\ncover_download=%d\nui_sound=%d\nui_volume=%d\n"
-            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\nlanguage=%d\n",
+            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\nlanguage=%d\n"
+            "rumble=%d\nrumble_strength=%d\nsort_mode=%d\nshelf_category=%d\nbackground=%d\n",
             s->aspect, s->smooth, s->show_fps, s->region, s->force_hle, s->dithering,
             s->cd_fast, s->analog, s->state_slot, s->last_game, s->cover_style,
             s->cover_download, s->ui_sound, s->ui_volume, s->integer_scale, s->internal_res, s->upscale,
-            s->upscale_filter, s->stick_dpad, s->language);
+            s->upscale_filter, s->stick_dpad, s->language, s->rumble, s->rumble_strength,
+            s->sort_mode, s->shelf_category, s->background);
+    fprintf(f, "widescreen=%d\nmultitap=%d\nrewind=%d\nquick_resume=%d\ncrt=%d\nborder=%d\nremote=%d\nupdate_check=%d\n",
+            s->widescreen, s->multitap, s->rewind, s->quick_resume, s->crt, s->border, s->remote,
+            s->update_check);
+    fprintf(f, "button_map=");
+    for (int i = 0; i < 16; ++i)
+        fprintf(f, i ? ",%d" : "%d", s->button_map[i]);
+    fprintf(f, "\n");
     bool ok = fclose(f) == 0;
     return ok && rename(temp, path) == 0;
 }

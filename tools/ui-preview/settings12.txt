@@ -1,0 +1,26 @@
+wait 40
+press square
+wait 30
+shot g01-display
+press r1
+press r1
+wait 20
+shot g02-controls
+press r1
+press r1
+press r1
+wait 20
+shot g03-library
+press r1
+wait 20
+press down
+press down
+press down
+press down
+press down
+wait 30
+shot g04-system-phone
+press r1
+wait 20
+shot g05-about
+quit

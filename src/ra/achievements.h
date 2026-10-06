@@ -21,6 +21,21 @@ void ra_reset(void);  /* the console was reset */
 
 bool ra_signed_in(void);
 const char *ra_user(void);
+unsigned ra_user_score(void); /* points, 0 when not signed in */
+/* The loaded game's achievements; false when it has none or none loaded. */
+bool ra_game_progress(int *unlocked, int *total);
+
+typedef struct
+{
+    char title[96];
+    char description[192];
+    char progress[24];   /* "3/10" for counted ones, else "" */
+    char badge_url[160]; /* the badge picture (locked or unlocked) */
+    unsigned points, id;
+    bool unlocked;
+} RaAchievement;
+/* The loaded game's achievements, unlocked ones first. Returns how many. */
+int ra_list(RaAchievement *out, int max);
 bool ra_hardcore(void);          /* blocks save states, cheats and rewind */
 void ra_set_hardcore(bool on);   /* saved to the ini */
 /* "12 of 40 achievements, 115 of 400 points", or "" when no set is loaded */

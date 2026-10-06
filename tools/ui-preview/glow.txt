@@ -1,0 +1,8 @@
+wait 40
+press cross
+wait 20
+press right
+press cross
+wait 60
+shot h02-glow
+quit

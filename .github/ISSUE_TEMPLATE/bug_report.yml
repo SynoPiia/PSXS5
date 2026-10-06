@@ -1,0 +1,109 @@
+name: Bug report
+description: Something in PSXS5 doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! One problem per report, please.
+        **Never attach or link games, BIOS files or keys.** Reports that do are closed.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead.
+      placeholder: When I talk to an NPC in Toy Story 2, a gray box covers the screen instead of the text.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps from starting PSXS5. Does it happen every time?
+      placeholder: |
+        1. Start Toy Story 2
+        2. Walk up to Mr. Potato Head and press X
+        3. A gray box appears (every time)
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Game and serial
+      description: Only if it's about a game. The serial is on the shelf under the title (Triangle shows details).
+      placeholder: Toy Story 2 (SLUS-00893)
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem?
+      options:
+        - A game looks wrong (graphics)
+        - A game sounds wrong
+        - A game crashes, freezes or won't start
+        - PSXS5 crashes or closes
+        - The PS5 crashes or freezes
+        - Storage / "can't open /data/PSXS5"
+        - Controls or button mapping
+        - Menus, shelf or settings
+        - Covers, cheats or memory cards
+        - RetroAchievements
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: PSXS5 version
+      description: Settings → About → Version
+      placeholder: 1.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: setup
+    attributes:
+      label: PS5 and jailbreak
+      description: Model, firmware, and what you load (and in what order).
+      placeholder: PS5 slim, 13.60, etaHEN 2.x + kstuff, ShadowMountPlus
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings that might matter
+      description: Anything you changed, especially Internal resolution, Upscale filter, BIOS, Fast CD loading, Widescreen, Rewind. Does it still happen with the default settings?
+      placeholder: Internal resolution 2x, Upscale 4x sharp. With Native it doesn't happen.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: |
+        Attach `/data/PSXS5/logs/psxs5.log`. Copy it with FTP **right after** the problem,
+        before starting PSXS5 again (each start replaces it). After a crash it ends with a
+        `crash:` section; that's the most useful part.
+      placeholder: Drag the psxs5.log file here.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshot or video
+      description: A photo of the screen helps a lot for graphics problems.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I searched the existing issues and this isn't one of them.
+          required: true
+        - label: My game is my own dump, and I'm not sharing games, BIOS files or keys.
+          required: true

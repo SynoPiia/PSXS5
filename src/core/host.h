@@ -28,6 +28,14 @@ const void *host_frame(int *width, int *height, size_t *pitch, int *pixel_format
 
 bool host_save_state(const char *path);
 bool host_load_state(const char *path);
+/* Save states in memory (rewind, quick resume). */
+size_t host_state_size(void);
+bool host_serialize(void *buffer, size_t size);
+bool host_unserialize(const void *buffer, size_t size);
+/* The latest frame scaled to w x h RGBA (save-state thumbnails). */
+bool host_capture(uint8_t *rgba, int w, int h);
+/* Folder the core reads fan-translation patches from (before host_load). */
+void host_set_patches_dir(const char *dir);
 
 /* For RetroAchievements */
 struct retro_memory_map;

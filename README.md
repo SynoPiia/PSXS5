@@ -21,12 +21,40 @@ PSXS5 (PlayStation X Super 5) is a PlayStation 1 emulator that installs as an ap
 - You pick a game from a cover-flow shelf with your covers.
 - Games are upscaled with xBR for a 4K TV.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/media/screens/shelf.jpg" alt="The shelf" width="49%">
+  <img src="docs/media/screens/settings.jpg" alt="Settings" width="49%">
+</p>
+<p align="center">
+  <img src="docs/media/screens/menu.jpg" alt="The in-game menu" width="49%">
+  <img src="docs/media/screens/mapping.jpg" alt="Button mapping" width="49%">
+</p>
+<p align="center">
+  <img src="docs/media/screens/continue.jpg" alt="Continue where you left off" width="49%">
+  <img src="docs/media/screens/tv.jpg" alt="TV frame with scanlines" width="49%">
+</p>
+
+The in-game shots show a test picture; your games appear there.
+
 ## A passion project
 
 PSXS5 is a hobby project, made for the love of the PS1 library. No company or schedule is behind it, and nothing is for sale. Expect rough edges. Bug reports that come with `/data/PSXS5/logs/psxs5.log` are the most helpful.
 
 ## Highlights
 
+- **Quick resume.** Leave a game and pick it up later: the shelf offers *Continue* (with a picture of where you were) or *Start over*.
+- **Rewind and fast forward.** Hold the touchpad and press L2 to go back a few seconds, or R2 to speed through cutscenes.
+- **Save states with pictures.** Ten slots per game, each showing a thumbnail and how long ago it was saved.
+- **One-switch widescreen.** Turns on a game's widescreen code from the cheat library and shows 16:9.
+- **CRT look.** Light or strong scanlines, and a soft glow or a 90s TV around the picture.
+- **Up to 4 players.** A multitap for the games that support it: each PS5 controller is a player.
+- **Fan translations.** Put a `.ppf` patch next to a game and PSXS5 applies it when the game starts.
+- **Memory card manager.** See the saves on every game's card, export cards for other emulators, import `.mcr`, `.mcd`, `.srm` or `.gme` cards.
+- **Achievements list.** Every achievement of the game you're playing, with badges and progress, from the in-game menu.
+- **Settings from your phone.** Turn it on and scan the QR code: a settings page opens on any phone on the same network.
+- **Updates from GitHub.** PSXS5 tells you when a new release is out and installs it from *Settings → About*.
 - **Native app.** A real home-screen title (`PPSA97510`) with its own icon and art. Nothing is streamed and no PC is needed while you play.
 - **A shelf for your games.** A 3D cover flow with reflections and a soft click as you browse.
   - Covers are matched by the serial read from each disc, so every region gets its own art.
@@ -123,7 +151,9 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 |---|---|
 | OPTIONS | PS1 START |
 | Touchpad tap | PS1 SELECT |
-| Hold the touchpad (0.7 s) or L3 + R3 | The PSXS5 menu |
+| Hold the touchpad (0.5 s) or L3 + R3 | The PSXS5 menu |
+| Hold the touchpad + R2 | Fast forward |
+| Hold the touchpad + L2 | Rewind (turn on *Settings → System → Rewind*) |
 | Left stick | Analog stick; on digital-only games it also drives the D-pad (*Left stick as D-pad* in Settings) |
 
 The **PSXS5 menu** has:
@@ -206,7 +236,7 @@ The PS5 app is built by GitHub Actions on every push (*Actions* → latest run �
 
 ```bash
 sudo apt install clang-18 lld-18 llvm-18 make ninja-build ccache pkg-config python3 python3-venv tar unzip wget
-git clone --recursive https://github.com/SnivyX/PSXS5.git
+git clone --recursive https://github.com/SynoPiia/PSXS5.git
 cd PSXS5
 make            # -> dist/PPSA97510/
 make desktop    # optional PC test build (needs libsdl2-dev libcurl4-openssl-dev zlib1g-dev)

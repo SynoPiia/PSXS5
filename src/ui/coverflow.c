@@ -1,367 +1,735 @@
 /*
- * PSXS5 - the coverflow game library.
+ * PSXS5 - the game shelf (home screen).
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Covers sit on a shelf: the selected one faces you, its neighbours turn away
- * in perspective and stack towards the edges. Each cover is drawn as vertical
- * strips so the perspective stays correct with affine-only triangle mapping,
- * and is mirrored below with a fading reflection.
+ * Covers stand on a shelf: the selected one faces you, its neighbours turn
+ * away towards the edges. Categories (L1/R1) filter it, OPTIONS sorts it, and
+ * the background takes the colour of the selected cover. Everything here is
+ * drawn with blits and fills, the software renderer's fast paths.
  */
 #include "coverflow.h"
 
+#include "../app.h"
+#include "../config.h"
 #include "../covers.h"
+#include "../play.h"
+#include "../i18n.h"
 #include "../platform/platform.h"
+#include "../ra/achievements.h"
+#include "../stats.h"
+#include "../update.h"
 #include "draw.h"
+#include "icons.h"
 #include "sfx.h"
 #include "text.h"
-#include "../i18n.h"
+#include "theme.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#define STRIPS 12
 #define CENTER_X 960.0f
-#define CENTER_Y 450.0f
-#define COVER_H 560.0f
-#define FOCAL 1500.0f
-#define SIDE_GAP 540.0f   /* centre to first neighbour */
-#define STACK_GAP 132.0f  /* between further neighbours */
-#define MAX_YAW 1.01f     /* ~58 degrees */
-#define LAUNCH_TIME 0.45f
+#define CENTER_Y 430.0f
+#define COVER_H 500.0f
+#define SIDE_GAP 400.0f  /* centre to the first neighbour */
+#define STACK_GAP 150.0f /* between further neighbours */
+#define SIDE_SCALE 0.74f
+#define SIDE_SQUEEZE 0.58f /* turned-away covers look narrower */
+#define LAUNCH_TIME 0.3f
 
-static const uint32_t BG_COLORS[] = {0xff1a2470u, 0xff3049c4u, 0xff2a3faeu, 0xff0d1440u};
-static const float BG_STOPS[] = {0.0f, 0.46f, 0.62f, 1.0f};
-
-static uint32_t lerp_color(uint32_t a, uint32_t b, float t)
+static struct
 {
-    uint32_t out = 0xff000000u;
-    for (int s = 0; s < 24; s += 8)
-    {
-        float ca = (float)((a >> s) & 0xff), cb = (float)((b >> s) & 0xff);
-        out |= (uint32_t)(ca + (cb - ca) * t + 0.5f) << s;
-    }
-    return out;
+    int *view; /* library indices on the shelf, in order */
+    int view_count, view_capacity;
+    int cursor; /* position in view */
+    float pos;  /* animated position */
+    bool details;
+    float details_t, launch_t;
+    float chip_x, chip_w; /* animated category highlight */
+    float tint[3];        /* animated background colour */
+    float title_fade;     /* text fades in after a move */
+    int last_cursor_game;
+    /* "Continue or start over" when a game has a quick-resume save */
+    bool dialog, resume;
+    int dialog_choice;
+    float dialog_t;
+    long resume_age;
+    PlatTexture *resume_thumb;
+} S;
+
+static const char *const CATEGORY_NAMES[CAT_COUNT] = {
+    "All games", "Recently played", "Favorites", "Multi-disc", "USA", "Europe", "Japan"};
+static const char *const SORT_NAMES[SORT_COUNT] = {"Title", "Recently played", "Most played",
+                                                   "Region"};
+
+const char *shelf_sort_name(int sort)
+{
+    return tr(SORT_NAMES[sort >= 0 && sort < SORT_COUNT ? sort : 0]);
 }
 
-/* The gradient is built once on the CPU and blitted each frame: redrawing a
- * full-screen gradient mesh every frame is costly in the software renderer. */
-void coverflow_backdrop(void)
+/* 0 unknown, 1 USA, 2 Europe, 3 Japan */
+static int region_of(const char *serial)
+{
+    if (!serial[0])
+        return 0;
+    if (!strncmp(serial, "SLUS", 4) || !strncmp(serial, "SCUS", 4) || !strncmp(serial, "PAPX", 4))
+        return 1;
+    if (!strncmp(serial, "SLES", 4) || !strncmp(serial, "SCES", 4) || !strncmp(serial, "SCED", 4))
+        return 2;
+    return 3;
+}
+
+const char *shelf_region_name(const char *serial)
+{
+    static const char *const names[] = {"Unknown region", "USA", "Europe", "Japan"};
+    return tr(names[region_of(serial)]);
+}
+
+/* ---------------------------------------------------------------- the view */
+
+static bool in_category(const Game *g, int category)
+{
+    GameStats *st = stats_get(g->id);
+    switch (category)
+    {
+    case CAT_RECENT: return st && st->last_played > 0;
+    case CAT_FAVORITES: return st && st->favorite;
+    case CAT_MULTI_DISC: return g->discs > 1;
+    case CAT_USA: return region_of(g->serial) == 1;
+    case CAT_EUROPE: return region_of(g->serial) == 2;
+    case CAT_JAPAN: return region_of(g->serial) == 3;
+    default: return true;
+    }
+}
+
+static int category_size(int category)
+{
+    int n = 0;
+    for (int i = 0; i < app.library.count; ++i)
+        n += in_category(&app.library.games[i], category);
+    return n;
+}
+
+static int sort_mode;
+
+static int compare(const void *pa, const void *pb)
+{
+    const Game *a = &app.library.games[*(const int *)pa], *b = &app.library.games[*(const int *)pb];
+    GameStats *sa = stats_get(a->id), *sb = stats_get(b->id);
+    switch (sort_mode)
+    {
+    case SORT_RECENT:
+    {
+        int64_t la = sa ? sa->last_played : 0, lb = sb ? sb->last_played : 0;
+        if (la != lb)
+            return la < lb ? 1 : -1;
+        break;
+    }
+    case SORT_MOST_PLAYED:
+    {
+        uint32_t ta = sa ? sa->seconds : 0, tb = sb ? sb->seconds : 0;
+        if (ta != tb)
+            return ta < tb ? 1 : -1;
+        break;
+    }
+    case SORT_REGION:
+    {
+        int ra = region_of(a->serial), rb = region_of(b->serial);
+        if (ra != rb)
+            return ra - rb;
+        break;
+    }
+    default:
+        break;
+    }
+    int t = str_icmp(a->title, b->title);
+    return t ? t : (*(const int *)pa - *(const int *)pb);
+}
+
+static void build_view(int keep_game)
+{
+    Settings *g = &app.global;
+    if (g->shelf_category != CAT_ALL && category_size(g->shelf_category) == 0)
+        g->shelf_category = CAT_ALL;
+    if (S.view_capacity < app.library.count)
+    {
+        int *grown = realloc(S.view, sizeof(int) * (size_t)(app.library.count + 16));
+        if (!grown)
+            return;
+        S.view = grown;
+        S.view_capacity = app.library.count + 16;
+    }
+    S.view_count = 0;
+    for (int i = 0; i < app.library.count; ++i)
+        if (in_category(&app.library.games[i], g->shelf_category))
+            S.view[S.view_count++] = i;
+    sort_mode = g->shelf_category == CAT_RECENT ? SORT_RECENT : g->sort_mode;
+    qsort(S.view, (size_t)S.view_count, sizeof(int), compare);
+    S.cursor = 0;
+    for (int k = 0; k < S.view_count; ++k)
+        if (S.view[k] == keep_game)
+            S.cursor = k;
+    S.pos = (float)S.cursor;
+}
+
+static int selected_game(void)
+{
+    return S.view_count ? S.view[S.cursor] : -1;
+}
+
+void shelf_init(int last_game)
+{
+    S.last_cursor_game = last_game;
+    S.tint[0] = 0x3a / 255.0f;
+    S.tint[1] = 0x50 / 255.0f;
+    S.tint[2] = 0xc8 / 255.0f;
+}
+
+void shelf_library_changed(void)
+{
+    build_view(S.last_cursor_game);
+}
+
+void shelf_select_game(int library_index)
+{
+    S.last_cursor_game = library_index;
+    build_view(library_index);
+}
+
+/* ---------------------------------------------------------------- backdrop */
+
+/* A neutral vertical gradient, built once and blitted tinted each frame:
+ * a full-screen gradient mesh per frame would be costly here. */
+void shelf_backdrop(void)
 {
     static PlatTexture *backdrop;
     static bool tried;
     if (!backdrop && !tried)
     {
         tried = true;
-        enum { W = 1920, H = 1080 }; /* screen size: blitted 1:1, no per-frame scaling */
-        uint8_t *px = malloc((size_t)W * H * 4); /* 8 MB, once */
-        if (!px)
-            return;
-        for (int y = 0; y < H; ++y)
+        enum { W = 1920, H = 1080 };
+        uint8_t *px = malloc((size_t)W * H * 4);
+        if (px)
         {
-            float t = (float)y / (H - 1);
-            int i = 0;
-            while (i < 2 && t > BG_STOPS[i + 1])
-                ++i;
-            float k = (t - BG_STOPS[i]) / (BG_STOPS[i + 1] - BG_STOPS[i]);
-            uint32_t c = lerp_color(BG_COLORS[i], BG_COLORS[i + 1], k);
-            for (int x = 0; x < W; ++x)
+            for (int y = 0; y < H; ++y)
             {
-                uint8_t *p = &px[(y * W + x) * 4];
-                p[0] = (c >> 16) & 0xff;
-                p[1] = (c >> 8) & 0xff;
-                p[2] = c & 0xff;
-                p[3] = 255;
+                float t = (float)y / (H - 1);
+                /* dark top, brighter band behind the covers, dark floor */
+                float l = t < 0.42f ? 0.30f + t / 0.42f * 0.42f
+                                    : t < 0.64f ? 0.72f - (t - 0.42f) / 0.22f * 0.30f
+                                                : 0.42f - (t - 0.64f) / 0.36f * 0.30f;
+                for (int x = 0; x < W; ++x)
+                {
+                    float dx = (x - W * 0.5f) / (W * 0.5f);
+                    float v = l * (1.0f - dx * dx * 0.35f); /* a soft vignette */
+                    uint8_t c = (uint8_t)(v * 255.0f);
+                    uint8_t *p = &px[((size_t)y * W + x) * 4];
+                    p[0] = p[1] = p[2] = c;
+                    p[3] = 255;
+                }
             }
+            backdrop = plat_texture_create(px, W, H, true);
+            free(px);
         }
-        backdrop = plat_texture_create(px, W, H, true);
-        free(px);
     }
-    if (backdrop)
-        plat_draw_texture(backdrop, 0, 0, (float)plat_width(), (float)plat_height(), 0xffffffffu,
-                          false);
-    else
-        draw_vgradient(0, 0, (float)plat_width(), (float)plat_height(), BG_COLORS, BG_STOPS, 4);
-}
-
-void coverflow_init(Coverflow *cf, int cursor)
-{
-    memset(cf, 0, sizeof(*cf));
-    cf->cursor = cursor;
-    cf->pos = (float)cursor;
-}
-
-static const char *region_name(const char *serial)
-{
-    if (!serial[0])
-        return tr("Unknown region");
-    if (!strncmp(serial, "SLUS", 4) || !strncmp(serial, "SCUS", 4))
-        return tr("USA");
-    if (!strncmp(serial, "SLES", 4) || !strncmp(serial, "SCES", 4) || !strncmp(serial, "SCED", 4))
-        return tr("Europe");
-    return tr("Japan");
-}
-
-static float clampf(float v, float lo, float hi)
-{
-    return v < lo ? lo : v > hi ? hi : v;
-}
-
-typedef struct
-{
-    float x[STRIPS + 1], top[STRIPS + 1], bottom[STRIPS + 1];
-} Shape;
-
-/* Projects a cover of half-size (hw, hh) at horizontal offset `ox`, turned by `yaw`,
- * pushed towards the viewer by `lift`. */
-static void project(Shape *s, float ox, float hw, float hh, float yaw, float lift)
-{
-    float c = cosf(yaw), sn = sinf(yaw);
-    for (int k = 0; k <= STRIPS; ++k)
+    if (!backdrop)
     {
-        float x3 = ((float)k / STRIPS - 0.5f) * 2.0f * hw;
-        float z = -x3 * sn - lift;
-        float f = FOCAL / (FOCAL + z);
-        s->x[k] = CENTER_X + ox + x3 * c * f;
-        s->top[k] = CENTER_Y - hh * f;
-        s->bottom[k] = CENTER_Y + hh * f;
-    }
-}
-
-static void draw_shape(PlatTexture *tex, const Shape *s, uint32_t tint, float reflect_alpha,
-                       bool flat)
-{
-    PlatVertex v[STRIPS * 12];
-    int n = 0;
-    if (flat && tex)
-    {
-        /* Facing the viewer: one seamless blit instead of strips. */
-        plat_draw_texture(tex, s->x[0], s->top[0], s->x[STRIPS] - s->x[0],
-                          s->bottom[0] - s->top[0], tint, true);
-    }
-    else
-    {
-        for (int k = 0; k < STRIPS; ++k)
-        {
-            float u0 = (float)k / STRIPS, u1 = (float)(k + 1) / STRIPS;
-            /* overlap the next strip by a pixel: the software rasteriser
-             * otherwise leaves a hairline of background between strips */
-            float xr = s->x[k + 1] + (k + 1 < STRIPS ? 1.0f : 0.0f);
-            PlatVertex a = {s->x[k], s->top[k], u0, 0, tint}, b = {xr, s->top[k + 1], u1, 0, tint};
-            PlatVertex c = {xr, s->bottom[k + 1], u1, 1, tint}, d = {s->x[k], s->bottom[k], u0, 1, tint};
-            v[n++] = a; v[n++] = b; v[n++] = c;
-            v[n++] = a; v[n++] = c; v[n++] = d;
-        }
-        plat_draw_mesh(tex, v, n, NULL, 0);
-    }
-
-    if (reflect_alpha <= 0.0f)
+        draw_rect(0, 0, plat_width(), plat_height(), TH_BG);
         return;
-    /* mirror: the bottom 45% of the cover, upside down, fading to nothing */
-    n = 0;
-    uint32_t top_c = argb_alpha(tint, reflect_alpha), end_c = tint & 0x00ffffffu;
-    for (int k = 0; k < STRIPS; ++k)
-    {
-        float u0 = (float)k / STRIPS, u1 = (float)(k + 1) / STRIPS;
-        float h0 = (s->bottom[k] - s->top[k]) * 0.45f, h1 = (s->bottom[k + 1] - s->top[k + 1]) * 0.45f;
-        float y0 = s->bottom[k] + 6, y1 = s->bottom[k + 1] + 6;
-        float xr = s->x[k + 1] + (k + 1 < STRIPS ? 1.0f : 0.0f);
-        PlatVertex a = {s->x[k], y0, u0, 1, top_c}, b = {xr, y1, u1, 1, top_c};
-        PlatVertex c = {xr, y1 + h1, u1, 0.55f, end_c}, d = {s->x[k], y0 + h0, u0, 0.55f, end_c};
-        v[n++] = a; v[n++] = b; v[n++] = c;
-        v[n++] = a; v[n++] = c; v[n++] = d;
     }
-    plat_draw_mesh(tex, v, n, NULL, 0);
+    uint32_t tint = 0xff000000u | (uint32_t)(S.tint[0] * 255) << 16 |
+                    (uint32_t)(S.tint[1] * 255) << 8 | (uint32_t)(S.tint[2] * 255);
+    plat_draw_texture(backdrop, 0, 0, plat_width(), plat_height(), tint, false);
+}
+
+static void update_tint(int game)
+{
+    /* Dark: deep navy with a hint of the cover. Cover colour: the theme's blue
+     * pulled most of the way towards the cover's own colour. */
+    bool dark = app.global.background == 0;
+    float target[3] = {0x3a / 255.0f, 0x50 / 255.0f, 0xc8 / 255.0f};
+    if (dark)
+    {
+        target[0] = 0x1c / 255.0f;
+        target[1] = 0x24 / 255.0f;
+        target[2] = 0x5e / 255.0f;
+    }
+    uint32_t c = game >= 0 ? covers_color(game) : 0;
+    if (c)
+    {
+        float cover[3] = {((c >> 16) & 0xff) / 255.0f, ((c >> 8) & 0xff) / 255.0f, (c & 0xff) / 255.0f};
+        float m = fmaxf(cover[0], fmaxf(cover[1], cover[2]));
+        float mix = dark ? 0.22f : 0.55f, level = dark ? 0.32f : 0.8f;
+        for (int i = 0; i < 3; ++i)
+        {
+            float v = m > 0.05f ? cover[i] / m * level : level * 0.6f; /* keep it bright enough */
+            target[i] = target[i] * (1.0f - mix) + v * mix;
+        }
+    }
+    for (int i = 0; i < 3; ++i)
+        anim_approach(&S.tint[i], target[i], app.dt, 4.0f);
+}
+
+/* ---------------------------------------------------------------- pieces */
+
+static void draw_cover(PlatTexture *tex, const Game *g, float cx, float cy, float h, float squeeze,
+                       uint32_t tint, bool selected)
+{
+    int tw = 1, th = 1;
+    plat_texture_size(tex, &tw, &th);
+    float aspect = tex ? (float)tw / th : 0.88f;
+    float w = h * aspect * squeeze, x = cx - w * 0.5f, y = cy - h * 0.5f;
+    if (selected)
+    {
+        draw_rrect(x - 10, y + 14, w + 20, h + 6, 18, 0x60000000u); /* shadow */
+        draw_rrect_outline(x - 7, y - 7, w + 14, h + 14, 14, 4, 0xffe8ebffu);
+    }
+    if (tex)
+        plat_draw_texture(tex, x, y, w, h, tint, true);
+    else
+    {
+        draw_rrect(x, y, w, h, 10, TH_CARD);
+        text_draw_fit(cx, cy - 16, 24, FONT_BOLD, TH_TEXT_DIM, ALIGN_CENTER, w - 24, g->title);
+    }
 }
 
 static void draw_details(const Game *g, float t)
 {
     if (t <= 0.0f)
         return;
-    float w = 560, x = plat_width() - w * t, y = 150, h = 640;
-    draw_rect(x, y, w, h, argb_alpha(0xe00d1440u, t));
-    draw_rect(x, y, 6, h, argb_alpha(0xff8fb0ffu, t));
-    uint32_t dim = argb_alpha(0xffc9d2ffu, t), white = argb_alpha(0xffffffffu, t);
-    text_draw_fit(x + 40, y + 36, 32, FONT_BOLD, white, ALIGN_LEFT, w - 80, g->title);
-    char line[160];
-    const char *labels[] = {"Serial", "Region", "Discs", "Format", "Folder"};
-    char values[5][128];
-    snprintf(values[0], 128, "%s", g->serial[0] ? g->serial : tr("Unknown"));
-    snprintf(values[1], 128, "%s", region_name(g->serial));
-    snprintf(values[2], 128, "%d", g->discs);
-    snprintf(values[3], 128, "%s", path_ext(g->path));
-    const char *folder = strrchr(g->folder, '/');
-    snprintf(values[4], 128, "%s", folder ? folder + 1 : g->folder);
-    for (int i = 0; i < 5; ++i)
+    float ease = 1.0f - (1.0f - t) * (1.0f - t);
+    float w = 620, x = plat_width() - (w + 48) * ease, y = 140, h = 800;
+    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xf2151a3du, t));
+    text_draw_fit(x + 40, y + 34, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80, g->title);
+    GameStats *st = stats_get(g->id);
+    char played[48] = "", when[48] = "", ach[48] = "", discs[16];
+    if (st)
     {
-        text_draw(x + 40, y + 110 + i * 60, 24, FONT_REGULAR, dim, ALIGN_LEFT, tr(labels[i]));
-        text_draw_fit(x + 200, y + 110 + i * 60, 24, FONT_BOLD, white, ALIGN_LEFT, w - 240,
-                      values[i]);
+        stats_format_time(st->seconds, played, sizeof(played));
+        stats_format_when(st->last_played, when, sizeof(when));
+        if (st->ach_unlocked >= 0 && st->ach_total > 0)
+            snprintf(ach, sizeof(ach), "%d / %d", st->ach_unlocked, st->ach_total);
     }
-    snprintf(line, sizeof(line), "%s", tr("Saves and cheats follow the serial."));
-    text_draw(x + 40, y + h - 60, 20, FONT_REGULAR, dim, ALIGN_LEFT, line);
+    snprintf(discs, sizeof(discs), "%d", g->discs);
+    const char *folder = strrchr(g->folder, '/');
+    struct { const char *label; const char *value; int icon; } rows[] = {
+        {"Serial", g->serial[0] ? g->serial : tr("Unknown"), ICON_CARDS},
+        {"Region", shelf_region_name(g->serial), ICON_WORLD},
+        {"Discs", discs, ICON_DISC},
+        {"Format", path_ext(g->path), ICON_FOLDER},
+        {"Played", played[0] ? played : tr("Not yet"), ICON_CLOCK},
+        {"Last played", when[0] ? when : tr("Never"), ICON_HISTORY},
+        {"Achievements", ach[0] ? ach : tr("Unknown"), ICON_TROPHY},
+        {"Folder", folder ? folder + 1 : g->folder, ICON_FOLDER},
+    };
+    for (int i = 0; i < 8; ++i)
+    {
+        float ry = y + 110 + i * 70;
+        icon_draw(rows[i].icon, x + 40, ry + 2, 30, argb_alpha(TH_FOCUS, t));
+        text_draw(x + 88, ry, 24, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, tr(rows[i].label));
+        text_draw_fit(x + 310, ry, 24, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 350,
+                      rows[i].value);
+    }
+    text_draw(x + 40, y + h - 60, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT,
+              tr("Saves and cheats follow the serial."));
 }
 
-CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pressed, float dt,
-                                const char *notice)
+/* Category chips along the top; the highlight slides between them. */
+static void draw_header(void)
 {
-    const int count = lib->count;
-    CoverflowAction action = CF_NONE;
+    text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, PSXS5_NAME);
+    float x = TH_MARGIN + text_width(44, FONT_BOLD, PSXS5_NAME) + 40, y = 46, h = 46;
+    for (int c = 0; c < CAT_COUNT; ++c)
+    {
+        int n = category_size(c);
+        if (c != CAT_ALL && n == 0)
+            continue;
+        char label[64];
+        if (c == CAT_ALL)
+            snprintf(label, sizeof(label), "%s  %d", tr(CATEGORY_NAMES[c]), n);
+        else
+            str_copy(label, sizeof(label), tr(CATEGORY_NAMES[c]));
+        float w = text_width(22, FONT_REGULAR, label) + 40;
+        bool on = c == app.global.shelf_category;
+        if (on)
+        {
+            if (S.chip_w == 0)
+                S.chip_x = x, S.chip_w = w;
+            anim_approach(&S.chip_x, x, app.dt, TH_SNAP);
+            anim_approach(&S.chip_w, w, app.dt, TH_SNAP);
+            draw_rrect(S.chip_x, y, S.chip_w, h, h * 0.5f, TH_TEXT);
+        }
+        text_draw(x + 20, y + 11, 22, FONT_REGULAR, on ? TH_BG : TH_HINT, ALIGN_LEFT, label);
+        x += w + 6;
+    }
+
+    /* account and clock, top right */
+    char clock_text[16] = "";
+    time_t now = time(NULL);
+    struct tm tm;
+    if (local_time(now, &tm))
+        snprintf(clock_text, sizeof(clock_text), "%02d:%02d", tm.tm_hour, tm.tm_min);
+    float rx = plat_width() - TH_MARGIN;
+    text_draw(rx, 53, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, clock_text);
+    rx -= text_width(24, FONT_REGULAR, clock_text) + 32;
+    if (update_state() == UPDATE_AVAILABLE || update_state() == UPDATE_INSTALLED)
+    {
+        char up[64];
+        snprintf(up, sizeof(up), tr(update_state() == UPDATE_INSTALLED ? "Restart for %s" : "Update %s"),
+                 update_version());
+        float uw = text_width(20, FONT_BOLD, up) + 64;
+        draw_rrect(rx - uw, 44, uw, 46, 23, 0xff2a2410u);
+        icon_draw(ICON_DOWNLOAD, rx - uw + 14, 52, 30, TH_GOLD);
+        text_draw(rx - uw + 50, 56, 20, FONT_BOLD, TH_GOLD, ALIGN_LEFT, up);
+        rx -= uw + 24;
+    }
+    if (ra_user()[0])
+    {
+        char who[96];
+        snprintf(who, sizeof(who), "%s  \xc2\xb7  %u", ra_user(), ra_user_score());
+        text_draw(rx, 53, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, who);
+        rx -= text_width(24, FONT_REGULAR, who) + 38;
+        icon_draw(ICON_TROPHY, rx, 52, 30, TH_GOLD);
+    }
+}
+
+static void draw_info(const Game *g, float alpha)
+{
+    GameStats *st = stats_get(g->id);
+    float y = 730;
+    float tw = text_width(52, FONT_BOLD, g->title);
+    if (st && st->favorite)
+        icon_draw(ICON_STAR, CENTER_X - fminf(tw, 1500) * 0.5f - 52, y + 10, 40,
+                  argb_alpha(TH_GOLD, alpha));
+    text_draw_fit(CENTER_X, y, 52, FONT_BOLD, argb_alpha(TH_TEXT, alpha), ALIGN_CENTER, 1500, g->title);
+
+    /* tags: region, serial, discs, play time, last played */
+    char discs[32], played[48] = "", played_tag[64] = "", when[48] = "";
+    snprintf(discs, sizeof(discs), tr(g->discs == 1 ? "%d disc" : "%d discs"), g->discs);
+    if (st)
+    {
+        stats_format_time(st->seconds, played, sizeof(played));
+        if (played[0])
+            snprintf(played_tag, sizeof(played_tag), tr("Played %s"), played);
+        stats_format_when(st->last_played, when, sizeof(when));
+    }
+    const char *tags[5] = {shelf_region_name(g->serial), g->serial[0] ? g->serial : tr("No serial"),
+                           discs, played_tag, when};
+    float widths[5], total = 0;
+    for (int i = 0; i < 5; ++i)
+        if (tags[i][0])
+        {
+            widths[i] = text_width(22, FONT_REGULAR, tags[i]) + 36;
+            total += widths[i] + 10;
+        }
+        else
+            widths[i] = 0;
+    float x = CENTER_X - (total - 10) * 0.5f, ty = y + 84;
+    for (int i = 0; i < 5; ++i)
+        if (widths[i] > 0)
+            x += draw_pill(x, ty, 40, 22, argb_alpha(0xc01c2250u, alpha),
+                           argb_alpha(TH_TEXT_SOFT, alpha), tags[i]) + 10;
+
+    /* achievement progress, when known */
+    if (st && st->ach_unlocked >= 0 && st->ach_total > 0)
+    {
+        float bw = 340, bx = CENTER_X - bw * 0.5f + 20, by = ty + 70;
+        icon_draw(ICON_TROPHY, bx - 46, by - 12, 30, argb_alpha(TH_GOLD, alpha));
+        draw_rrect(bx, by, bw, 8, 4, argb_alpha(0xff1c2250u, alpha));
+        float f = (float)st->ach_unlocked / st->ach_total;
+        draw_rrect(bx, by, bw * (f > 1 ? 1 : f), 8, 4, argb_alpha(TH_GOLD, alpha));
+        char a[32];
+        snprintf(a, sizeof(a), "%d / %d", st->ach_unlocked, st->ach_total);
+        text_draw(bx + bw + 16, by - 13, 22, FONT_REGULAR, argb_alpha(TH_TEXT_SOFT, alpha), ALIGN_LEFT, a);
+    }
+}
+
+/* ---------------------------------------------------------------- screen */
+
+static void storage_screen(uint32_t pressed)
+{
+    shelf_backdrop();
+    text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, PSXS5_NAME);
+    float w = 1200, h = 300, x = CENTER_X - w * 0.5f, y = 330;
+    draw_rrect(x, y, w, h, TH_RADIUS, TH_CARD_SOFT);
+    icon_draw(ICON_ALERT_TRIANGLE, CENTER_X - 32, y + 40, 64, TH_GOLD);
+    text_draw(CENTER_X, y + 124, 36, FONT_BOLD, TH_TEXT, ALIGN_CENTER, tr("PSXS5 can't open /data/PSXS5"));
+    text_draw_fit(CENTER_X, y + 190, 24, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER, w - 80,
+                  app.storage_error);
+    static const int glyphs[] = {GLYPH_SQUARE};
+    static const char *const labels[] = {"Settings"};
+    app_draw_hints(glyphs, labels, 1, NULL);
+    if (pressed & BIT(BTN_SQUARE))
+        app_open_settings(SCREEN_LIBRARY);
+    app_draw_toast();
+}
+
+static void change_category(int step)
+{
+    int c = app.global.shelf_category;
+    for (int i = 0; i < CAT_COUNT; ++i)
+    {
+        c = (c + step + CAT_COUNT) % CAT_COUNT;
+        if (c == CAT_ALL || category_size(c) > 0)
+            break;
+    }
+    if (c == app.global.shelf_category)
+        return;
+    int keep = selected_game();
+    app.global.shelf_category = c;
+    build_view(keep);
+    S.title_fade = 0;
+    sfx_play(SFX_CLICK);
+}
+
+void shelf_screen(uint32_t pressed)
+{
+    if (app.storage_error[0])
+    {
+        storage_screen(pressed);
+        return;
+    }
 
     /* ------------------------------------------------ input */
-    if (cf->launch_t <= 0.0f && count > 0)
+    if (S.dialog)
     {
-        int before = cf->cursor;
-        if (pressed & (BIT(BTN_LEFT) | BIT(BTN_UP)))
-            --cf->cursor;
-        if (pressed & (BIT(BTN_RIGHT) | BIT(BTN_DOWN)))
-            ++cf->cursor;
-        if (pressed & BIT(BTN_L1))
-            cf->cursor -= 8;
-        if (pressed & BIT(BTN_R1))
-            cf->cursor += 8;
-        cf->cursor = cf->cursor < 0 ? 0 : cf->cursor >= count ? count - 1 : cf->cursor;
-        if (cf->cursor != before)
+        if (pressed & (BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_UP) | BIT(BTN_DOWN)))
+        {
+            S.dialog_choice ^= 1;
             sfx_play(SFX_CLICK);
-        if (pressed & BIT(BTN_TRIANGLE))
-        {
-            cf->details = !cf->details;
-            sfx_play(cf->details ? SFX_SELECT : SFX_BACK);
-        }
-        if ((pressed & BIT(BTN_CIRCLE)) && cf->details)
-        {
-            cf->details = false;
-            sfx_play(SFX_BACK);
         }
         if (pressed & BIT(BTN_CROSS))
         {
-            cf->launch_t = 0.0001f;
-            cf->details = false;
+            S.dialog = false;
+            S.resume = S.dialog_choice == 0;
+            S.launch_t = 0.0001f;
             sfx_play(SFX_SELECT);
         }
+        if (pressed & BIT(BTN_CIRCLE))
+        {
+            S.dialog = false;
+            sfx_play(SFX_BACK);
+        }
+        pressed = 0;
     }
-    if (pressed & BIT(BTN_SQUARE) && cf->launch_t <= 0.0f)
-        action = CF_SETTINGS;
+    if (S.launch_t <= 0.0f)
+    {
+        int before = S.cursor;
+        if (pressed & (BIT(BTN_LEFT) | BIT(BTN_UP)))
+            --S.cursor;
+        if (pressed & (BIT(BTN_RIGHT) | BIT(BTN_DOWN)))
+            ++S.cursor;
+        if (pressed & BIT(BTN_L2))
+            S.cursor -= 8;
+        if (pressed & BIT(BTN_R2))
+            S.cursor += 8;
+        S.cursor = S.cursor < 0 ? 0 : S.cursor >= S.view_count ? (S.view_count ? S.view_count - 1 : 0)
+                                                                : S.cursor;
+        if (S.cursor != before)
+        {
+            sfx_play(SFX_CLICK);
+            S.title_fade = 0.35f;
+        }
+        if (pressed & BIT(BTN_L1))
+            change_category(-1);
+        if (pressed & BIT(BTN_R1))
+            change_category(1);
+        if (pressed & BIT(BTN_START))
+        {
+            int keep = selected_game();
+            app.global.sort_mode = (app.global.sort_mode + 1) % SORT_COUNT;
+            build_view(keep);
+            char msg[96];
+            snprintf(msg, sizeof(msg), tr("Sorted by %s"), shelf_sort_name(app.global.sort_mode));
+            app_toast(msg);
+            sfx_play(SFX_CLICK);
+        }
+        int game = selected_game();
+        if ((pressed & BIT(BTN_R3)) && game >= 0)
+        {
+            GameStats *st = stats_get(app.library.games[game].id);
+            if (st)
+            {
+                st->favorite = !st->favorite;
+                stats_save();
+                app_toast(st->favorite ? "Added to favorites" : "Removed from favorites");
+                sfx_play(SFX_SELECT);
+                if (app.global.shelf_category == CAT_FAVORITES)
+                    build_view(game);
+            }
+        }
+        if (pressed & BIT(BTN_TRIANGLE) && game >= 0)
+        {
+            S.details = !S.details;
+            sfx_play(S.details ? SFX_SELECT : SFX_BACK);
+        }
+        if ((pressed & BIT(BTN_CIRCLE)) && S.details)
+        {
+            S.details = false;
+            sfx_play(SFX_BACK);
+        }
+        if ((pressed & BIT(BTN_CROSS)) && game >= 0)
+        {
+            const Game *g = &app.library.games[game];
+            S.details = false;
+            if (app.global.quick_resume && !ra_hardcore() && play_has_resume(g, &S.resume_age))
+            {
+                /* offer to continue */
+                char path[PSXS5_PATH_MAX];
+                static uint8_t rgba[THUMB_W * THUMB_H * 4];
+                play_resume_path(g, path, sizeof(path));
+                plat_texture_free(S.resume_thumb);
+                S.resume_thumb = play_load_thumb(path, rgba)
+                                     ? plat_texture_create(rgba, THUMB_W, THUMB_H, true)
+                                     : NULL;
+                S.dialog = true;
+                S.dialog_choice = 0;
+            }
+            else
+            {
+                S.resume = false;
+                S.launch_t = 0.0001f;
+            }
+            sfx_play(SFX_SELECT);
+        }
+        if (pressed & BIT(BTN_SQUARE))
+        {
+            sfx_play(SFX_SELECT);
+            config_save(&app.global, app.paths.config);
+            app_open_settings(SCREEN_LIBRARY);
+        }
+    }
 
     /* ------------------------------------------------ animation */
-    float ease = 1.0f - expf(-dt * 11.0f);
-    cf->pos += (cf->cursor - cf->pos) * ease;
-    if (fabsf(cf->cursor - cf->pos) < 0.001f)
-        cf->pos = (float)cf->cursor;
-    cf->details_t = clampf(cf->details_t + (cf->details ? dt : -dt) * 5.0f, 0.0f, 1.0f);
-    if (cf->launch_t > 0.0f)
+    anim_approach(&S.pos, (float)S.cursor, app.dt, 16.0f);
+    S.details_t = fminf(fmaxf(S.details_t + (S.details ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);
+    if (S.title_fade > 0)
+        S.title_fade = fmaxf(S.title_fade - app.dt, 0.0f);
+    int game = selected_game();
+    if (game >= 0)
+        S.last_cursor_game = game;
+    if (S.launch_t > 0.0f)
     {
-        cf->launch_t += dt;
-        if (cf->launch_t >= LAUNCH_TIME)
+        S.launch_t += app.dt;
+        if (S.launch_t >= LAUNCH_TIME)
         {
-            cf->launch_t = 0.0f;
-            action = CF_PLAY;
+            S.launch_t = 0.0f;
+            config_save(&app.global, app.paths.config);
+            app_start_game(game, S.resume);
         }
     }
-    covers_update(cf->cursor);
+    covers_update_view(S.view, S.view_count, S.cursor);
+    update_tint(game);
 
     /* ------------------------------------------------ shelf */
-    coverflow_backdrop();
-    if (count > 0)
+    shelf_backdrop();
+    float launch = S.launch_t > 0.0f ? S.launch_t / LAUNCH_TIME : 0.0f;
+    if (S.view_count > 0)
     {
-        /* far to near so the selected cover is drawn last */
-        int order[64], n = 0;
-        int first = (int)floorf(cf->pos) - 5, last = (int)ceilf(cf->pos) + 5;
-        for (int i = first; i <= last; ++i)
-            if (i >= 0 && i < count && n < 64)
-                order[n++] = i;
-        for (int a = 0; a < n; ++a)
-            for (int b = a + 1; b < n; ++b)
-                if (fabsf(order[b] - cf->pos) > fabsf(order[a] - cf->pos))
-                {
-                    int t = order[a];
-                    order[a] = order[b];
-                    order[b] = t;
-                }
-
-        float launch = cf->launch_t > 0.0f ? cf->launch_t / LAUNCH_TIME : 0.0f;
-        for (int k = 0; k < n; ++k)
-        {
-            int i = order[k];
-            float d = i - cf->pos, ad = fabsf(d), near = ad < 1.0f ? ad : 1.0f;
-            float ox = ad < 1.0f ? d * SIDE_GAP
-                                 : (d > 0 ? 1.0f : -1.0f) * (SIDE_GAP + (ad - 1.0f) * STACK_GAP);
-            float yaw = clampf(d, -1.0f, 1.0f) * MAX_YAW;
-            float scale = 1.0f - near * 0.18f;
-            float lift = (1.0f - near) * 90.0f;
-            if (i == cf->cursor)
-                scale *= 1.0f + launch * 0.25f;
-
-            PlatTexture *tex = covers_get(i);
-            int tw = 1, th = 1;
-            plat_texture_size(tex, &tw, &th);
-            float aspect = tex ? (float)tw / th : 0.9f;
-            float hh = COVER_H * 0.5f * scale, hw = hh * aspect;
-
-            Shape s;
-            project(&s, ox, hw, hh, yaw, lift);
-            uint8_t shade = (uint8_t)(255 * (1.0f - near * 0.28f) * (1.0f - launch * (i != cf->cursor)));
-            uint32_t tint = 0xff000000u | (uint32_t)shade << 16 | (uint32_t)shade << 8 | shade;
-
-            if (i == cf->cursor && ad < 0.2f && launch < 0.5f)
+        int first = (int)floorf(S.pos) - 6, last = (int)ceilf(S.pos) + 6;
+        /* far to near, so the selected cover is drawn last */
+        for (int ring = 6; ring >= 0; --ring)
+            for (int side = -1; side <= 1; side += 2)
             {
-                float g = (1.0f - ad / 0.2f) * (1.0f - launch * 2.0f);
-                float x0 = s.x[0], x1 = s.x[STRIPS], y0 = s.top[0], y1 = s.bottom[0];
-                draw_glow(x0, y0, x1 - x0, y1 - y0, 36.0f, argb_alpha(0xa08fb0ffu, g));
-                draw_glow(x0, y0, x1 - x0, y1 - y0, 4.0f, argb_alpha(0xffffffffu, g));
+                int k = (int)floorf(S.pos + 0.5f) + ring * side;
+                if (ring == 0 && side == 1)
+                    continue;
+                if (k < first || k > last || k < 0 || k >= S.view_count)
+                    continue;
+                float d = k - S.pos, ad = fabsf(d), near = ad < 1.0f ? ad : 1.0f;
+                float ox = ad < 1.0f ? d * SIDE_GAP
+                                     : (d > 0 ? 1.0f : -1.0f) * (SIDE_GAP + (ad - 1.0f) * STACK_GAP);
+                float scale = 1.0f - near * (1.0f - SIDE_SCALE);
+                float squeeze = 1.0f - near * (1.0f - SIDE_SQUEEZE);
+                bool selected = k == S.cursor;
+                if (selected)
+                    scale *= 1.0f + launch * 0.12f;
+                float fade = ad > 4.0f ? fmaxf(0.0f, 1.0f - (ad - 4.0f) / 2.0f) : 1.0f;
+                float shade = (1.0f - near * 0.4f) * fade * (selected ? 1.0f : 1.0f - launch);
+                uint8_t s8 = (uint8_t)(255 * shade);
+                uint32_t tint = 0xff000000u | (uint32_t)s8 << 16 | (uint32_t)s8 << 8 | s8;
+                int index = S.view[k];
+                draw_cover(covers_get(index), &app.library.games[index], CENTER_X + ox, CENTER_Y,
+                           COVER_H * scale, squeeze, tint, selected && ad < 0.25f && launch < 0.5f);
             }
-            if (tex)
-                draw_shape(tex, &s, tint, ad < 1.5f ? 0.30f * (1.0f - launch) : 0.0f, fabsf(yaw) < 0.02f);
-            else
-                draw_shape(NULL, &s, 0xff1d2348u, 0.0f, false); /* still loading */
-        }
-
-        const Game *g = &lib->games[cf->cursor];
-        float text_a = 1.0f - launch;
-        text_draw_fit(CENTER_X, 870, 56, FONT_BOLD, argb_alpha(0xffffffffu, text_a), ALIGN_CENTER,
-                      1600, g->title);
-        char meta[160], discs[48];
-        snprintf(discs, sizeof(discs), tr(g->discs == 1 ? "%d disc" : "%d discs"), g->discs);
-        snprintf(meta, sizeof(meta), "%s  \xc2\xb7  %s  \xc2\xb7  %s",
-                 g->serial[0] ? g->serial : tr("No serial"), region_name(g->serial), discs);
-        text_draw(CENTER_X, 944, 26, FONT_REGULAR, argb_alpha(0xffc9d2ffu, text_a), ALIGN_CENTER,
-                  meta);
-        draw_details(g, cf->details_t);
+        float text_a = (1.0f - launch) * (1.0f - S.title_fade / 0.35f * 0.8f);
+        draw_info(&app.library.games[game], text_a);
+        draw_details(&app.library.games[game], S.details_t);
     }
     else
     {
-        text_draw(CENTER_X, 400, 48, FONT_BOLD, 0xffffffffu, ALIGN_CENTER, tr("Your shelf is empty"));
-        text_draw(CENTER_X, 480, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
+        float w = 1200, h = 240, x = CENTER_X - w * 0.5f, y = 340;
+        draw_rrect(x, y, w, h, TH_RADIUS, TH_CARD_SOFT);
+        icon_draw(ICON_DISC, CENTER_X - 32, y + 30, 64, TH_FOCUS);
+        text_draw(CENTER_X, y + 108, 36, FONT_BOLD, TH_TEXT, ALIGN_CENTER, tr("Your shelf is empty"));
+        text_draw(CENTER_X, y + 166, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
                   tr("On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>"));
-        text_draw(CENTER_X, 524, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
-                  tr("Then choose Settings > Rescan library."));
     }
 
-    /* ------------------------------------------------ chrome */
-    text_draw(64, 44, 44, FONT_BOLD, 0xffffffffu, ALIGN_LEFT, PSXS5_NAME);
-    char sub[96], games[48];
-    snprintf(games, sizeof(games), tr(count == 1 ? "%d game" : "%d games"), count);
-    snprintf(sub, sizeof(sub), "%s  \xc2\xb7  v" PSXS5_VERSION, games);
-    text_draw(66, 102, 22, FONT_REGULAR, 0xffc9d2ffu, ALIGN_LEFT, sub);
+    draw_header();
     int pending = covers_downloading();
     if (pending > 0)
     {
         char dl[64];
         snprintf(dl, sizeof(dl), tr("Getting covers (%d)"), pending);
-        text_draw(plat_width() - 64, 56, 22, FONT_REGULAR, 0xffc9d2ffu, ALIGN_RIGHT, dl);
+        text_draw(plat_width() - TH_MARGIN, 104, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_RIGHT, dl);
     }
-    if (notice && *notice)
-        text_draw(plat_width() - 64, 96, 22, FONT_REGULAR, 0xffffd28au, ALIGN_RIGHT, notice);
+    static const int glyphs[] = {GLYPH_CROSS, GLYPH_TRIANGLE, GLYPH_SQUARE, GLYPH_R3};
+    static const char *const labels[] = {"Play", "Details", "Settings", "Favorite"};
+    char right[128];
+    snprintf(right, sizeof(right), "%s   \xc2\xb7   %s: %s", tr("L1 / R1  Category"), tr("OPTIONS  Sort"),
+             shelf_sort_name(app.global.sort_mode));
+    app_draw_hints(glyphs, labels, S.view_count ? 4 : 1, S.view_count ? right : NULL);
 
-    float hx = 64, hy = 1008;
-    hx += draw_hint(hx, hy, GLYPH_CROSS, "Play", 26, 0xffdfe5ffu);
-    hx += draw_hint(hx, hy, GLYPH_TRIANGLE, cf->details ? "Hide details" : "Details", 26, 0xffdfe5ffu);
-    hx += draw_hint(hx, hy, GLYPH_SQUARE, "Settings", 26, 0xffdfe5ffu);
-    text_draw(hx, hy, 26, FONT_REGULAR, 0xffdfe5ffu, ALIGN_LEFT, tr("L1 / R1  Jump"));
+    /* the continue dialog */
+    S.dialog_t = fminf(fmaxf(S.dialog_t + (S.dialog ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);
+    if (S.dialog_t > 0.0f && game >= 0)
+    {
+        float t = S.dialog_t, e = 1.0f - (1.0f - t) * (1.0f - t);
+        draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xc0000000u, t));
+        const float w = 1000, h = 420, x = CENTER_X - w * 0.5f, y = 330 + (1.0f - e) * 40;
+        draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xff151a3du, t));
+        text_draw_fit(x + 40, y + 30, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80,
+                      app.library.games[game].title);
+        const char *labels[2] = {tr("Continue"), tr("Start over")};
+        char age[64], ago[48];
+        long a = S.resume_age;
+        if (a < 120)
+            str_copy(ago, sizeof(ago), "");
+        else if (a < 3600)
+            snprintf(ago, sizeof(ago), tr("%ld min ago"), a / 60);
+        else if (a < 86400)
+            snprintf(ago, sizeof(ago), tr("%ld h ago"), a / 3600);
+        else
+            snprintf(ago, sizeof(ago), tr("%ld days ago"), a / 86400);
+        if (ago[0])
+            snprintf(age, sizeof(age), tr("Saved %s"), ago);
+        else
+            str_copy(age, sizeof(age), tr("Saved just now"));
+        for (int i = 0; i < 2; ++i)
+        {
+            float bx = x + 40 + i * (w - 80) * 0.5f, bw = (w - 80) * 0.5f - 12, by = y + 100, bh = 280;
+            bool on = i == S.dialog_choice;
+            draw_rrect(bx, by, bw, bh, TH_RADIUS_SMALL, argb_alpha(on ? TH_ROW_SELECTED : 0xff1c2250u, t));
+            if (on)
+                draw_rrect_outline(bx, by, bw, bh, TH_RADIUS_SMALL, 3, argb_alpha(TH_FOCUS, t));
+            if (i == 0 && S.resume_thumb)
+                plat_draw_texture(S.resume_thumb, bx + (bw - 256) * 0.5f, by + 24, 256, 192,
+                                  argb_alpha(0xffffffffu, t), false);
+            else
+                icon_draw(i == 0 ? ICON_PLAYER_PLAY : ICON_REFRESH, bx + bw * 0.5f - 48, by + 70, 96,
+                          argb_alpha(TH_FOCUS, t));
+            text_draw(bx + bw * 0.5f, by + 226, 28, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_CENTER,
+                      labels[i]);
+            if (i == 0)
+                text_draw(bx + bw * 0.5f, by + bh + 14, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t),
+                          ALIGN_CENTER, age);
+        }
+    }
 
-    if (cf->launch_t > 0.0f)
-        draw_rect(0, 0, (float)plat_width(), (float)plat_height(),
-                  argb_alpha(0xff000000u, cf->launch_t / LAUNCH_TIME));
-    return action;
+    if (S.launch_t > 0.0f)
+        draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, launch));
+    app_draw_toast();
 }

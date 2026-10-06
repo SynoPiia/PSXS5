@@ -1,5 +1,5 @@
 /*
- * PSXS5 - the coverflow game library.
+ * PSXS5 - the game shelf (home screen).
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #ifndef PSXS5_COVERFLOW_H
@@ -7,27 +7,32 @@
 
 #include "../library.h"
 
-typedef enum
+enum ShelfCategory
 {
-    CF_NONE,
-    CF_PLAY,     /* launch animation finished: start library->games[cursor] */
-    CF_SETTINGS,
-} CoverflowAction;
+    CAT_ALL,
+    CAT_RECENT,
+    CAT_FAVORITES,
+    CAT_MULTI_DISC,
+    CAT_USA,
+    CAT_EUROPE,
+    CAT_JAPAN,
+    CAT_COUNT
+};
 
-typedef struct
+enum SortMode
 {
-    int cursor;
-    float pos;       /* animated shelf position, eases towards cursor */
-    bool details;    /* Triangle: info panel */
-    float launch_t;  /* > 0 while the launch animation runs */
-    float details_t; /* panel slide 0..1 */
-} Coverflow;
+    SORT_TITLE,
+    SORT_RECENT,
+    SORT_MOST_PLAYED,
+    SORT_REGION,
+    SORT_COUNT
+};
 
-void coverflow_init(Coverflow *cf, int cursor);
-/* Handles input and draws one frame (between plat_begin_frame/plat_end_frame). */
-CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pressed, float dt,
-                                const char *notice);
-/* Shared backdrop for the other screens. */
-void coverflow_backdrop(void);
+/* The shelf's backdrop (also behind settings): a gradient tinted with the
+ * selected game's cover colour. */
+void shelf_backdrop(void);
+/* Region name from a serial's prefix ("USA", "Europe", "Japan"), translated. */
+const char *shelf_region_name(const char *serial);
+const char *shelf_sort_name(int sort);
 
 #endif

@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 #define PSXS5_NAME "PSXS5"
-#define PSXS5_VERSION "1.0.0"
+#define PSXS5_VERSION "1.2.0"
 #define PSXS5_PATH_MAX 512
 
 /* Pad bits use RetroPad numbering so the host can hand the mask to the core
@@ -39,7 +39,7 @@ enum
     BTN_MENU = 16, /* touchpad click: opens the PSXS5 in-game menu */
 };
 #define BIT(b) (1u << (b))
-#define PSXS5_MAX_PADS 2
+#define PSXS5_MAX_PADS 4 /* 3 and 4 play through a multitap */
 
 typedef struct
 {
@@ -97,6 +97,22 @@ typedef struct
     int ui_volume;    /* 0..3 = 25/50/75/100 % */
     int stick_dpad;   /* enum StickDpad */
     int language;     /* enum Lang in i18n.h */
+    bool rumble;          /* controller vibration */
+    int rumble_strength;  /* 0..3 = 25/50/75/100 % */
+    /* Button mapping: for each controller button (BTN_CROSS..BTN_R3), the PS1
+     * button it presses (BTN_*), or -1 for nothing. */
+    int8_t button_map[16];
+    int sort_mode;        /* shelf order, enum SortMode in ui/coverflow.h */
+    int shelf_category;   /* shelf filter, enum ShelfCategory in ui/coverflow.h */
+    int background;       /* 0 dark, 1 the selected cover's colour */
+    bool widescreen;      /* turn on the game's widescreen code, show 16:9 */
+    bool multitap;        /* 4 players through a multitap in port 1 */
+    bool rewind;          /* keep the last seconds for rewinding */
+    bool quick_resume;    /* save on quitting, offer Continue on the shelf */
+    int crt;              /* scanlines: 0 off, 1 light, 2 strong */
+    int border;           /* around the picture: 0 black, 1 glow, 2 TV frame */
+    bool remote;          /* settings page for phones on the local network */
+    bool update_check;    /* look for new PSXS5 releases at start */
 } Settings;
 
 enum StickDpad
@@ -139,5 +155,8 @@ bool path_is_dir(const char *path);
 bool make_dirs(const char *path);
 const char *path_ext(const char *path);  /* lower-case-insensitive extension without dot, "" if none */
 int str_icmp(const char *a, const char *b);
+/* localtime into *out (the PS5 libc has no localtime_r); false on failure */
+struct tm;
+bool local_time(long long when, struct tm *out);
 
 #endif

@@ -1,0 +1,3 @@
+Copyright (c) Project Nayuki. (MIT License)
+https://www.nayuki.io/page/qr-code-generator-library
+See the license text at the top of qrcodegen.c and qrcodegen.h.

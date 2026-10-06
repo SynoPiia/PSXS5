@@ -1,0 +1,18 @@
+wait 40
+press square
+wait 20
+press r1
+press r1
+press r1
+press r1
+press r1
+wait 10
+press down
+press down
+press down
+press down
+wait 10
+press cross
+wait 30
+shot h03-memcards
+quit

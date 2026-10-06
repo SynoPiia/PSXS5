@@ -266,6 +266,11 @@ static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
     }
 }
 
+static void RC_CCONV hash_error(const char *message)
+{
+    psxs5_log("ra: disc hash: %s", message);
+}
+
 static void RC_CCONV log_message(const char *message, const rc_client_t *c)
 {
     (void)c;
@@ -354,6 +359,7 @@ void ra_init(const Paths *p)
     static rc_hash_cdreader_t reader = {cd_open_track, cd_read_sector, cd_close_track,
                                         cd_first_track_sector, NULL};
     rc_hash_init_custom_cdreader(&reader);
+    rc_hash_init_error_message_callback(hash_error);
 
     worker = SDL_CreateThread(worker_main, "retroachievements", NULL);
     rc_client_begin_login_with_token(client, user, token, on_login, NULL);
@@ -474,4 +480,54 @@ void ra_game_summary(char *out, size_t size)
     if (s.num_core_achievements)
         snprintf(out, size, "%u of %u achievements, %u of %u points", s.num_unlocked_achievements,
                  s.num_core_achievements, s.points_unlocked, s.points_core);
+}
+
+unsigned ra_user_score(void)
+{
+    if (!client || !signed_in)
+        return 0;
+    const rc_client_user_t *u = rc_client_get_user_info(client);
+    return u ? (hardcore ? u->score : u->score_softcore) : 0;
+}
+
+bool ra_game_progress(int *unlocked, int *total)
+{
+    if (!client || !rc_client_get_game_info(client))
+        return false;
+    rc_client_user_game_summary_t s;
+    rc_client_get_user_game_summary(client, &s);
+    if (!s.num_core_achievements)
+        return false;
+    *unlocked = (int)s.num_unlocked_achievements;
+    *total = (int)s.num_core_achievements;
+    return true;
+}
+
+int ra_list(RaAchievement *out, int max)
+{
+    if (!client || !rc_client_get_game_info(client))
+        return 0;
+    rc_client_achievement_list_t *list = rc_client_create_achievement_list(
+        client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE, RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_LOCK_STATE);
+    if (!list)
+        return 0;
+    int n = 0;
+    for (uint32_t b = 0; b < list->num_buckets; ++b)
+        for (uint32_t i = 0; i < list->buckets[b].num_achievements && n < max; ++i)
+        {
+            const rc_client_achievement_t *a = list->buckets[b].achievements[i];
+            RaAchievement *r = &out[n++];
+            str_copy(r->title, sizeof(r->title), a->title ? a->title : "");
+            str_copy(r->description, sizeof(r->description), a->description ? a->description : "");
+            str_copy(r->progress, sizeof(r->progress), a->measured_progress);
+            r->points = a->points;
+            r->unlocked = a->unlocked != 0;
+            r->id = a->id;
+            r->badge_url[0] = '\0';
+            rc_client_achievement_get_image_url(a, a->unlocked ? RC_CLIENT_ACHIEVEMENT_STATE_UNLOCKED
+                                                               : RC_CLIENT_ACHIEVEMENT_STATE_ACTIVE,
+                                                r->badge_url, sizeof(r->badge_url));
+        }
+    rc_client_destroy_achievement_list(list);
+    return n;
 }

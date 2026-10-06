@@ -1,0 +1,11 @@
+wait 40
+press cross
+wait 20
+press right
+press cross
+wait 60
+shot h01-crt-tv
+hold menu 40
+wait 10
+press circle
+quit

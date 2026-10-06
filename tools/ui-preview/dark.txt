@@ -1,0 +1,8 @@
+wait 90
+shot dark-01-shelf
+press right
+press right
+press right
+wait 60
+shot dark-02-shelf
+quit

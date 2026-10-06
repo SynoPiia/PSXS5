@@ -44,6 +44,8 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
                       int upscale, int filter);
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim);
 void plat_fill_rect(int x, int y, int w, int h, uint32_t argb);
+/* Where plat_draw_game last put the picture (for borders around it). */
+void plat_game_rect(int *x, int *y, int *w, int *h);
 void plat_end_frame(void);
 
 /* Textures and textured triangle meshes: the UI (covers in perspective,
@@ -66,6 +68,14 @@ void plat_draw_mesh(PlatTexture *texture, const PlatVertex *vertices, int vertex
  * than a mesh with the software renderer the PS5 build uses. */
 void plat_draw_texture(PlatTexture *texture, float x, float y, float w, float h, uint32_t tint,
                        bool blend);
+/* Part of a texture (sx, sy, sw, sh in texels) into a rectangle, blended and
+ * tinted: glyphs, icons and rounded corners. Takes the renderer's blit path. */
+void plat_draw_texture_region(PlatTexture *texture, int sx, int sy, int sw, int sh, float x,
+                              float y, float w, float h, uint32_t tint);
+/* A blended solid rectangle (the fill path, not triangles). */
+void plat_fill_rectf(float x, float y, float w, float h, uint32_t argb);
+/* Clip drawing to a rectangle (w <= 0 turns clipping off). */
+void plat_set_clip(int x, int y, int w, int h);
 /* Full-screen-relative path to packaged read-only assets (/app0/assets on PS5). */
 void plat_asset_path(char *out, size_t size, const char *relative);
 

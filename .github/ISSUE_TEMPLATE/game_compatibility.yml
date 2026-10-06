@@ -1,0 +1,41 @@
+name: Game compatibility
+description: Tell us how a game runs (works fine, has issues, or doesn't start)
+labels: [compatibility]
+body:
+  - type: input
+    id: game
+    attributes:
+      label: Game and serial
+      placeholder: Crash Bandicoot (SCUS-94900)
+    validations:
+      required: true
+  - type: dropdown
+    id: status
+    attributes:
+      label: How does it run?
+      options:
+        - Playable (no problems that get in the way)
+        - Issues (graphics, sound, slowdowns, a crash somewhere)
+        - Crashes (early, can't really be played)
+        - Won't start
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: How far you played, what goes wrong, settings that help (for example "Native resolution fixes the menus").
+  - type: input
+    id: version
+    attributes:
+      label: PSXS5 version
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: bios
+    attributes:
+      label: BIOS
+      options:
+        - Built-in HLE
+        - My own BIOS dump

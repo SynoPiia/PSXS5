@@ -1,0 +1,5 @@
+wait 60
+press square
+wait 30
+shot fr-02-settings
+quit
