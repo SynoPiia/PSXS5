@@ -17,6 +17,7 @@
 #include "ui/sfx.h"
 #include "ui/text.h"
 #include "platform/ps5_crash.h"
+#include "ra/achievements.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -184,6 +185,26 @@ static void draw_title(const char *title, const char *subtitle)
         text_draw_fit(66, 102, 22, FONT_REGULAR, COL_DIM, ALIGN_LEFT, 1200, subtitle);
 }
 
+/* RetroAchievements banner: top right, one message at a time */
+static void draw_achievement(void)
+{
+    static char title[96], detail[192];
+    static uint64_t until;
+    uint64_t now = plat_ticks_us();
+    if (now > until)
+    {
+        if (!ra_next_message(title, sizeof(title), detail, sizeof(detail)))
+            return;
+        until = now + 4500000;
+        sfx_play(SFX_SELECT);
+    }
+    const float w = 640, h = 112, x = plat_width() - w - 40, y = 40;
+    draw_rect(x, y, w, h, 0xe0181c28u);
+    draw_rect(x, y, 8, h, 0xffffc94au);
+    text_draw_fit(x + 32, y + 18, 28, FONT_BOLD, COL_TEXT, ALIGN_LEFT, w - 56, title);
+    text_draw_fit(x + 32, y + 62, 22, FONT_REGULAR, COL_DIM, ALIGN_LEFT, w - 56, detail);
+}
+
 static void draw_hints3(enum PadGlyph g1, const char *l1, enum PadGlyph g2, const char *l2,
                         const char *extra)
 {
@@ -225,7 +246,10 @@ static void start_game(int index)
     config_save(&settings, paths.config);
     plat_audio_open(host_sample_rate());
     plat_audio_clear();
-    if (cheats_load(&cheats, g, paths.cheats))
+    ra_game_loaded();
+    if (ra_hardcore())
+        cheats_clear(&cheats); /* hardcore: no cheats */
+    else if (cheats_load(&cheats, g, paths.cheats))
     {
         cheats_apply(&cheats);
         int on = 0;
@@ -243,6 +267,7 @@ static void start_game(int index)
 
 static void stop_game(void)
 {
+    ra_game_unloaded();
     host_unload();
     plat_audio_open(UI_RATE);
     plat_audio_clear();
@@ -352,7 +377,9 @@ static void menu_screen(uint32_t pressed)
             show_toast(msg);
             break;
         case MI_LOAD:
-            if (host_load_state(st))
+            if (ra_hardcore())
+                snprintf(msg, sizeof(msg), "Not allowed in hardcore mode");
+            else if (host_load_state(st))
             {
                 snprintf(msg, sizeof(msg), "Loaded slot %d", settings.state_slot);
                 screen = SCREEN_GAME;
@@ -372,11 +399,17 @@ static void menu_screen(uint32_t pressed)
             show_toast(msg);
             break;
         case MI_CHEATS:
+            if (ra_hardcore())
+            {
+                show_toast("Cheats are off in hardcore mode");
+                break;
+            }
             cheat_cursor = cheat_scroll = 0;
             screen = SCREEN_CHEATS;
             return;
         case MI_RESET:
             host_reset();
+            ra_reset();
             show_toast("Console reset");
             screen = SCREEN_GAME;
             break;
@@ -415,7 +448,9 @@ static void menu_screen(uint32_t pressed)
         case MI_SAVE: str_copy(label, sizeof(label), "Save state"); break;
         case MI_LOAD:
             str_copy(label, sizeof(label), "Load state");
-            if (!path_exists(st))
+            if (ra_hardcore())
+                str_copy(value, sizeof(value), "hardcore");
+            else if (!path_exists(st))
                 str_copy(value, sizeof(value), "empty");
             break;
         case MI_SLOT:
@@ -428,7 +463,10 @@ static void menu_screen(uint32_t pressed)
             break;
         case MI_CHEATS:
             str_copy(label, sizeof(label), "Cheats");
-            snprintf(value, sizeof(value), "%d", cheats.count);
+            if (ra_hardcore())
+                str_copy(value, sizeof(value), "hardcore");
+            else
+                snprintf(value, sizeof(value), "%d", cheats.count);
             break;
         case MI_RESET: str_copy(label, sizeof(label), "Reset"); break;
         case MI_SETTINGS: str_copy(label, sizeof(label), "Settings"); break;
@@ -479,6 +517,7 @@ static const char *const COVER_STYLES[] = {"Flat", "3D box"};
 static const char *const SOUND_STYLES[] = {"Soft", "Wood", "Pop", "Chime", "Classic", "Off"};
 static const char *const VOLUMES[] = {"25%", "50%", "75%", "100%"};
 static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
+static bool hardcore_setting;
 
 static int build_rows(Row *rows)
 {
@@ -502,6 +541,16 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_CHOICE, "Fast CD loading", 0, &settings.cd_fast, OFF_ON, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Unlock /data with etaHEN", 0, &unlock_setting, OFF_ON, 2, 0,
                       "next launch"};
+    rows[n++] = (Row){ROW_SECTION, "RetroAchievements", 0, 0, 0, 0, 0, 0};
+    static char account[96];
+    if (ra_user()[0])
+        snprintf(account, sizeof(account), "%s%s", ra_user(), ra_signed_in() ? "" : " (not signed in)");
+    else
+        str_copy(account, sizeof(account), "set up with psxs5_sync.py ra-login");
+    hardcore_setting = ra_hardcore();
+    rows[n++] = (Row){ROW_ACTION, "Account", 0, 0, 0, 0, 0, account};
+    rows[n++] = (Row){ROW_CHOICE, "Hardcore mode", 0, &hardcore_setting, OFF_ON, 2, 0,
+                      "no states or cheats"};
     rows[n++] = (Row){ROW_SECTION, "Library", 0, 0, 0, 0, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Cover art", &settings.cover_style, 0, COVER_STYLES, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Download missing covers", 0, &settings.cover_download, OFF_ON, 2, 0, 0};
@@ -546,6 +595,17 @@ static void settings_screen(uint32_t pressed)
             host_apply_settings(&settings);
         if (r->flag == &unlock_setting)
             plat_set_unlock_disabled(!unlock_setting);
+        if (r->flag == &hardcore_setting)
+        {
+            if (!ra_user()[0])
+                show_toast("Sign in first: psxs5_sync.py ra-login");
+            else
+            {
+                ra_set_hardcore(hardcore_setting); /* turning it on restarts the game */
+                if (hardcore_setting)
+                    cheats_clear(&cheats);
+            }
+        }
         sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
         sfx_play(SFX_CLICK); /* also previews the chosen sound */
     }
@@ -774,7 +834,10 @@ static void game_screen(PadState *pads, uint32_t pressed)
     static int emu_frames;
     uint64_t emu_start = plat_ticks_us();
     for (int i = 0; i < runs; ++i)
+    {
         host_run_frame();
+        ra_frame();
+    }
     emu_us += plat_ticks_us() - emu_start;
     emu_frames += runs;
     if (emu_frames >= 240)
@@ -866,6 +929,8 @@ int main(void)
     plat_audio_open(UI_RATE);
     sfx_init(UI_RATE);
     sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
+    if (!storage_error[0])
+        ra_init(&paths);
     coverflow_init(&shelf, 0);
     if (!storage_error[0])
         rescan();
@@ -896,11 +961,15 @@ int main(void)
         case SCREEN_SETTINGS: settings_screen(pressed); break;
         case SCREEN_CHEATS: cheats_screen(pressed); break;
         }
+        if (screen != SCREEN_GAME)
+            ra_idle();
+        draw_achievement();
         plat_end_frame();
     }
 
     /* Only the desktop build gets here; the PS5 shell closes the title. */
     stop_game();
+    ra_shutdown();
     config_save(&settings, paths.config);
     covers_stop();
     text_shutdown();

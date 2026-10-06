@@ -10,8 +10,10 @@ SHELL := /bin/bash
 APP_DEFINITIONS ?= PSXS5_HAVE_CURL=1
 # PSXS5: the PCSX-ReARMed core is linked as a static libretro archive.
 PSXS5_CORE := build/core-ps5/libpcsx_rearmed.a
-APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check
-APP_STATIC_ARCHIVES ?= $(PSXS5_CORE)
+# RetroAchievements: rcheevos (MIT), built by tools/build-rcheevos.sh.
+PSXS5_RCHEEVOS := build/rcheevos-ps5/librcheevos.a
+APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check third_party/rcheevos/include
+APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS)
 APP_RUNTIME_MODULES ?=
 # fcntl: console_curl. The allocator family: ps5_heap.c (the C heap is too small).
 APP_WRAP_SYMBOLS ?= fcntl malloc free calloc realloc reallocf memalign posix_memalign aligned_alloc malloc_usable_size
@@ -235,9 +237,11 @@ distclean: clean
 # The core is rebuilt by its own Makefile; this only forwards to it.
 core:
 	@bash tools/build-core.sh ps5
+	@bash tools/build-rcheevos.sh ps5
 
 core-desktop:
 	@bash tools/build-core.sh desktop
+	@bash tools/build-rcheevos.sh desktop
 
 # Linux/WSL desktop build of the same frontend, for testing games on a PC.
 desktop: core-desktop

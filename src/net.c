@@ -8,6 +8,8 @@
 #include "net.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(PSXS5_HAVE_CURL)
 #include <curl/curl.h>
@@ -73,6 +75,82 @@ NetResult net_download(const char *url, const char *dest)
     return rc == CURLE_OK ? NET_NOT_FOUND : NET_UNAVAILABLE;
 }
 
+typedef struct
+{
+    char *data;
+    size_t length, capacity;
+} Buffer;
+
+static size_t buffer_cb(void *data, size_t size, size_t count, void *user)
+{
+    Buffer *b = user;
+    size_t n = size * count;
+    if (b->length + n + 1 > b->capacity)
+    {
+        size_t cap = (b->length + n + 1) * 2;
+        char *grown = realloc(b->data, cap);
+        if (!grown)
+            return 0;
+        b->data = grown;
+        b->capacity = cap;
+    }
+    memcpy(b->data + b->length, data, n);
+    b->length += n;
+    b->data[b->length] = '\0';
+    return n;
+}
+
+int net_request(const char *url, const char *post_data, const char *content_type,
+                const char *user_agent, char **body, size_t *body_length)
+{
+    *body = NULL;
+    *body_length = 0;
+    if (!net_available())
+        return -1;
+    CURL *easy = curl_easy_init();
+    if (!easy)
+        return -1;
+#if defined(__PROSPERO__)
+    console_curl_setup(easy);
+#else
+    curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
+#endif
+    Buffer b = {0};
+    struct curl_slist *headers = NULL;
+    curl_easy_setopt(easy, CURLOPT_URL, url);
+    curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(easy, CURLOPT_CONNECTTIMEOUT, 8L);
+    curl_easy_setopt(easy, CURLOPT_TIMEOUT, 30L);
+    curl_easy_setopt(easy, CURLOPT_USERAGENT, user_agent ? user_agent : PSXS5_NAME "/" PSXS5_VERSION);
+    curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, buffer_cb);
+    curl_easy_setopt(easy, CURLOPT_WRITEDATA, &b);
+    if (post_data)
+    {
+        curl_easy_setopt(easy, CURLOPT_POSTFIELDS, post_data);
+        if (content_type)
+        {
+            char header[160];
+            snprintf(header, sizeof(header), "Content-Type: %s", content_type);
+            headers = curl_slist_append(headers, header);
+            curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
+        }
+    }
+    CURLcode rc = curl_easy_perform(easy);
+    long status = 0;
+    curl_easy_getinfo(easy, CURLINFO_RESPONSE_CODE, &status);
+    curl_easy_cleanup(easy);
+    curl_slist_free_all(headers);
+    if (rc != CURLE_OK)
+    {
+        psxs5_log("net: %s -> curl %d", url, (int)rc);
+        free(b.data);
+        return -1;
+    }
+    *body = b.data;
+    *body_length = b.length;
+    return (int)status;
+}
+
 #else
 
 bool net_available(void)
@@ -85,6 +163,18 @@ NetResult net_download(const char *url, const char *dest)
     (void)url;
     (void)dest;
     return NET_UNAVAILABLE;
+}
+
+int net_request(const char *url, const char *post_data, const char *content_type,
+                const char *user_agent, char **body, size_t *body_length)
+{
+    (void)url;
+    (void)post_data;
+    (void)content_type;
+    (void)user_agent;
+    *body = NULL;
+    *body_length = 0;
+    return -1;
 }
 
 #endif

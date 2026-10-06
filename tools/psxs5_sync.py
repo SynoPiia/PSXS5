@@ -9,6 +9,7 @@ psxs5_sync.py - get your PS1 games onto PSXS5.
   python tools/psxs5_sync.py upload  --staging E:\\PSXS5_ready --host 192.168.1.50
   python tools/psxs5_sync.py cheats  --host 192.168.1.50      (libretro .cht library)
   python tools/psxs5_sync.py bios    scph5501.bin --host 192.168.1.50
+  python tools/psxs5_sync.py ra-login --host 192.168.1.50    (RetroAchievements)
 
 prepare builds one clean folder per game:
   * already-extracted .cue/.bin, .chd, .pbp are used as-is (hardlinked, no copy)
@@ -578,9 +579,45 @@ def fetch_cheats(dest: Path) -> Path:
 
 # --------------------------------------------------------------------- main
 
+# --------------------------------------------------------------------- RetroAchievements
+
+def ra_login(host: str, port: int, user: str | None, hardcore: bool) -> None:
+    """Exchanges the password for a login token once, on this PC. Only the
+    token goes to the PS5; the password is never written anywhere."""
+    import getpass
+    import json
+    import urllib.parse
+    user = user or input("RetroAchievements user name: ").strip()
+    password = getpass.getpass("RetroAchievements password (not stored): ")
+    data = urllib.parse.urlencode({"r": "login2", "u": user, "p": password}).encode()
+    del password
+    req = urllib.request.Request("https://retroachievements.org/dorequest.php", data=data,
+                                 headers={"User-Agent": "PSXS5-sync/0.1"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            reply = json.load(r)
+    except urllib.error.HTTPError as e:
+        reply = json.load(e) if e.headers.get_content_type() == "application/json" else {}
+    if not reply.get("Success") or not reply.get("Token"):
+        sys.exit(f"sign-in failed: {reply.get('Error') or 'unknown error'}")
+    tmp = Path(tempfile.mkdtemp())
+    try:
+        (tmp / "retroachievements.ini").write_text(
+            "# RetroAchievements sign-in (token only, never the password)\n"
+            f"user={reply.get('User') or user}\ntoken={reply['Token']}\nhardcore={int(hardcore)}\n",
+            encoding="utf-8", newline="\n")
+        upload_tree(tmp, REMOTE_ROOT, host, port, force=True)
+    finally:
+        shutil.rmtree(tmp)
+    print(f"Signed in as {reply.get('User') or user}. Restart PSXS5 to use it.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app"])
+    ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app",
+                                        "ra-login"])
+    ap.add_argument("--user", help="ra-login: RetroAchievements user name")
+    ap.add_argument("--hardcore", action="store_true", help="ra-login: start in hardcore mode")
     ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA97510",
                     help="app: the built title folder to install")
     ap.add_argument("--all", action="store_true", help="covers: the whole database, not just your games")
@@ -640,6 +677,9 @@ def main() -> None:
 
     if not args.host:
         sys.exit("--host is required (your PS5's IP address)")
+    if args.command == "ra-login":
+        ra_login(args.host, args.port, args.user, args.hardcore)
+        return
     if args.command == "app":
         if not (args.app_dir / "eboot.bin").exists():
             sys.exit(f"no eboot.bin in {args.app_dir}; download the build first")
