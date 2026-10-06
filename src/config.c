@@ -97,6 +97,8 @@ static bool config_apply(Settings *s, const char *path)
             s->rumble_strength = atoi(value) % 4;
         else if (strcmp(key, "sort_mode") == 0)
             s->sort_mode = atoi(value) % 8;
+        else if (strcmp(key, "background") == 0)
+            s->background = atoi(value) % 2;
         else if (strcmp(key, "shelf_category") == 0)
             s->shelf_category = atoi(value) % 16;
         else if (strcmp(key, "button_map") == 0)
@@ -135,6 +137,7 @@ bool config_load_game(Settings *out, const Settings *global, const char *path)
     out->language = global->language;
     out->sort_mode = global->sort_mode;
     out->shelf_category = global->shelf_category;
+    out->background = global->background;
     return true;
 }
 
@@ -151,12 +154,12 @@ bool config_save(const Settings *s, const char *path)
             "dithering=%d\ncd_fast=%d\nanalog=%d\nstate_slot=%d\nlast_game=%d\n"
             "cover_style=%d\ncover_download=%d\nui_sound=%d\nui_volume=%d\n"
             "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\nlanguage=%d\n"
-            "rumble=%d\nrumble_strength=%d\nsort_mode=%d\nshelf_category=%d\n",
+            "rumble=%d\nrumble_strength=%d\nsort_mode=%d\nshelf_category=%d\nbackground=%d\n",
             s->aspect, s->smooth, s->show_fps, s->region, s->force_hle, s->dithering,
             s->cd_fast, s->analog, s->state_slot, s->last_game, s->cover_style,
             s->cover_download, s->ui_sound, s->ui_volume, s->integer_scale, s->internal_res, s->upscale,
             s->upscale_filter, s->stick_dpad, s->language, s->rumble, s->rumble_strength,
-            s->sort_mode, s->shelf_category);
+            s->sort_mode, s->shelf_category, s->background);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

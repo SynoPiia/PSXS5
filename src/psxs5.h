@@ -104,6 +104,7 @@ typedef struct
     int8_t button_map[16];
     int sort_mode;        /* shelf order, enum SortMode in ui/coverflow.h */
     int shelf_category;   /* shelf filter, enum ShelfCategory in ui/coverflow.h */
+    int background;       /* 0 dark, 1 the selected cover's colour */
 } Settings;
 
 enum StickDpad

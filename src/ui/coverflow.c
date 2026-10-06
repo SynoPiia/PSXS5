@@ -238,17 +238,26 @@ void shelf_backdrop(void)
 
 static void update_tint(int game)
 {
-    /* the theme's blue, pulled towards the cover's own colour */
+    /* Dark: deep navy with a hint of the cover. Cover colour: the theme's blue
+     * pulled most of the way towards the cover's own colour. */
+    bool dark = app.global.background == 0;
     float target[3] = {0x3a / 255.0f, 0x50 / 255.0f, 0xc8 / 255.0f};
+    if (dark)
+    {
+        target[0] = 0x1c / 255.0f;
+        target[1] = 0x24 / 255.0f;
+        target[2] = 0x5e / 255.0f;
+    }
     uint32_t c = game >= 0 ? covers_color(game) : 0;
     if (c)
     {
         float cover[3] = {((c >> 16) & 0xff) / 255.0f, ((c >> 8) & 0xff) / 255.0f, (c & 0xff) / 255.0f};
         float m = fmaxf(cover[0], fmaxf(cover[1], cover[2]));
+        float mix = dark ? 0.22f : 0.55f, level = dark ? 0.32f : 0.8f;
         for (int i = 0; i < 3; ++i)
         {
-            float v = m > 0.05f ? cover[i] / m * 0.8f : 0.5f; /* keep it bright enough */
-            target[i] = target[i] * 0.45f + v * 0.55f;
+            float v = m > 0.05f ? cover[i] / m * level : level * 0.6f; /* keep it bright enough */
+            target[i] = target[i] * (1.0f - mix) + v * mix;
         }
     }
     for (int i = 0; i < 3; ++i)

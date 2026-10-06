@@ -88,6 +88,7 @@ static const char *const COVER_STYLES[] = {"Flat", "3D box"};
 static const char *const SOUND_STYLES[] = {"Soft", "Wood", "Pop", "Chime", "Classic", "Off"};
 static const char *const VOLUMES[] = {"25%", "50%", "75%", "100%"};
 static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
+static const char *const BACKGROUNDS[] = {"Dark", "Cover colour"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
 static const Row DISPLAY[] = {
@@ -144,6 +145,8 @@ static const Row LIBRARY[] = {
      INT_FIELD(cover_style), COVER_STYLES, 2, 0},
     {NULL, "Download missing covers", "Fetches covers for new games over the internet.", K_TOGGLE,
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(cover_download), OFF_ON, 2, 0},
+    {NULL, "Background", "Dark keeps the screen deep navy; Cover colour tints it with the selected game.",
+     K_CHOICE, APPLY_NOW, SP_NONE, true, INT_FIELD(background), BACKGROUNDS, 2, 0},
     {NULL, "Sort by", "The order of games on the shelf (OPTIONS on the shelf changes it too).", K_CHOICE,
      APPLY_NOW, SP_NONE, true, INT_FIELD(sort_mode), SORTS, 4, 0},
     {"Games", "Rescan library", "Looks for games added to /data/PSXS5/games or a USB drive.", K_ACTION,
