@@ -226,36 +226,25 @@ make desktop    # optional PC test build (needs libsdl2-dev libcurl4-openssl-dev
 
 ## Credits
 
-PSXS5 stands on the work of many people. Thank you all.
+PSXS5 is built on the work of a lot of people. Thank you all.
 
-**Emulation and libraries**
-- [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed): notaz, the PCSX / PCSX-Reloaded teams and the libretro contributors. The emulator core.
-- [rcheevos](https://github.com/RetroAchievements/rcheevos) and [RetroAchievements.org](https://retroachievements.org): the RetroAchievements team, and the community that builds the achievement sets.
-- [libretro](https://www.libretro.com/) / [libretro-common](https://github.com/libretro/libretro-common): the core API and helpers.
-- [libretro-database](https://github.com/libretro/libretro-database): the PlayStation cheat library, gathered by its contributors.
-- [SDL2](https://www.libsdl.org/): Sam Lantinga and the SDL contributors.
-- [curl / libcurl](https://curl.se/): Daniel Stenberg and contributors.
-- [stb](https://github.com/nothings/stb): Sean Barrett (image decoding and font rendering).
-- [Inter](https://github.com/rsms/inter): Rasmus Andersson (the interface font).
-- [dlmalloc](https://gee.cs.oswego.edu/dl/html/malloc.html): Doug Lea.
-- **xBR**: Hyllian, for the upscaling algorithm. **Scale2x / Scale3x**: Andrea Mazzoleni (AdvanceMAME).
-- [xlenore/psx-covers](https://github.com/xlenore/psx-covers): xlenore, for the cover collection.
+* **notaz, the PCSX / PCSX-Reloaded teams and the libretro contributors**, for [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed), which does all the emulating, and for [libretro](https://www.libretro.com/), the interface PSXS5 drives it through.
+* **BlackBearReloaded**, for [ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate), the build pipeline, runtime and deploy tooling that turn PSXS5 into a home-screen app.
+* **John Törnblom**, for the [ps5-payload-dev](https://github.com/ps5-payload-dev) SDK, and PacBrew's SDL2 and libcurl ports.
+* **SvenGDK**, for [SharpProspero](https://github.com/SvenGDK/SharpProspero), whose ELF converter and FSELF writer sign `eboot.bin`.
+* **The etaHEN team**, for [etaHEN](https://github.com/etaHEN/etaHEN): the HEN, its FTP server and ELF loader, and the on-demand jailbreak PSXS5 asks for to reach `/data`. Thanks also to the kstuff authors and maintainers.
+* **drakmor**, for [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus), which puts PSXS5 on the home screen, and **VoidWhisper**, for ShadowMount, which it's based on.
+* **ArkSama / Team PHU and mpereiraesaa**, for [PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon), the fallback sandbox elevation.
+* **[RetroAchievements](https://retroachievements.org)**, for the achievements, the community that makes the sets, and its [rcheevos](https://github.com/RetroAchievements/rcheevos) library.
+* **[xlenore/psx-covers](https://github.com/xlenore/psx-covers)**, for the covers the shelf downloads.
+* **The [libretro-database](https://github.com/libretro/libretro-database) contributors**, for the PlayStation cheat library.
+* **Swordpdf**, for [PS5SX2](https://github.com/Swordpdf/PS5SX2). Its shelf and project page inspired PSXS5's, and studying it and the other PS5 emulator ports showed how a native emulator title runs on the console.
+* **Hyllian**, for the xBR upscaler, and **Andrea Mazzoleni** (AdvanceMAME), for Scale2x / Scale3x.
+* **Sam Lantinga and the SDL contributors** for [SDL2](https://www.libsdl.org/), **Daniel Stenberg** for [curl](https://curl.se/), **Sean Barrett** for [stb](https://github.com/nothings/stb), **Rasmus Andersson** for the [Inter](https://github.com/rsms/inter) font, and **Doug Lea** for [dlmalloc](https://gee.cs.oswego.edu/dl/html/malloc.html).
+* **Microsoft's [DirectXTex](https://github.com/microsoft/DirectXTex)**, **[Pillow](https://python-pillow.org/)** and **[7-Zip](https://www.7-zip.org/)**, for the art pipeline and the PC tool.
+* Developed with the help of [Claude Code](https://claude.com/claude-code).
 
-**The PS5 scene**
-- [ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate): BlackBearReloaded. The FSELF build pipeline, runtime and deploy tooling PSXS5 is built on.
-- [ps5-payload-dev SDK and PacBrew](https://github.com/ps5-payload-dev): John Törnblom and contributors. The SDK, toolchain support and the SDL2 / libcurl ports.
-- [SharpProspero](https://github.com/SvenGDK/SharpProspero): SvenGDK. The ELF converter and FSELF writer.
-- [etaHEN](https://github.com/etaHEN/etaHEN): the etaHEN team. The HEN, FTP server, ELF loader and on-demand jailbreak PSXS5 uses.
-- **kstuff**: its authors and maintainers.
-- [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus): drakmor. It puts homebrew titles on the home screen.
-- [PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon): ArkSama / Team PHU, with mpereiraesaa's fork. The fallback sandbox elevation.
-- [PS5SX2](https://github.com/Swordpdf/PS5SX2): Swordpdf. The PS2 emulator whose shelf and project page inspired PSXS5's own. Studying it and the other PS5 emulator ports also helped work out how a native emulator title runs on the PS5.
-
-**Tools**
-- [Microsoft DirectXTex](https://github.com/microsoft/DirectXTex) (`texconv`) for the home-screen art, [Pillow](https://python-pillow.org/) for generating it, and [7-Zip](https://www.7-zip.org/) for unpacking libraries.
-- Developed with the help of [Claude Code](https://claude.com/claude-code).
-
-Full licence details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Licences for everything above are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Legal
 
