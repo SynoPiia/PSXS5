@@ -333,6 +333,13 @@ bool host_loaded(void)
     return loaded;
 }
 
+int padGetMode(unsigned int index); /* core, added by tools/patches/pcsx_rearmed-padgetmode.patch */
+
+bool host_pad_digital(int port)
+{
+    return loaded && padGetMode((unsigned)port) == 0;
+}
+
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS])
 {
     memcpy(pad_state, pads, sizeof(pad_state));

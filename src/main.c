@@ -475,6 +475,7 @@ static const char *const REGIONS[] = {"Auto", "NTSC (60 Hz)", "PAL (50 Hz)"};
 static const char *const BIOS[] = {"Real BIOS if present", "Built-in HLE"};
 static const char *const PADS[] = {"Digital pad", "DualShock (analog)"};
 static const char *const COVER_STYLES[] = {"Flat", "3D box"};
+static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
 
 static int build_rows(Row *rows)
 {
@@ -493,6 +494,8 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_CHOICE, "Region", &settings.region, 0, REGIONS, REGION_COUNT, 0, "next game"};
     rows[n++] = (Row){ROW_CHOICE, "BIOS", 0, &settings.force_hle, BIOS, 2, 0, "next game"};
     rows[n++] = (Row){ROW_CHOICE, "Controller", 0, &settings.analog, PADS, 2, 0, "next game"};
+    rows[n++] = (Row){ROW_CHOICE, "Left stick as D-pad", &settings.stick_dpad, 0, STICK_MODES,
+                      STICK_DPAD_COUNT, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Fast CD loading", 0, &settings.cd_fast, OFF_ON, 2, 0, 0};
     rows[n++] = (Row){ROW_SECTION, "Library", 0, 0, 0, 0, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Cover art", &settings.cover_style, 0, COVER_STYLES, 2, 0, 0};
@@ -698,7 +701,21 @@ static void game_screen(PadState *pads, uint32_t pressed)
         return;
     }
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
         pads[i].buttons &= ~BIT(BTN_MENU);
+        /* Digital-only games (or digital mode) ignore the sticks: let the left
+         * stick drive the D-pad there, while analog games keep real analog. */
+        bool map = settings.stick_dpad == STICK_DPAD_ALWAYS ||
+                   (settings.stick_dpad == STICK_DPAD_AUTO && host_pad_digital(i));
+        if (map)
+        {
+            const int16_t dead = 16000;
+            if (pads[i].lx < -dead) pads[i].buttons |= BIT(BTN_LEFT);
+            if (pads[i].lx > dead) pads[i].buttons |= BIT(BTN_RIGHT);
+            if (pads[i].ly < -dead) pads[i].buttons |= BIT(BTN_UP);
+            if (pads[i].ly > dead) pads[i].buttons |= BIT(BTN_DOWN);
+        }
+    }
     host_set_pads(pads);
 
     /* Pace by the audio queue: the core's 59.94/50 Hz never matches the TV

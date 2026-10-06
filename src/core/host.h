@@ -13,6 +13,8 @@ void host_unload(void);
 bool host_loaded(void);
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
+/* True while the game keeps this DualShock in digital mode (sticks ignored). */
+bool host_pad_digital(int port);
 void host_run_frame(void);
 void host_reset(void);
 void host_apply_settings(const Settings *settings); /* takes effect without reloading */

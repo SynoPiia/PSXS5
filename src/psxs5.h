@@ -93,7 +93,16 @@ typedef struct
     int cover_style;  /* enum CoverStyle */
     bool cover_download; /* fetch missing covers over the network */
     bool ui_sounds;   /* click when browsing the shelf */
+    int stick_dpad;   /* enum StickDpad */
 } Settings;
+
+enum StickDpad
+{
+    STICK_DPAD_AUTO = 0, /* left stick drives the D-pad while the game uses digital mode */
+    STICK_DPAD_ALWAYS,
+    STICK_DPAD_OFF,
+    STICK_DPAD_COUNT
+};
 
 enum CoverStyle
 {
