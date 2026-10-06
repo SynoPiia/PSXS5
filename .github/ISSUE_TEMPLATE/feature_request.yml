@@ -1,0 +1,74 @@
+name: Suggestion
+description: An idea for a new feature or an improvement
+labels: [suggestion]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! One idea per suggestion, please. Search first:
+        if someone already suggested it, add a 👍 and your thoughts there.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would it help with?
+      description: The situation or annoyance behind the idea. This matters more than the solution.
+      placeholder: When I quit a game I lose my place, because I forget to save state.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What PSXS5 could do. Screens, buttons, settings, whatever helps explain it.
+      placeholder: Save automatically when I quit, and offer "Continue" on the shelf.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of PSXS5?
+      options:
+        - Shelf (home screen)
+        - In-game menu
+        - Settings
+        - Graphics and video
+        - Sound
+        - Controls
+        - Games and compatibility
+        - Saves, states and memory cards
+        - Cheats
+        - RetroAchievements
+        - PC tool (psxs5_sync.py)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: importance
+    attributes:
+      label: How much would it matter to you?
+      options:
+        - Nice to have
+        - I'd use it often
+        - It's stopping me from using PSXS5 for something
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Seen it elsewhere?
+      description: Another emulator or app that does this well (a screenshot helps).
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before sending
+      options:
+        - label: I searched the existing suggestions and this isn't one of them.
+          required: true
+        - label: It doesn't involve getting games, BIOS files or keys (those won't be added).
+          required: true
