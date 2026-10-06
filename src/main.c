@@ -724,6 +724,8 @@ static void game_screen(PadState *pads, uint32_t pressed)
 
 int main(void)
 {
+    /* First thing: proves the loader accepted the title and main() runs. */
+    plat_notify("PSXS5 " PSXS5_VERSION " starting...");
     char root[PSXS5_PATH_MAX];
     plat_default_root(root, sizeof(root));
     config_paths(&paths, root);
