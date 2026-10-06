@@ -12,9 +12,13 @@
 #include <string.h>
 
 #if defined(__PROSPERO__)
+#include "ps5_video.h"
+#include <sys/mman.h>
 int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
 int sceSystemServiceHideSplashScreen(void);
 int psxs5_elevate(const char **route); /* elevation_shim.cpp */
+#else
+static bool init_desktop_window(void);
 #endif
 
 
@@ -40,7 +44,6 @@ static void set_draw_color(uint32_t argb)
 }
 
 static char init_error[256];
-static bool surface_renderer; /* software renderer drawing into the window surface */
 
 const char *plat_init_error(void)
 {
@@ -54,67 +57,61 @@ static bool init_failed(const char *stage)
     return false;
 }
 
+#if defined(__PROSPERO__)
+static SDL_Surface *canvas; /* 1920x1080 RGBA in ordinary memory; shown by ps5_video */
+
+/* SDL's PS5 video driver can't provide a window surface or a renderer, so on
+ * PS5 SDL is started without it: SDL draws (software renderer into `canvas`),
+ * plays sound and reads controllers; ps5_video.c puts frames on screen. */
+static bool init_ps5_screen(void)
+{
+    char error[160];
+    if (!ps5_video_open(error, sizeof(error)))
+    {
+        snprintf(init_error, sizeof(init_error), "screen: %s", error);
+        return false;
+    }
+    const size_t bytes = (size_t)PS5_SCREEN_W * PS5_SCREEN_H * 4;
+    void *pixels = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+    if (pixels == MAP_FAILED)
+    {
+        snprintf(init_error, sizeof(init_error), "screen: no memory for the canvas");
+        return false;
+    }
+    canvas = SDL_CreateRGBSurfaceWithFormatFrom(pixels, PS5_SCREEN_W, PS5_SCREEN_H, 32,
+                                                PS5_SCREEN_W * 4, SDL_PIXELFORMAT_ABGR8888);
+    if (!canvas)
+        return init_failed("SDL canvas");
+    renderer = SDL_CreateSoftwareRenderer(canvas);
+    if (!renderer)
+        return init_failed("SDL software renderer");
+    return true;
+}
+#endif
+
 bool plat_init(void)
 {
 #if defined(__PROSPERO__)
     sceSystemServiceHideSplashScreen();
-#endif
-    /* Only video is required; sound or controller trouble must not stop the app. */
+    if (SDL_Init(SDL_INIT_EVENTS) != 0)
+        return init_failed("SDL");
+#else
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         return init_failed("SDL video");
+#endif
+    /* Sound or controller trouble must not stop the app. */
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
         psxs5_log("SDL audio unavailable: %s", SDL_GetError());
     if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
         psxs5_log("SDL controllers unavailable: %s", SDL_GetError());
 
 #if defined(__PROSPERO__)
-    Uint32 flags = SDL_WINDOW_FULLSCREEN;
-#else
-    out_w = 1280;
-    out_h = 720;
-    Uint32 flags = SDL_WINDOW_RESIZABLE;
-#endif
-    window = SDL_CreateWindow(PSXS5_NAME, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                              out_w, out_h, flags);
-    if (!window)
-    {
-        /* The PS5 driver shows its single window full-screen regardless of flags. */
-        psxs5_log("fullscreen window refused (%s), retrying plain", SDL_GetError());
-        window = SDL_CreateWindow(PSXS5_NAME, 0, 0, out_w, out_h, 0);
-    }
-    if (!window)
-        return init_failed("SDL window");
-
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (!renderer)
-        renderer = SDL_CreateRenderer(window, -1, 0);
-    if (!renderer)
-    {
-        /* The PS5 port registers no render driver ("Couldn't find matching
-         * render driver" on hardware), but its video driver has a window
-         * framebuffer: draw with a software renderer straight into it. */
-        psxs5_log("no render driver (%s), using the window surface", SDL_GetError());
-        SDL_Surface *surface = SDL_GetWindowSurface(window);
-        if (!surface)
-            return init_failed("SDL window surface");
-        renderer = SDL_CreateSoftwareRenderer(surface);
-        surface_renderer = renderer != NULL;
-    }
-    if (!renderer)
-    {
-        char drivers[128] = "";
-        for (int i = 0; i < SDL_GetNumRenderDrivers() && i < 8; ++i)
-        {
-            SDL_RendererInfo ri;
-            if (SDL_GetRenderDriverInfo(i, &ri) == 0)
-                snprintf(drivers + strlen(drivers), sizeof(drivers) - strlen(drivers), " %s", ri.name);
-        }
-        snprintf(init_error, sizeof(init_error), "SDL renderer failed: %s (drivers:%s)",
-                 SDL_GetError(), drivers[0] ? drivers : " none");
-        psxs5_log("%s", init_error);
+    if (!init_ps5_screen())
         return false;
-    }
-    /* Draw in a fixed 1920x1080 space; SDL scales to the real window. */
+#else
+    if (!init_desktop_window())
+        return false;
+#endif
     out_w = 1920;
     out_h = 1080;
     SDL_RenderSetLogicalSize(renderer, out_w, out_h);
@@ -127,6 +124,22 @@ bool plat_init(void)
     SDL_GameControllerEventState(SDL_ENABLE);
     return true;
 }
+
+#if !defined(__PROSPERO__)
+static bool init_desktop_window(void)
+{
+    window = SDL_CreateWindow(PSXS5_NAME, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                              1280, 720, SDL_WINDOW_RESIZABLE);
+    if (!window)
+        return init_failed("SDL window");
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!renderer)
+        renderer = SDL_CreateRenderer(window, -1, 0);
+    if (!renderer)
+        return init_failed("SDL renderer");
+    return true;
+}
+#endif
 
 void plat_shutdown(void)
 {
@@ -602,16 +615,9 @@ void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
 void plat_end_frame(void)
 {
     SDL_RenderPresent(renderer);
-    if (!surface_renderer)
-        return;
-    /* The surface renderer only draws into memory: push it to the screen, and
-     * since nothing waits for vblank here, hold the loop at ~60 Hz. */
-    SDL_UpdateWindowSurface(window);
-    static uint64_t last;
-    uint64_t now = plat_ticks_us();
-    if (last && now - last < 16600)
-        SDL_Delay((Uint32)((16600 - (now - last)) / 1000));
-    last = plat_ticks_us();
+#if defined(__PROSPERO__)
+    ps5_video_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+#endif
 }
 
 /* ---------------------------------------------------------------- textures and meshes */
