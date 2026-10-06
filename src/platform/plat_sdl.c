@@ -72,7 +72,7 @@ static bool init_ps5_screen(void)
         snprintf(init_error, sizeof(init_error), "screen: %s", error);
         return false;
     }
-    const size_t bytes = (size_t)PS5_SCREEN_W * PS5_SCREEN_H * 4;
+    const size_t bytes = (size_t)PS5_SCREEN_W * PS5_CANVAS_ROWS * 4; /* zero-filled padding rows */
     void *pixels = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
     if (pixels == MAP_FAILED)
     {

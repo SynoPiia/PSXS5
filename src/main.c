@@ -762,8 +762,20 @@ static void game_screen(PadState *pads, uint32_t pressed)
         runs = 2;
     else if (queued > per_frame * 5)
         runs = 0;
+    static uint64_t emu_us;
+    static int emu_frames;
+    uint64_t emu_start = plat_ticks_us();
     for (int i = 0; i < runs; ++i)
         host_run_frame();
+    emu_us += plat_ticks_us() - emu_start;
+    emu_frames += runs;
+    if (emu_frames >= 240)
+    {
+        psxs5_log("emu: %.1f ms per emulated frame, %.1f fps measured", emu_us / 1000.0 / emu_frames,
+                  fps_measured);
+        emu_us = 0;
+        emu_frames = 0;
+    }
     fps_frames += runs;
     if (now - fps_window_start >= 1000000)
     {

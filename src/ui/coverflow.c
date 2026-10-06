@@ -266,7 +266,7 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
     {
         /* far to near so the selected cover is drawn last */
         int order[64], n = 0;
-        int first = (int)floorf(cf->pos) - 7, last = (int)ceilf(cf->pos) + 7;
+        int first = (int)floorf(cf->pos) - 5, last = (int)ceilf(cf->pos) + 5;
         for (int i = first; i <= last; ++i)
             if (i >= 0 && i < count && n < 64)
                 order[n++] = i;
