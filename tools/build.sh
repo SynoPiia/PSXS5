@@ -267,7 +267,14 @@ if [[ ${APP_VULKAN:-0} == 1 ]]; then
             *) linker_options+=("$flag") ;;
         esac
     done
-    link_inputs+=("${radv_link_inputs[@]}")
+    # RADV's archive carries zlib (Mesa's meson subproject), linked whole, so
+    # PacBrew's libz would define everything twice: RADV's serves libcurl too.
+    kept=()
+    for input in "${link_inputs[@]}"; do
+        [[ $input == -lz || $input == */libz.a ]] || kept+=("$input")
+    done
+    link_inputs=("${kept[@]}" "${radv_link_inputs[@]}")
+    linker_options+=(--error-limit=0)
     # AGC lives in system modules the SDK has no stubs for: tiny link-only
     # libraries let the converter record the imports (PS5 RetroArch's).
     for library in libSceAgc:agc_link_stub libSceAgcDriver:agc_driver_link_stub; do
