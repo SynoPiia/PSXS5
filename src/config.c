@@ -64,6 +64,8 @@ void config_load(Settings *s, const char *path)
             s->state_slot = atoi(value) % 10;
         else if (strcmp(key, "last_game") == 0)
             s->last_game = atoi(value);
+        else if (strcmp(key, "stick_dpad") == 0)
+            s->stick_dpad = atoi(value) % STICK_DPAD_COUNT;
         else if (strcmp(key, "integer_scale") == 0)
             s->integer_scale = as_bool(value);
         else if (strcmp(key, "internal_res") == 0)
@@ -94,11 +96,11 @@ bool config_save(const Settings *s, const char *path)
             "aspect=%d\nsmooth=%d\nshow_fps=%d\nregion=%d\nforce_hle=%d\n"
             "dithering=%d\ncd_fast=%d\nanalog=%d\nstate_slot=%d\nlast_game=%d\n"
             "cover_style=%d\ncover_download=%d\nui_sounds=%d\n"
-            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\n",
+            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\n",
             s->aspect, s->smooth, s->show_fps, s->region, s->force_hle, s->dithering,
             s->cd_fast, s->analog, s->state_slot, s->last_game, s->cover_style,
             s->cover_download, s->ui_sounds, s->integer_scale, s->internal_res, s->upscale,
-            s->upscale_filter);
+            s->upscale_filter, s->stick_dpad);
     bool ok = fclose(f) == 0;
     return ok && rename(temp, path) == 0;
 }
