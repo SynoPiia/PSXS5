@@ -475,6 +475,8 @@ static const char *const REGIONS[] = {"Auto", "NTSC (60 Hz)", "PAL (50 Hz)"};
 static const char *const BIOS[] = {"Real BIOS if present", "Built-in HLE"};
 static const char *const PADS[] = {"Digital pad", "DualShock (analog)"};
 static const char *const COVER_STYLES[] = {"Flat", "3D box"};
+static const char *const SOUND_STYLES[] = {"Soft", "Wood", "Pop", "Chime", "Classic", "Off"};
+static const char *const VOLUMES[] = {"25%", "50%", "75%", "100%"};
 static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
 
 static int build_rows(Row *rows)
@@ -500,7 +502,8 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_SECTION, "Library", 0, 0, 0, 0, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Cover art", &settings.cover_style, 0, COVER_STYLES, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Download missing covers", 0, &settings.cover_download, OFF_ON, 2, 0, 0};
-    rows[n++] = (Row){ROW_CHOICE, "Interface sounds", 0, &settings.ui_sounds, OFF_ON, 2, 0, 0};
+    rows[n++] = (Row){ROW_CHOICE, "Interface sound", &settings.ui_sound, 0, SOUND_STYLES, 6, 0, 0};
+    rows[n++] = (Row){ROW_CHOICE, "Interface volume", &settings.ui_volume, 0, VOLUMES, 4, 0, 0};
     rows[n++] = (Row){ROW_ACTION, "Rescan library", 0, 0, 0, 0, 0, host_loaded() ? "quit the game first" : 0};
     return n;
 }
@@ -538,8 +541,8 @@ static void settings_screen(uint32_t pressed)
             *r->value = v + r->base;
         if (host_loaded())
             host_apply_settings(&settings);
-        sfx_set_enabled(settings.ui_sounds);
-        sfx_play(SFX_CLICK);
+        sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
+        sfx_play(SFX_CLICK); /* also previews the chosen sound */
     }
     if ((pressed & BIT(BTN_CROSS)) && r->kind == ROW_ACTION)
     {
@@ -855,7 +858,7 @@ int main(void)
     config_load(&settings, paths.config);
     plat_audio_open(UI_RATE);
     sfx_init(UI_RATE);
-    sfx_set_enabled(settings.ui_sounds);
+    sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
     coverflow_init(&shelf, 0);
     if (!storage_error[0])
         rescan();

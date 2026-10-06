@@ -9,14 +9,28 @@
 
 typedef enum
 {
-    SFX_CLICK,  /* moving along the shelf: a jewel case tapping its neighbour */
-    SFX_SELECT, /* opening a game */
+    SFX_CLICK,  /* moving along the shelf or a list */
+    SFX_SELECT, /* opening a game or a panel */
     SFX_BACK,
     SFX_COUNT
 } Sfx;
 
+/* Settings > Interface sound. SFX_STYLE_OFF must stay last. */
+enum
+{
+    SFX_STYLE_SOFT = 0,
+    SFX_STYLE_WOOD,
+    SFX_STYLE_POP,
+    SFX_STYLE_CHIME,
+    SFX_STYLE_CLASSIC,
+    SFX_STYLE_COUNT,
+    SFX_STYLE_OFF = SFX_STYLE_COUNT,
+};
+
 void sfx_init(int sample_rate);
 void sfx_play(Sfx sound);
-void sfx_set_enabled(bool enabled);
+/* style: SFX_STYLE_*, or SFX_STYLE_OFF; volume 0..100 */
+void sfx_configure(int style, int volume_percent);
+void sfx_set_enabled(bool enabled); /* temporary mute, keeps the style */
 
 #endif

@@ -92,7 +92,8 @@ typedef struct
     int last_game;    /* library cursor */
     int cover_style;  /* enum CoverStyle */
     bool cover_download; /* fetch missing covers over the network */
-    bool ui_sounds;   /* click when browsing the shelf */
+    int ui_sound;     /* SFX_STYLE_* in ui/sfx.h; SFX_STYLE_OFF mutes */
+    int ui_volume;    /* 0..3 = 25/50/75/100 % */
     int stick_dpad;   /* enum StickDpad */
 } Settings;
 
