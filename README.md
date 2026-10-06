@@ -102,19 +102,23 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 
 ## Getting started
 
-1. **Download** `PSXS5-v1.0.0.zip` from the [latest release](../../releases/latest) and extract it. Inside is a `PPSA97510` folder and the PC tools.
+1. **Download** the `PSXS5-v*.zip` from the [latest release](../../releases/latest) and extract it. Inside is a `PPSA97510` folder and the PC tools.
 2. **Install the app.** Copy the `PPSA97510` folder to `/data/homebrew/` on the PS5 over FTP. Then set its permissions to `777`: in FileZilla, right-click the folder → *File permissions* → `777`, recurse into subdirectories. Without this, the PS5 says *"Can't start the game or app"* (CE-107750-0). The PC tool does all of this for you:
    ```bash
    python tools/psxs5_sync.py app --app-dir PPSA97510 --host <PS5 IP>
    ```
 3. **Restart ShadowMountPlus** (or the console). PSXS5 appears on the home screen.
-4. **Add your games** to `/data/PSXS5/games/`, one folder per game:
+4. **Start PSXS5 once.** It creates its folders in `/data/PSXS5/` (see [below](#folders-on-the-console)) and shows an empty shelf that tells you where games go.
+5. **Add your games** to `/data/PSXS5/games/`, **one folder per game**, with every file of the game inside it:
    ```text
    /data/PSXS5/games/Final Fantasy VII/   FF7 Disc 1.cue, FF7 Disc 1.bin, ... (any format above)
+   /data/PSXS5/games/Crash Bandicoot/     Crash Bandicoot.chd
    ```
    Or let the PC tool prepare and upload a whole folder of games (see [PC tool](#pc-tool)).
-5. **Optional:** put your BIOS dump (for example `scph5501.bin`) in `/data/PSXS5/bios/`.
-6. **Start PSXS5.** Covers download the first time, then the shelf opens.
+6. **Optional: add your BIOS.** Put your own dump directly in `/data/PSXS5/bios/`, not in a subfolder, and keep its standard name: `scph5501.bin` (US), `scph5500.bin` (Japan) or `scph5502.bin` (Europe) are the best choices; `scph1001.bin` and `scph101.bin` also work. *Settings → System* shows whether it was found. From a PC: `python tools/psxs5_sync.py bios scph5501.bin --host <PS5 IP>`.
+7. **Restart PSXS5.** Covers download the first time, then the shelf opens with your games.
+
+> **Where do things go?** Games: `/data/PSXS5/games/<Game name>/`. BIOS: `/data/PSXS5/bios/`. PSXS5 creates both folders the first time it starts; you can also create them yourself over FTP.
 
 ### Folders on the console
 
