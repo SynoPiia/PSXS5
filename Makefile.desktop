@@ -7,20 +7,22 @@
 CC ?= gcc
 OUT := build/desktop
 CORE := build/core-desktop/libpcsx_rearmed.a
+RCHEEVOS := build/rcheevos-desktop/librcheevos.a
 SDL_CFLAGS := $(shell sdl2-config --cflags)
 SDL_LIBS := $(shell sdl2-config --libs)
 
 SRCS := src/main.c src/util.c src/library.c src/config.c src/cheats.c src/disc.c \
-	src/covers.c src/net.c src/stb_impl.c \
+	src/covers.c src/net.c src/stb_impl.c src/ra/achievements.c \
 	src/core/host.c src/platform/plat_sdl.c src/platform/blit.c src/platform/xbr.c \
 	src/ui/text.c src/ui/draw.c src/ui/sfx.c src/ui/coverflow.c
 OBJS := $(SRCS:src/%.c=$(OUT)/obj/%.o)
 
 CFLAGS += -std=gnu11 -O2 -g -Wall -Wextra -Wno-unused-parameter -DPSXS5_HAVE_CURL=1 \
-	-Ithird_party/pcsx_rearmed/deps/libretro-common/include -Ithird_party/stb $(SDL_CFLAGS)
+	-Ithird_party/pcsx_rearmed/deps/libretro-common/include -Ithird_party/stb \
+	-Ithird_party/rcheevos/include $(SDL_CFLAGS)
 
-$(OUT)/psxs5: $(OBJS) $(CORE)
-	$(CC) -o $@ $(OBJS) $(CORE) $(SDL_LIBS) -lcurl -lm -lpthread -ldl -lz
+$(OUT)/psxs5: $(OBJS) $(CORE) $(RCHEEVOS)
+	$(CC) -o $@ $(OBJS) $(CORE) $(RCHEEVOS) $(SDL_LIBS) -lcurl -lm -lpthread -ldl -lz
 
 # stb is third-party: keep its warnings out of ours
 $(OUT)/obj/stb_impl.o: CFLAGS += -w

@@ -37,6 +37,9 @@ static struct retro_disk_control_ext_callback disk;
 static bool disk_available;
 static bool loaded;
 
+static struct retro_memory_descriptor memory_descriptors[32];
+static struct retro_memory_map memory_map;
+
 static const void *frame_data;
 static unsigned frame_w, frame_h;
 static size_t frame_pitch;
@@ -199,13 +202,22 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         av_info.geometry = *(const struct retro_game_geometry *)data;
         return true;
+    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
+    {
+        /* kept for RetroAchievements: where PS1 RAM and scratchpad live */
+        const struct retro_memory_map *m = data;
+        memory_map.num_descriptors = m->num_descriptors < 32 ? m->num_descriptors : 32;
+        memcpy(memory_descriptors, m->descriptors,
+               memory_map.num_descriptors * sizeof(struct retro_memory_descriptor));
+        memory_map.descriptors = memory_descriptors;
+        return true;
+    }
     case RETRO_ENVIRONMENT_SET_PERFORMANCE_LEVEL:
     case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
     case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
-    case RETRO_ENVIRONMENT_SET_MEMORY_MAPS:
     case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE:
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
         return true;
@@ -331,6 +343,35 @@ void host_unload(void)
 bool host_loaded(void)
 {
     return loaded;
+}
+
+const struct retro_memory_map *host_memory_map(void)
+{
+    return loaded && memory_map.num_descriptors ? &memory_map : NULL;
+}
+
+/* The core's CD layer (libpcsxcore/cdrom-async.h): reads through whatever
+ * image format is loaded (bin/cue, CHD, PBP...). */
+int cdra_readTrack(const unsigned char *time);
+void *cdra_getBuffer(void);
+
+bool host_read_sector(uint32_t lba, uint8_t out[2048])
+{
+    if (!loaded)
+        return false;
+    unsigned abs = lba + 150; /* sector 0 is at 00:02:00 */
+    unsigned char time[3];
+    unsigned m = abs / 75 / 60, s = abs / 75 % 60, f = abs % 75;
+    time[0] = (unsigned char)(m / 10 * 16 + m % 10); /* BCD */
+    time[1] = (unsigned char)(s / 10 * 16 + s % 10);
+    time[2] = (unsigned char)(f / 10 * 16 + f % 10);
+    if (cdra_readTrack(time) != 0)
+        return false;
+    const uint8_t *buf = cdra_getBuffer();
+    if (!buf)
+        return false;
+    memcpy(out, buf + 12, 2048); /* skip MSF/mode + subheader: Mode 2 Form 1 data */
+    return true;
 }
 
 int padGetMode(unsigned int index); /* core, added by tools/patches/pcsx_rearmed-padgetmode.patch */
