@@ -30,4 +30,13 @@ int covers_downloading(void);
 /* URL of a cover in xlenore/psx-covers (also used by tools/psxs5_sync.py). */
 void covers_url(char *out, size_t size, int style, const char *serial);
 
+/* Forgets game `index`'s cover so it is looked up again (after a pick). */
+void covers_reload(int index);
+/* Where picked covers are kept: <root>/covers/custom/<game id>.<ext> */
+void covers_custom_dir(char *out, size_t size);
+/* .png / .jpg / .jpeg */
+bool covers_is_image(const char *name);
+/* Decodes an image to RGBA, scaled down like the shelf's covers; free() it. */
+uint8_t *covers_decode(const char *path, int *w, int *h);
+
 #endif

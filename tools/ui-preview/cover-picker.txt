@@ -1,0 +1,16 @@
+# The cover picker: Details, then Square.
+wait 90
+press triangle
+wait 30
+shot 01-details
+press square
+wait 30
+shot 02-picker
+press down
+press down
+wait 30
+shot 03-picker-file
+press cross
+wait 60
+shot 04-shelf-after
+quit

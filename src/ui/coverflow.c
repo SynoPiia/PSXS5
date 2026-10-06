@@ -24,6 +24,7 @@
 #include "text.h"
 #include "theme.h"
 
+#include <dirent.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -332,8 +333,12 @@ static void draw_details(const Game *g, float t)
         text_draw_fit(x + 310, ry, 24, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 350,
                       rows[i].value);
     }
-    text_draw(x + 40, y + h - 60, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT,
+    text_draw(x + 40, y + h - 96, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT,
               tr("Saves and cheats follow the serial."));
+    if (t > 0.5f)
+        draw_pad_glyph(GLYPH_SQUARE, x + 54, y + h - 46, 28);
+    text_draw(x + 78, y + h - 58, 22, FONT_REGULAR, argb_alpha(TH_TEXT, t), ALIGN_LEFT,
+              tr("Choose a cover"));
 }
 
 /* Category chips along the top; the highlight slides between them. */
@@ -484,6 +489,202 @@ static void change_category(int step)
     sfx_play(SFX_CLICK);
 }
 
+/* ---------------------------------------------------------------- cover picker */
+
+/* Choose a game's cover from the images in covers/ and in the game's folder
+ * (GitHub issue #1). The pick is copied to covers/custom/<id>.<ext>, which
+ * the cover lookup tries first; "Automatic" removes it. */
+#define PICK_MAX 400
+#define PICK_ROWS 11
+
+static struct
+{
+    bool open;
+    float t;
+    int game;
+    int count, cursor; /* entry 0 is "Automatic" */
+    float scroll;
+    char (*files)[PSXS5_PATH_MAX];
+    bool unlisted; /* covers/ could not be listed (sandboxed) */
+    PlatTexture *preview;
+    int preview_for;
+} P;
+
+static bool pick_scan(const char *dir)
+{
+    DIR *d = opendir(dir);
+    if (!d)
+        return false;
+    struct dirent *e;
+    while ((e = readdir(d)) && P.count < PICK_MAX)
+        if (e->d_name[0] != '.' && covers_is_image(e->d_name))
+            path_join(P.files[P.count++], PSXS5_PATH_MAX, dir, e->d_name);
+    closedir(d);
+    return true;
+}
+
+static int pick_compare(const void *a, const void *b)
+{
+    const char *x = strrchr((const char *)a, '/'), *y = strrchr((const char *)b, '/');
+    return str_icmp(x ? x + 1 : (const char *)a, y ? y + 1 : (const char *)b);
+}
+
+static void picker_open(int game)
+{
+    if (!P.files && !(P.files = malloc(sizeof(*P.files) * (PICK_MAX + 1))))
+        return;
+    P.open = true;
+    P.game = game;
+    P.count = 1; /* "Automatic" */
+    P.cursor = 0;
+    P.scroll = 0;
+    P.preview_for = -1;
+    P.files[0][0] = '\0';
+    pick_scan(app.library.games[game].folder);
+    int from = P.count;
+    P.unlisted = !pick_scan(app.paths.covers);
+    qsort(P.files + from, (size_t)(P.count - from), sizeof(*P.files), pick_compare);
+}
+
+static void picker_close(void)
+{
+    P.open = false;
+    plat_texture_free(P.preview);
+    P.preview = NULL;
+}
+
+static void picker_choose(void)
+{
+    const Game *g = &app.library.games[P.game];
+    char dir[PSXS5_PATH_MAX], path[PSXS5_PATH_MAX], name[96];
+    covers_custom_dir(dir, sizeof(dir));
+    static const char *const exts[] = {"png", "jpg", "jpeg"};
+    for (int i = 0; i < 3; ++i) /* only the copies PSXS5 made itself */
+    {
+        snprintf(name, sizeof(name), "%s.%s", g->id, exts[i]);
+        path_join(path, sizeof(path), dir, name);
+        remove(path);
+    }
+    if (P.cursor > 0)
+    {
+        char ext[8];
+        str_copy(ext, sizeof(ext), path_ext(P.files[P.cursor]));
+        for (char *c = ext; *c; ++c)
+            *c = (char)(*c | 0x20);
+        snprintf(name, sizeof(name), "%s.%s", g->id, ext);
+        path_join(path, sizeof(path), dir, name);
+        if (!make_dirs(dir) || !file_copy(P.files[P.cursor], path))
+        {
+            app_toast("Could not save the cover");
+            sfx_play(SFX_BACK);
+            return;
+        }
+    }
+    covers_reload(P.game);
+    app_toast(P.cursor > 0 ? "Cover changed" : "Cover set to automatic");
+    sfx_play(SFX_SELECT);
+    picker_close();
+}
+
+static void picker_input(uint32_t pressed)
+{
+    int before = P.cursor;
+    if (pressed & BIT(BTN_UP))
+        --P.cursor;
+    if (pressed & BIT(BTN_DOWN))
+        ++P.cursor;
+    if (pressed & (BIT(BTN_LEFT) | BIT(BTN_L1) | BIT(BTN_L2)))
+        P.cursor -= PICK_ROWS;
+    if (pressed & (BIT(BTN_RIGHT) | BIT(BTN_R1) | BIT(BTN_R2)))
+        P.cursor += PICK_ROWS;
+    P.cursor = P.cursor < 0 ? 0 : P.cursor >= P.count ? P.count - 1 : P.cursor;
+    if (P.cursor != before)
+        sfx_play(SFX_CLICK);
+    if (pressed & BIT(BTN_CROSS))
+        picker_choose();
+    else if (pressed & (BIT(BTN_CIRCLE) | BIT(BTN_SQUARE)))
+    {
+        picker_close();
+        sfx_play(SFX_BACK);
+    }
+}
+
+static void picker_draw(void)
+{
+    P.t = fminf(fmaxf(P.t + (P.open ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);
+    if (P.t <= 0.0f || !P.files)
+        return;
+    float t = P.t, e = 1.0f - (1.0f - t) * (1.0f - t);
+    draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xc0000000u, t));
+    const float w = 1400, h = 800, x = CENTER_X - w * 0.5f, y = 130 + (1.0f - e) * 40;
+    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xff151a3du, t));
+    text_draw(x + 40, y + 30, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, tr("Choose a cover"));
+    text_draw_fit(x + 40, y + 76, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, 760,
+                  app.library.games[P.game].title);
+
+    /* the list */
+    const float lx = x + 40, ly = y + 130, lw = 760, rh = 50;
+    float target = fminf((float)(P.cursor - PICK_ROWS / 2), (float)(P.count - PICK_ROWS));
+    anim_approach(&P.scroll, fmaxf(target, 0.0f), app.dt, TH_SNAP);
+    int first = (int)P.scroll;
+    for (int i = first; i < P.count && i <= first + PICK_ROWS; ++i)
+    {
+        float ry = ly + (i - P.scroll) * rh;
+        if (ry < ly - rh * 0.5f || ry > ly + rh * (PICK_ROWS - 0.5f))
+            continue;
+        bool on = i == P.cursor;
+        if (on)
+            draw_rrect(lx, ry, lw, rh - 6, TH_RADIUS_SMALL, argb_alpha(TH_ROW_SELECTED, t));
+        const char *label = tr("Automatic (by serial or name)");
+        int icon = ICON_REFRESH;
+        if (i > 0)
+        {
+            const char *slash = strrchr(P.files[i], '/');
+            label = slash ? slash + 1 : P.files[i];
+            icon = strncmp(P.files[i], app.paths.covers, strlen(app.paths.covers)) == 0 ? ICON_CARDS
+                                                                                        : ICON_FOLDER;
+        }
+        icon_draw(icon, lx + 14, ry + 8, 28, argb_alpha(on ? TH_FOCUS : TH_TEXT_DIM, t));
+        text_draw_fit(lx + 56, ry + 10, 22, on ? FONT_BOLD : FONT_REGULAR,
+                      argb_alpha(on ? TH_TEXT : TH_TEXT_SOFT, t), ALIGN_LEFT, lw - 72, label);
+    }
+    if (P.count == 1)
+        text_draw_fit(lx, ly + rh * 1.5f, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, lw,
+                      tr(P.unlisted ? "Can't list the covers folder: unlock /data in Settings, System"
+                                    : "No images yet: put .png or .jpg files in /data/PSXS5/covers/"));
+
+    /* the preview, decoded once per selected file */
+    const float px = x + 860, py = y + 130, pw = 500, ph = 560;
+    draw_rrect(px, py, pw, ph, TH_RADIUS_SMALL, argb_alpha(0xff1c2250u, t));
+    if (P.open && P.preview_for != P.cursor)
+    {
+        plat_texture_free(P.preview);
+        P.preview = NULL;
+        P.preview_for = P.cursor;
+        int iw, ih;
+        uint8_t *rgba = P.cursor > 0 ? covers_decode(P.files[P.cursor], &iw, &ih) : NULL;
+        if (rgba)
+        {
+            P.preview = plat_texture_create(rgba, iw, ih, true);
+            free(rgba);
+        }
+    }
+    PlatTexture *shown = P.cursor > 0 ? P.preview : covers_get(P.game);
+    if (shown)
+    {
+        int iw, ih;
+        plat_texture_size(shown, &iw, &ih);
+        float k = fminf((pw - 40) / iw, (ph - 40) / ih);
+        plat_draw_texture(shown, px + (pw - iw * k) * 0.5f, py + (ph - ih * k) * 0.5f, iw * k, ih * k,
+                          argb_alpha(0xffffffffu, t), true);
+    }
+    else if (P.cursor > 0)
+        text_draw(px + pw * 0.5f, py + ph * 0.5f - 12, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t),
+                  ALIGN_CENTER, tr("Can't read this image"));
+    text_draw_fit(x + 40, y + h - 56, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, w - 80,
+                  tr("Images from /data/PSXS5/covers/ and the game's folder. Named like the game, they are used without picking."));
+}
+
 void shelf_screen(uint32_t pressed)
 {
     if (app.storage_error[0])
@@ -493,6 +694,11 @@ void shelf_screen(uint32_t pressed)
     }
 
     /* ------------------------------------------------ input */
+    if (P.open)
+    {
+        picker_input(pressed);
+        pressed = 0;
+    }
     if (S.dialog)
     {
         if (pressed & (BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_UP) | BIT(BTN_DOWN)))
@@ -594,7 +800,12 @@ void shelf_screen(uint32_t pressed)
             }
             sfx_play(SFX_SELECT);
         }
-        if (pressed & BIT(BTN_SQUARE))
+        if ((pressed & BIT(BTN_SQUARE)) && S.details && game >= 0)
+        {
+            sfx_play(SFX_SELECT);
+            picker_open(game);
+        }
+        else if (pressed & BIT(BTN_SQUARE))
         {
             sfx_play(SFX_SELECT);
             config_save(&app.global, app.paths.config);
@@ -682,7 +893,7 @@ void shelf_screen(uint32_t pressed)
         text_draw(plat_width() - TH_MARGIN, 104, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_RIGHT, dl);
     }
     static const int glyphs[] = {GLYPH_CROSS, GLYPH_TRIANGLE, GLYPH_SQUARE, GLYPH_R3};
-    static const char *const labels[] = {"Play", "Details", "Settings", "Favorite"};
+    const char *const labels[] = {"Play", "Details", S.details ? "Choose a cover" : "Settings", "Favorite"};
     char right[128];
     snprintf(right, sizeof(right), "%s   \xc2\xb7   %s: %s", tr("L1 / R1  Category"), tr("OPTIONS  Sort"),
              shelf_sort_name(app.global.sort_mode));
@@ -734,6 +945,7 @@ void shelf_screen(uint32_t pressed)
         }
     }
 
+    picker_draw();
     if (S.launch_t > 0.0f)
         draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, launch));
     app_draw_toast();

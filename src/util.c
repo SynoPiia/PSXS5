@@ -87,6 +87,25 @@ bool make_dirs(const char *path)
     return mkdir(tmp, 0777) == 0 || errno == EEXIST;
 }
 
+bool file_copy(const char *from, const char *to)
+{
+    FILE *in = fopen(from, "rb");
+    if (!in)
+        return false;
+    FILE *out = fopen(to, "wb");
+    bool ok = out != NULL;
+    char buf[64 * 1024];
+    size_t n;
+    while (ok && (n = fread(buf, 1, sizeof(buf), in)) > 0)
+        ok = fwrite(buf, 1, n, out) == n;
+    fclose(in);
+    if (out && fclose(out) != 0)
+        ok = false;
+    if (!ok)
+        remove(to);
+    return ok;
+}
+
 const char *path_ext(const char *path)
 {
     const char *slash = strrchr(path, '/');

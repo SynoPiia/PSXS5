@@ -153,6 +153,7 @@ void path_join(char *dst, size_t size, const char *a, const char *b);
 bool path_exists(const char *path);
 bool path_is_dir(const char *path);
 bool make_dirs(const char *path);
+bool file_copy(const char *from, const char *to); /* replaces `to` */
 const char *path_ext(const char *path);  /* lower-case-insensitive extension without dot, "" if none */
 int str_icmp(const char *a, const char *b);
 /* localtime into *out (the PS5 libc has no localtime_r); false on failure */
