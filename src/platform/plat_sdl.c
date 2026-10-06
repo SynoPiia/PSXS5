@@ -1,0 +1,680 @@
+/*
+ * PSXS5 - SDL2 platform layer.
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The same file drives the PS5 build (PacBrew SDL2 port) and the desktop
+ * test build, so emulator behaviour can be debugged on a PC first.
+ */
+#include "platform.h"
+
+#include <SDL2/SDL.h>
+#include <stdio.h>
+#include <string.h>
+
+#if defined(__PROSPERO__)
+int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
+int sceSystemServiceHideSplashScreen(void);
+int psxs5_elevate(const char **route); /* elevation_shim.cpp */
+#endif
+
+
+#define GAME_TEX_W 1024
+#define GAME_TEX_H 512
+
+static SDL_Window *window;
+static SDL_Renderer *renderer;
+static SDL_Texture *game_texture;
+static int game_texture_format = -1;
+static int game_w = 320, game_h = 240;
+static int out_w = 1920, out_h = 1080;
+static SDL_AudioDeviceID audio_device;
+static int audio_rate;
+
+static SDL_GameController *controllers[PSXS5_MAX_PADS];
+static uint16_t rumble_strong[PSXS5_MAX_PADS], rumble_weak[PSXS5_MAX_PADS];
+
+static void set_draw_color(uint32_t argb)
+{
+    SDL_SetRenderDrawColor(renderer, (argb >> 16) & 0xff, (argb >> 8) & 0xff, argb & 0xff,
+                           argb >> 24);
+}
+
+bool plat_init(void)
+{
+#if defined(__PROSPERO__)
+    sceSystemServiceHideSplashScreen();
+#endif
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
+    {
+        psxs5_log("SDL_Init failed: %s", SDL_GetError());
+        return false;
+    }
+
+#if defined(__PROSPERO__)
+    Uint32 flags = SDL_WINDOW_FULLSCREEN;
+#else
+    out_w = 1280;
+    out_h = 720;
+    Uint32 flags = SDL_WINDOW_RESIZABLE;
+#endif
+    window = SDL_CreateWindow(PSXS5_NAME, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                              out_w, out_h, flags);
+    if (!window)
+    {
+        psxs5_log("SDL_CreateWindow failed: %s", SDL_GetError());
+        return false;
+    }
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if (!renderer)
+    {
+        psxs5_log("accelerated renderer unavailable (%s), using software", SDL_GetError());
+        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    }
+    if (!renderer)
+    {
+        psxs5_log("SDL_CreateRenderer failed: %s", SDL_GetError());
+        return false;
+    }
+    /* Draw in a fixed 1920x1080 space; SDL scales to the real window. */
+    out_w = 1920;
+    out_h = 1080;
+    SDL_RenderSetLogicalSize(renderer, out_w, out_h);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    SDL_RendererInfo info;
+    if (SDL_GetRendererInfo(renderer, &info) == 0)
+        psxs5_log("renderer: %s", info.name);
+
+    SDL_GameControllerEventState(SDL_ENABLE);
+    return true;
+}
+
+void plat_shutdown(void)
+{
+    plat_audio_close();
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        if (controllers[i])
+            SDL_GameControllerClose(controllers[i]);
+    if (game_texture)
+        SDL_DestroyTexture(game_texture);
+    if (renderer)
+        SDL_DestroyRenderer(renderer);
+    if (window)
+        SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
+void plat_default_root(char *out, size_t size)
+{
+#if defined(__PROSPERO__)
+    str_copy(out, size, "/data/PSXS5");
+#else
+    const char *env = SDL_getenv("PSXS5_ROOT");
+    str_copy(out, size, env && *env ? env : "./psxs5-data");
+#endif
+}
+
+bool plat_prepare_storage(char *error, size_t size)
+{
+#if defined(__PROSPERO__)
+    const char *route = "none";
+    int status = psxs5_elevate(&route);
+    psxs5_log("elevation: status %d via %s", status, route);
+    if (status != 0)
+    {
+        snprintf(error, size,
+                 "Could not unlock /data (code %d). Make sure etaHEN's ELF loader is "
+                 "running on port 9021, then restart PSXS5.",
+                 status);
+        return false;
+    }
+#else
+    (void)error;
+    (void)size;
+#endif
+    return true;
+}
+
+/* ---------------------------------------------------------------- input */
+
+static void refresh_controllers(void)
+{
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
+        if (controllers[i] && !SDL_GameControllerGetAttached(controllers[i]))
+        {
+            SDL_GameControllerClose(controllers[i]);
+            controllers[i] = NULL;
+        }
+    }
+    for (int j = 0; j < SDL_NumJoysticks(); ++j)
+    {
+        if (!SDL_IsGameController(j))
+            continue;
+        SDL_JoystickID id = SDL_JoystickGetDeviceInstanceID(j);
+        bool open = false;
+        for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+            if (controllers[i] &&
+                SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controllers[i])) == id)
+                open = true;
+        if (open)
+            continue;
+        for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        {
+            if (!controllers[i])
+            {
+                controllers[i] = SDL_GameControllerOpen(j);
+                if (controllers[i])
+                    psxs5_log("pad %d: %s", i + 1, SDL_GameControllerName(controllers[i]));
+                break;
+            }
+        }
+    }
+}
+
+static const struct
+{
+    SDL_GameControllerButton sdl;
+    int bit;
+} button_map[] = {
+    {SDL_CONTROLLER_BUTTON_A, BTN_CROSS},
+    {SDL_CONTROLLER_BUTTON_B, BTN_CIRCLE},
+    {SDL_CONTROLLER_BUTTON_X, BTN_SQUARE},
+    {SDL_CONTROLLER_BUTTON_Y, BTN_TRIANGLE},
+    {SDL_CONTROLLER_BUTTON_BACK, BTN_SELECT},
+    {SDL_CONTROLLER_BUTTON_START, BTN_START},
+    {SDL_CONTROLLER_BUTTON_LEFTSHOULDER, BTN_L1},
+    {SDL_CONTROLLER_BUTTON_RIGHTSHOULDER, BTN_R1},
+    {SDL_CONTROLLER_BUTTON_LEFTSTICK, BTN_L3},
+    {SDL_CONTROLLER_BUTTON_RIGHTSTICK, BTN_R3},
+    {SDL_CONTROLLER_BUTTON_DPAD_UP, BTN_UP},
+    {SDL_CONTROLLER_BUTTON_DPAD_DOWN, BTN_DOWN},
+    {SDL_CONTROLLER_BUTTON_DPAD_LEFT, BTN_LEFT},
+    {SDL_CONTROLLER_BUTTON_DPAD_RIGHT, BTN_RIGHT},
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    {SDL_CONTROLLER_BUTTON_TOUCHPAD, BTN_MENU},
+#endif
+};
+
+static const struct
+{
+    SDL_Scancode key;
+    int bit;
+} key_map[] = {
+    {SDL_SCANCODE_Z, BTN_CROSS},      {SDL_SCANCODE_X, BTN_CIRCLE},
+    {SDL_SCANCODE_A, BTN_SQUARE},     {SDL_SCANCODE_S, BTN_TRIANGLE},
+    {SDL_SCANCODE_RSHIFT, BTN_SELECT}, {SDL_SCANCODE_RETURN, BTN_START},
+    {SDL_SCANCODE_Q, BTN_L1},         {SDL_SCANCODE_W, BTN_R1},
+    {SDL_SCANCODE_1, BTN_L2},         {SDL_SCANCODE_2, BTN_R2},
+    {SDL_SCANCODE_UP, BTN_UP},        {SDL_SCANCODE_DOWN, BTN_DOWN},
+    {SDL_SCANCODE_LEFT, BTN_LEFT},    {SDL_SCANCODE_RIGHT, BTN_RIGHT},
+    {SDL_SCANCODE_ESCAPE, BTN_MENU},  {SDL_SCANCODE_TAB, BTN_MENU},
+};
+
+void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
+{
+    SDL_Event event;
+    bool devices_changed = false;
+    while (SDL_PollEvent(&event))
+    {
+        if (event.type == SDL_QUIT && quit)
+            *quit = true;
+        if (event.type == SDL_CONTROLLERDEVICEADDED || event.type == SDL_CONTROLLERDEVICEREMOVED)
+            devices_changed = true;
+    }
+    static bool first = true;
+    if (devices_changed || first)
+    {
+        refresh_controllers();
+        first = false;
+    }
+
+    memset(pads, 0, sizeof(PadState) * PSXS5_MAX_PADS);
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
+        SDL_GameController *c = controllers[i];
+        if (!c)
+            continue;
+        PadState *p = &pads[i];
+        p->connected = true;
+        for (size_t b = 0; b < sizeof(button_map) / sizeof(button_map[0]); ++b)
+            if (SDL_GameControllerGetButton(c, button_map[b].sdl))
+                p->buttons |= BIT(button_map[b].bit);
+        if (SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 12000)
+            p->buttons |= BIT(BTN_L2);
+        if (SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 12000)
+            p->buttons |= BIT(BTN_R2);
+        p->lx = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTX);
+        p->ly = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY);
+        p->rx = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTX);
+        p->ry = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTY);
+    }
+
+#if !defined(__PROSPERO__)
+    const Uint8 *keys = SDL_GetKeyboardState(NULL);
+    for (size_t k = 0; k < sizeof(key_map) / sizeof(key_map[0]); ++k)
+        if (keys[key_map[k].key])
+        {
+            pads[0].buttons |= BIT(key_map[k].bit);
+            pads[0].connected = true;
+        }
+#else
+    (void)key_map;
+#endif
+}
+
+void plat_rumble(int port, uint16_t strong, uint16_t weak)
+{
+    if (port < 0 || port >= PSXS5_MAX_PADS || !controllers[port])
+        return;
+    if (rumble_strong[port] == strong && rumble_weak[port] == weak)
+        return;
+    rumble_strong[port] = strong;
+    rumble_weak[port] = weak;
+    SDL_GameControllerRumble(controllers[port], strong, weak, strong || weak ? 2000 : 0);
+}
+
+/* ---------------------------------------------------------------- audio */
+
+bool plat_audio_open(int sample_rate)
+{
+    if (audio_device && audio_rate == sample_rate)
+    {
+        SDL_ClearQueuedAudio(audio_device);
+        return true;
+    }
+    plat_audio_close();
+    SDL_AudioSpec want, have;
+    SDL_zero(want);
+    want.freq = sample_rate;
+    want.format = AUDIO_S16SYS;
+    want.channels = 2;
+    want.samples = 1024;
+    audio_device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0); /* SDL resamples for us */
+    if (!audio_device)
+    {
+        psxs5_log("audio open failed: %s", SDL_GetError());
+        return false;
+    }
+    audio_rate = sample_rate;
+    SDL_PauseAudioDevice(audio_device, 0);
+    psxs5_log("audio: %d Hz", sample_rate);
+    return true;
+}
+
+void plat_audio_close(void)
+{
+    if (audio_device)
+        SDL_CloseAudioDevice(audio_device);
+    audio_device = 0;
+    audio_rate = 0;
+}
+
+void plat_audio_push(const int16_t *frames, size_t frame_count)
+{
+    if (audio_device && frame_count)
+        SDL_QueueAudio(audio_device, frames, (Uint32)(frame_count * 4));
+}
+
+size_t plat_audio_queued_frames(void)
+{
+    return audio_device ? SDL_GetQueuedAudioSize(audio_device) / 4 : 0;
+}
+
+void plat_audio_clear(void)
+{
+    if (audio_device)
+        SDL_ClearQueuedAudio(audio_device);
+}
+
+/* ---------------------------------------------------------------- video */
+
+int plat_width(void)
+{
+    return out_w;
+}
+
+int plat_height(void)
+{
+    return out_h;
+}
+
+void plat_begin_frame(uint32_t clear_argb)
+{
+    set_draw_color(clear_argb);
+    SDL_RenderClear(renderer);
+}
+
+/* ---- prescalers (XRGB8888). Scale2x/Scale3x are the AdvanceMAME edge rules:
+ * they round off staircase edges without blurring flat areas. */
+
+static void prescale_sharp(const uint32_t *src, int w, int h, size_t pitch_px, uint32_t *dst, int k)
+{
+    int dw = w * k;
+    for (int y = 0; y < h; ++y)
+    {
+        uint32_t *row = dst + (size_t)y * k * dw;
+        const uint32_t *s = src + (size_t)y * pitch_px;
+        for (int x = 0; x < w; ++x)
+            for (int i = 0; i < k; ++i)
+                row[x * k + i] = s[x];
+        for (int r = 1; r < k; ++r)
+            memcpy(row + (size_t)r * dw, row, (size_t)dw * 4);
+    }
+}
+
+static void scale2x(const uint32_t *src, int w, int h, size_t pitch_px, uint32_t *dst)
+{
+    int dw = w * 2;
+    for (int y = 0; y < h; ++y)
+    {
+        const uint32_t *up = src + (size_t)(y > 0 ? y - 1 : y) * pitch_px;
+        const uint32_t *row = src + (size_t)y * pitch_px;
+        const uint32_t *dn = src + (size_t)(y < h - 1 ? y + 1 : y) * pitch_px;
+        uint32_t *o0 = dst + (size_t)y * 2 * dw, *o1 = o0 + dw;
+        for (int x = 0; x < w; ++x)
+        {
+            uint32_t B = up[x], D = row[x > 0 ? x - 1 : x], E = row[x];
+            uint32_t F = row[x < w - 1 ? x + 1 : x], H = dn[x];
+            bool edge = B != H && D != F;
+            o0[x * 2] = edge && D == B ? D : E;
+            o0[x * 2 + 1] = edge && B == F ? F : E;
+            o1[x * 2] = edge && D == H ? D : E;
+            o1[x * 2 + 1] = edge && H == F ? F : E;
+        }
+    }
+}
+
+static void scale3x(const uint32_t *src, int w, int h, size_t pitch_px, uint32_t *dst)
+{
+    int dw = w * 3;
+    for (int y = 0; y < h; ++y)
+    {
+        const uint32_t *up = src + (size_t)(y > 0 ? y - 1 : y) * pitch_px;
+        const uint32_t *row = src + (size_t)y * pitch_px;
+        const uint32_t *dn = src + (size_t)(y < h - 1 ? y + 1 : y) * pitch_px;
+        uint32_t *o0 = dst + (size_t)y * 3 * dw, *o1 = o0 + dw, *o2 = o1 + dw;
+        for (int x = 0; x < w; ++x)
+        {
+            int l = x > 0 ? x - 1 : x, r = x < w - 1 ? x + 1 : x;
+            uint32_t A = up[l], B = up[x], C = up[r], D = row[l], E = row[x], F = row[r];
+            uint32_t G = dn[l], H = dn[x], I = dn[r];
+            uint32_t *p0 = &o0[x * 3], *p1 = &o1[x * 3], *p2 = &o2[x * 3];
+            if (B != H && D != F)
+            {
+                p0[0] = D == B ? D : E;
+                p0[1] = (D == B && E != C) || (B == F && E != A) ? B : E;
+                p0[2] = B == F ? F : E;
+                p1[0] = (D == B && E != G) || (D == H && E != A) ? D : E;
+                p1[1] = E;
+                p1[2] = (B == F && E != I) || (H == F && E != C) ? F : E;
+                p2[0] = D == H ? D : E;
+                p2[1] = (D == H && E != I) || (H == F && E != G) ? H : E;
+                p2[2] = H == F ? F : E;
+            }
+            else
+                p0[0] = p0[1] = p0[2] = p1[0] = p1[1] = p1[2] = p2[0] = p2[1] = p2[2] = E;
+        }
+    }
+}
+
+static uint32_t *scale_buf[2];
+static size_t scale_buf_size[2];
+
+static uint32_t *scratch(int which, size_t pixels)
+{
+    if (scale_buf_size[which] < pixels)
+    {
+        SDL_free(scale_buf[which]);
+        scale_buf[which] = SDL_malloc(pixels * 4);
+        scale_buf_size[which] = scale_buf[which] ? pixels : 0;
+    }
+    return scale_buf[which];
+}
+
+static int game_tex_w, game_tex_h;
+static int game_src_w = 320, game_src_h = 240; /* before prescaling, for aspect maths */
+
+static bool ensure_game_texture(int format, int w, int h)
+{
+    if (game_texture && format == game_texture_format && w <= game_tex_w && h <= game_tex_h)
+        return true;
+    if (game_texture)
+        SDL_DestroyTexture(game_texture);
+    int tw = w > GAME_TEX_W ? w : GAME_TEX_W, th = h > GAME_TEX_H ? h : GAME_TEX_H;
+    Uint32 fmt = format == 1 ? SDL_PIXELFORMAT_ARGB8888
+               : format == 2 ? SDL_PIXELFORMAT_RGB565 : SDL_PIXELFORMAT_RGB555;
+    game_texture = SDL_CreateTexture(renderer, fmt, SDL_TEXTUREACCESS_STREAMING, tw, th);
+    game_texture_format = game_texture ? format : -1;
+    game_tex_w = game_texture ? tw : 0;
+    game_tex_h = game_texture ? th : 0;
+    return game_texture != NULL;
+}
+
+void plat_upload_game(const void *pixels, int width, int height, size_t pitch, int pixel_format,
+                      int upscale, int filter)
+{
+    if (!pixels || width <= 0 || height <= 0)
+        return;
+    game_src_w = width;
+    game_src_h = height;
+    int k = pixel_format == 1 ? upscale : 1; /* prescalers work on 32-bit frames */
+    while (k > 1 && (width * k > 4096 || height * k > 2048))
+        --k; /* keep the texture within limits (2x internal frames are already big) */
+
+    if (k <= 1)
+    {
+        if (!ensure_game_texture(pixel_format, width, height))
+            return;
+        SDL_Rect rect = {0, 0, width, height};
+        SDL_UpdateTexture(game_texture, &rect, pixels, (int)pitch);
+        game_w = width;
+        game_h = height;
+        return;
+    }
+
+    const uint32_t *src = pixels;
+    size_t pitch_px = pitch / 4;
+    uint32_t *out = scratch(0, (size_t)width * k * height * k);
+    if (!out)
+        return;
+    if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
+        scale2x(src, width, height, pitch_px, out);
+    else if (filter == UPSCALE_SMOOTH_PIXELS && k == 3)
+        scale3x(src, width, height, pitch_px, out);
+    else if (filter == UPSCALE_SMOOTH_PIXELS && k == 4)
+    {
+        uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
+        if (!mid)
+            return;
+        scale2x(src, width, height, pitch_px, mid);
+        scale2x(mid, width * 2, height * 2, (size_t)width * 2, out);
+    }
+    else
+        prescale_sharp(src, width, height, pitch_px, out, k);
+
+    if (!ensure_game_texture(pixel_format, width * k, height * k))
+        return;
+    SDL_Rect rect = {0, 0, width * k, height * k};
+    SDL_UpdateTexture(game_texture, &rect, out, width * k * 4);
+    game_w = width * k;
+    game_h = height * k;
+}
+
+void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
+{
+    if (!game_texture)
+        return;
+    /* Scanlines the game actually has: interlaced (480) and 2x-internal frames
+     * show at the same size as 240-line ones. */
+    int lines = game_src_h;
+    while (lines > 288)
+        lines /= 2;
+
+    float aspect;
+    switch (settings->aspect)
+    {
+    case ASPECT_4_3: aspect = 4.0f / 3.0f; break;
+    case ASPECT_16_9: aspect = 16.0f / 9.0f; break;
+    case ASPECT_16_10: aspect = 16.0f / 10.0f; break;
+    case ASPECT_PIXEL:
+        aspect = (float)game_src_w / (float)lines;
+        if (game_src_w > 640) /* 2x internal doubles the width too */
+            aspect *= 0.5f;
+        break;
+    case ASPECT_STRETCH: aspect = (float)out_w / out_h; break;
+    default: aspect = display_aspect > 0.0f ? display_aspect : 4.0f / 3.0f; break;
+    }
+
+    int dh = out_h, dw = (int)(out_h * aspect + 0.5f);
+    if (dw > out_w)
+    {
+        dw = out_w;
+        dh = (int)(out_w / aspect + 0.5f);
+    }
+    if (settings->integer_scale)
+    {
+        int k = dh / (lines > 0 ? lines : 240);
+        if (k < 1)
+            k = 1;
+        dh = lines * k;
+        dw = settings->aspect == ASPECT_STRETCH ? out_w : (int)(dh * aspect + 0.5f);
+        if (dw > out_w)
+            dw = out_w;
+    }
+
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    SDL_SetTextureScaleMode(game_texture, settings->smooth ? SDL_ScaleModeLinear
+                                                           : SDL_ScaleModeNearest);
+#endif
+    SDL_SetTextureColorMod(game_texture, dim, dim, dim);
+    SDL_Rect src = {0, 0, game_w, game_h};
+    SDL_Rect dst = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
+    SDL_RenderCopy(renderer, game_texture, &src, &dst);
+}
+
+void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
+{
+    SDL_Rect r = {x, y, w, h};
+    set_draw_color(argb);
+    SDL_RenderFillRect(renderer, &r);
+}
+
+void plat_end_frame(void)
+{
+    SDL_RenderPresent(renderer);
+}
+
+/* ---------------------------------------------------------------- textures and meshes */
+
+struct PlatTexture
+{
+    SDL_Texture *sdl;
+    int width, height;
+};
+
+PlatTexture *plat_texture_create(const uint8_t *rgba, int width, int height, bool smooth)
+{
+    PlatTexture *t = SDL_calloc(1, sizeof(*t));
+    if (!t)
+        return NULL;
+    t->sdl = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC,
+                               width, height); /* ABGR8888 = R,G,B,A bytes in memory */
+    if (!t->sdl)
+    {
+        psxs5_log("texture %dx%d failed: %s", width, height, SDL_GetError());
+        SDL_free(t);
+        return NULL;
+    }
+    SDL_UpdateTexture(t->sdl, NULL, rgba, width * 4);
+    SDL_SetTextureBlendMode(t->sdl, SDL_BLENDMODE_BLEND);
+#if SDL_VERSION_ATLEAST(2, 0, 12)
+    SDL_SetTextureScaleMode(t->sdl, smooth ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
+#else
+    (void)smooth;
+#endif
+    t->width = width;
+    t->height = height;
+    return t;
+}
+
+void plat_texture_free(PlatTexture *t)
+{
+    if (!t)
+        return;
+    SDL_DestroyTexture(t->sdl);
+    SDL_free(t);
+}
+
+void plat_texture_size(const PlatTexture *t, int *width, int *height)
+{
+    *width = t ? t->width : 0;
+    *height = t ? t->height : 0;
+}
+
+void plat_draw_mesh(PlatTexture *texture, const PlatVertex *v, int count, const int *indices,
+                    int index_count)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    enum { BATCH = 1536 }; /* multiple of 3 */
+    static SDL_Vertex out[BATCH];
+    if (indices && count > BATCH)
+        return; /* indexed meshes are small by construction */
+    for (int done = 0; done < count;)
+    {
+        int n = count - done < BATCH ? count - done : BATCH;
+        for (int i = 0; i < n; ++i)
+        {
+            const PlatVertex *p = &v[done + i];
+            out[i].position.x = p->x;
+            out[i].position.y = p->y;
+            out[i].tex_coord.x = p->u;
+            out[i].tex_coord.y = p->v;
+            out[i].color.r = (p->argb >> 16) & 0xff;
+            out[i].color.g = (p->argb >> 8) & 0xff;
+            out[i].color.b = p->argb & 0xff;
+            out[i].color.a = p->argb >> 24;
+        }
+        SDL_RenderGeometry(renderer, texture ? texture->sdl : NULL, out, n, indices,
+                           indices ? index_count : 0);
+        done += n;
+    }
+#else
+    (void)texture; (void)v; (void)count; (void)indices; (void)index_count;
+#endif
+}
+
+void plat_asset_path(char *out, size_t size, const char *relative)
+{
+#if defined(__PROSPERO__)
+    path_join(out, size, "/app0/assets", relative);
+#else
+    const char *base = SDL_getenv("PSXS5_ASSETS");
+    path_join(out, size, base && *base ? base : "assets", relative);
+#endif
+}
+
+uint64_t plat_ticks_us(void)
+{
+    return SDL_GetPerformanceCounter() * 1000000ull / SDL_GetPerformanceFrequency();
+}
+
+void plat_sleep_us(uint32_t us)
+{
+    SDL_Delay(us / 1000);
+}
+
+void plat_notify(const char *message)
+{
+    psxs5_log("notify: %s", message);
+#if defined(__PROSPERO__)
+    static struct
+    {
+        uint8_t reserved[45];
+        char message[3075];
+    } request;
+    memset(&request, 0, sizeof(request));
+    str_copy(request.message, sizeof(request.message), message);
+    sceKernelSendNotificationRequest(0, &request, sizeof(request), 0);
+#endif
+}
