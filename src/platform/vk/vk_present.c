@@ -10,8 +10,14 @@
  *
  * The canvas is still drawn by the CPU (SDL's software renderer); each frame
  * it is copied into a mapped staging buffer and then into a sampled image.
+ *
+ * A core that renders through Vulkan (Beetle PSX HW) creates the VkDevice
+ * itself, through libretro's context negotiation: the presenter then moves
+ * onto that device (vkp_adopt_device) and draws the core's image under the
+ * canvas, which leaves a transparent hole where the game shows.
  */
 #include "vk_present.h"
+#include "vk_present_hw.h"
 
 #if defined(PSXS5_VULKAN)
 
@@ -107,6 +113,12 @@ static struct
     int frame;
     bool canvas_ready;
     char description[64];
+    /* the game picture of a core rendering through Vulkan */
+    VkDescriptorSet game_sets[FRAMES];
+    VkImageView game_view;
+    VkImageLayout game_layout;
+    bool game_shown; /* plat asked for the picture this frame */
+    float game_rect[4];
 } V;
 
 const char *vkp_describe(void)
@@ -287,6 +299,19 @@ static bool create_surface(char *error, size_t size)
     return true;
 }
 
+static bool load_device(char *error, size_t size)
+{
+#define LOAD_DEVICE(name)                                                                          \
+    name = (PFN_##name)vkGetDeviceProcAddr(V.device, #name);                                       \
+    if (!name)                                                                                     \
+    {                                                                                              \
+        snprintf(error, size, "missing %s", #name);                                               \
+        return false;                                                                              \
+    }
+    VK_DEVICE_FUNCS(LOAD_DEVICE)
+    return true;
+}
+
 static bool create_device(char *error, size_t size)
 {
     VkQueueFamilyProperties families[8];
@@ -320,14 +345,8 @@ static bool create_device(char *error, size_t size)
     info.enabledExtensionCount = 1;
     info.ppEnabledExtensionNames = extensions;
     CHECK(vkCreateDevice(V.gpu, &info, NULL, &V.device), "vkCreateDevice");
-#define LOAD_DEVICE(name)                                                                          \
-    name = (PFN_##name)vkGetDeviceProcAddr(V.device, #name);                                       \
-    if (!name)                                                                                     \
-    {                                                                                              \
-        snprintf(error, size, "missing %s", #name);                                               \
-        return false;                                                                              \
-    }
-    VK_DEVICE_FUNCS(LOAD_DEVICE)
+    if (!load_device(error, size))
+        return false;
     vkGetDeviceQueue(V.device, V.family, 0, &V.queue);
     return true;
 }
@@ -594,6 +613,13 @@ static bool create_canvas(char *error, size_t size)
               "map staging");
     }
 
+    VkDescriptorSetLayout layouts[FRAMES];
+    for (int f = 0; f < FRAMES; ++f)
+        layouts[f] = V.set_layout;
+    da.descriptorSetCount = FRAMES;
+    da.pSetLayouts = layouts;
+    CHECK(vkAllocateDescriptorSets(V.device, &da, V.game_sets), "game descriptors");
+
     VkCommandPoolCreateInfo cp = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     cp.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     cp.queueFamilyIndex = V.family;
@@ -693,6 +719,25 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
     V.canvas_ready = true;
 
+    bool game = V.game_shown && V.game_view;
+    V.game_shown = false;
+    if (game)
+    {
+        /* the core's rendering on this queue, finished before we sample it */
+        VkMemoryBarrier mb = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+        mb.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0, 1, &mb, 0, NULL, 0, NULL);
+        VkDescriptorImageInfo di = {V.sampler, V.game_view, V.game_layout};
+        VkWriteDescriptorSet w = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        w.dstSet = V.game_sets[f];
+        w.descriptorCount = 1;
+        w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w.pImageInfo = &di;
+        vkUpdateDescriptorSets(V.device, 1, &w, 0, NULL);
+    }
+
     VkClearValue clear = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
     VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     rp.renderPass = V.pass;
@@ -705,8 +750,18 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
     VkRect2D scissor = {{0, 0}, V.extent};
     vkCmdSetViewport(cb, 0, 1, &viewport);
     vkCmdSetScissor(cb, 0, 1, &scissor);
-    /* (the game picture goes here, under the interface) */
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
+    if (game)
+    {
+        /* the game picture, then the interface over it: the canvas is
+         * transparent (premultiplied) where the game shows */
+        float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
+        draw_quad(cb, V.game_sets[f], V.game_rect[0] * kx, V.game_rect[1] * ky, V.game_rect[2] * kx,
+                  V.game_rect[3] * ky);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.blended);
+    }
+    else
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
     draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height);
     vkCmdEndRenderPass(cb);
     vkEndCommandBuffer(cb);
@@ -731,62 +786,162 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
     vkQueuePresentKHR(V.queue, &present);
 }
 
+/* Everything made on the device, but not the device itself. */
+static void destroy_device_objects(void)
+{
+    if (!V.device)
+        return;
+    vkDeviceWaitIdle(V.device);
+    for (int f = 0; f < FRAMES; ++f)
+    {
+        if (V.done[f])
+            vkDestroyFence(V.device, V.done[f], NULL);
+        if (V.acquired[f])
+            vkDestroySemaphore(V.device, V.acquired[f], NULL);
+        if (V.staging[f])
+            vkDestroyBuffer(V.device, V.staging[f], NULL);
+        if (V.staging_memory[f])
+            vkFreeMemory(V.device, V.staging_memory[f], NULL);
+        V.done[f] = VK_NULL_HANDLE;
+        V.acquired[f] = VK_NULL_HANDLE;
+        V.staging[f] = VK_NULL_HANDLE;
+        V.staging_memory[f] = VK_NULL_HANDLE;
+        V.game_sets[f] = VK_NULL_HANDLE;
+    }
+    if (V.commands)
+        vkDestroyCommandPool(V.device, V.commands, NULL);
+    if (V.canvas_view)
+        vkDestroyImageView(V.device, V.canvas_view, NULL);
+    if (V.canvas)
+        vkDestroyImage(V.device, V.canvas, NULL);
+    if (V.canvas_memory)
+        vkFreeMemory(V.device, V.canvas_memory, NULL);
+    if (V.pool)
+        vkDestroyDescriptorPool(V.device, V.pool, NULL);
+    if (V.sampler)
+        vkDestroySampler(V.device, V.sampler, NULL);
+    if (V.opaque)
+        vkDestroyPipeline(V.device, V.opaque, NULL);
+    if (V.blended)
+        vkDestroyPipeline(V.device, V.blended, NULL);
+    if (V.layout)
+        vkDestroyPipelineLayout(V.device, V.layout, NULL);
+    if (V.set_layout)
+        vkDestroyDescriptorSetLayout(V.device, V.set_layout, NULL);
+    for (uint32_t i = 0; i < V.image_count; ++i)
+    {
+        if (V.framebuffers[i])
+            vkDestroyFramebuffer(V.device, V.framebuffers[i], NULL);
+        if (V.views[i])
+            vkDestroyImageView(V.device, V.views[i], NULL);
+        if (V.rendered[i])
+            vkDestroySemaphore(V.device, V.rendered[i], NULL);
+        V.framebuffers[i] = VK_NULL_HANDLE;
+        V.views[i] = VK_NULL_HANDLE;
+        V.rendered[i] = VK_NULL_HANDLE;
+    }
+    if (V.pass)
+        vkDestroyRenderPass(V.device, V.pass, NULL);
+    if (V.swapchain)
+        vkDestroySwapchainKHR(V.device, V.swapchain, NULL);
+    V.commands = VK_NULL_HANDLE;
+    V.canvas_view = VK_NULL_HANDLE;
+    V.canvas = VK_NULL_HANDLE;
+    V.canvas_memory = VK_NULL_HANDLE;
+    V.pool = VK_NULL_HANDLE;
+    V.sampler = VK_NULL_HANDLE;
+    V.opaque = V.blended = VK_NULL_HANDLE;
+    V.layout = VK_NULL_HANDLE;
+    V.set_layout = VK_NULL_HANDLE;
+    V.pass = VK_NULL_HANDLE;
+    V.swapchain = VK_NULL_HANDLE;
+    V.image_count = 0;
+    V.canvas_ready = false;
+    V.game_view = VK_NULL_HANDLE;
+    V.frame = 0;
+}
+
 void vkp_close(void)
 {
+    destroy_device_objects();
     if (V.device)
-    {
-        vkDeviceWaitIdle(V.device);
-        for (int f = 0; f < FRAMES; ++f)
-        {
-            if (V.done[f])
-                vkDestroyFence(V.device, V.done[f], NULL);
-            if (V.acquired[f])
-                vkDestroySemaphore(V.device, V.acquired[f], NULL);
-            if (V.staging[f])
-                vkDestroyBuffer(V.device, V.staging[f], NULL);
-            if (V.staging_memory[f])
-                vkFreeMemory(V.device, V.staging_memory[f], NULL);
-        }
-        if (V.commands)
-            vkDestroyCommandPool(V.device, V.commands, NULL);
-        if (V.canvas_view)
-            vkDestroyImageView(V.device, V.canvas_view, NULL);
-        if (V.canvas)
-            vkDestroyImage(V.device, V.canvas, NULL);
-        if (V.canvas_memory)
-            vkFreeMemory(V.device, V.canvas_memory, NULL);
-        if (V.pool)
-            vkDestroyDescriptorPool(V.device, V.pool, NULL);
-        if (V.sampler)
-            vkDestroySampler(V.device, V.sampler, NULL);
-        if (V.opaque)
-            vkDestroyPipeline(V.device, V.opaque, NULL);
-        if (V.blended)
-            vkDestroyPipeline(V.device, V.blended, NULL);
-        if (V.layout)
-            vkDestroyPipelineLayout(V.device, V.layout, NULL);
-        if (V.set_layout)
-            vkDestroyDescriptorSetLayout(V.device, V.set_layout, NULL);
-        for (uint32_t i = 0; i < V.image_count; ++i)
-        {
-            if (V.framebuffers[i])
-                vkDestroyFramebuffer(V.device, V.framebuffers[i], NULL);
-            if (V.views[i])
-                vkDestroyImageView(V.device, V.views[i], NULL);
-            if (V.rendered[i])
-                vkDestroySemaphore(V.device, V.rendered[i], NULL);
-        }
-        if (V.pass)
-            vkDestroyRenderPass(V.device, V.pass, NULL);
-        if (V.swapchain)
-            vkDestroySwapchainKHR(V.device, V.swapchain, NULL);
         vkDestroyDevice(V.device, NULL);
-    }
     if (V.surface && vkDestroySurfaceKHR)
         vkDestroySurfaceKHR(V.instance, V.surface, NULL);
     if (V.instance && vkDestroyInstance)
         vkDestroyInstance(V.instance, NULL);
     memset(&V, 0, sizeof(V));
+}
+
+/* ---------------------------------------------------------------- a core's device */
+
+void vkp_hw_context(VkInstance *instance, VkPhysicalDevice *gpu, VkSurfaceKHR *surface,
+                    PFN_vkGetInstanceProcAddr *get_instance_proc_addr)
+{
+    *instance = V.instance;
+    *gpu = V.gpu;
+    *surface = V.surface;
+    *get_instance_proc_addr = vkGetInstanceProcAddr;
+}
+
+void vkp_hw_device(VkDevice *device, VkQueue *queue, uint32_t *family,
+                   PFN_vkGetDeviceProcAddr *get_device_proc_addr)
+{
+    *device = V.device;
+    *queue = V.queue;
+    *family = V.family;
+    *get_device_proc_addr = vkGetDeviceProcAddr;
+}
+
+bool vkp_adopt_device(VkDevice device, VkQueue queue, uint32_t family, char *error, size_t size)
+{
+    if (!V.swapchain || device == V.device)
+        return V.swapchain != VK_NULL_HANDLE;
+    destroy_device_objects();
+    vkDestroyDevice(V.device, NULL);
+    V.device = device;
+    V.queue = queue;
+    V.family = family;
+    bool ok = load_device(error, size) && create_swapchain(error, size) &&
+              create_pipeline(error, size) && create_canvas(error, size);
+    psxs5_log("vulkan: the screen moved to the core's device%s%s", ok ? "" : ": ", ok ? "" : error);
+    return ok;
+}
+
+void vkp_set_game_image(VkImageView view, VkImageLayout layout)
+{
+    V.game_view = view;
+    V.game_layout = layout;
+}
+
+uint32_t vkp_sync_index(void)
+{
+    return (uint32_t)V.frame;
+}
+
+uint32_t vkp_sync_index_mask(void)
+{
+    return (1u << FRAMES) - 1;
+}
+
+void vkp_wait_sync_index(void)
+{
+    if (V.device && V.done[V.frame])
+        vkWaitForFences(V.device, 1, &V.done[V.frame], VK_TRUE, UINT64_MAX);
+}
+
+bool vkp_game_image_ready(void)
+{
+    return V.game_view != VK_NULL_HANDLE;
+}
+
+void vkp_show_game(float x, float y, float w, float h)
+{
+    V.game_shown = true;
+    V.game_rect[0] = x;
+    V.game_rect[1] = y;
+    V.game_rect[2] = w;
+    V.game_rect[3] = h;
 }
 
 #else
@@ -807,6 +962,14 @@ void vkp_close(void) {}
 const char *vkp_describe(void)
 {
     return "";
+}
+bool vkp_game_image_ready(void)
+{
+    return false;
+}
+void vkp_show_game(float x, float y, float w, float h)
+{
+    (void)x, (void)y, (void)w, (void)h;
 }
 
 #endif

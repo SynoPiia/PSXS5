@@ -18,5 +18,9 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes);
 void vkp_close(void);
 /* "1920x1080 @ 59.94 Hz" once open */
 const char *vkp_describe(void);
+/* A core renders through Vulkan and has handed over a picture. */
+bool vkp_game_image_ready(void);
+/* Draw that picture in this rectangle of the canvas, under it, this frame. */
+void vkp_show_game(float x, float y, float w, float h);
 
 #endif

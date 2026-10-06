@@ -794,11 +794,21 @@ static int game_image_w, game_image_h;
 static size_t game_image_pitch;
 #endif
 
+static bool game_gpu; /* v2: the picture is the core's Vulkan image */
+
+void plat_upload_game_gpu(int width, int height)
+{
+    game_gpu = true;
+    game_src_w = width;
+    game_src_h = height;
+}
+
 void plat_upload_game(const void *pixels, int width, int height, size_t pitch, int pixel_format,
                       int upscale, int filter)
 {
     if (!pixels || width <= 0 || height <= 0)
         return;
+    game_gpu = false;
     game_src_w = width;
     game_src_h = height;
     int k = pixel_format == 1 ? upscale : 1; /* prescalers work on 32-bit frames */
@@ -912,7 +922,7 @@ void plat_game_rect(int *x, int *y, int *w, int *h)
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 {
 #if defined(__PROSPERO__)
-    if (!game_image && !game_texture)
+    if (!game_image && !game_texture && !(game_gpu && vkp_game_image_ready()))
         return;
 #else
     if (!game_texture)
@@ -923,6 +933,9 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     int lines = game_src_h;
     while (lines > 288)
         lines /= 2;
+    int columns = game_src_w; /* the same for the width (internal resolution) */
+    while (columns > 768)
+        columns /= 2;
 
     float aspect;
     switch (settings->aspect)
@@ -931,9 +944,7 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     case ASPECT_16_9: aspect = 16.0f / 9.0f; break;
     case ASPECT_16_10: aspect = 16.0f / 10.0f; break;
     case ASPECT_PIXEL:
-        aspect = (float)game_src_w / (float)lines;
-        if (game_src_w > 640) /* 2x internal doubles the width too */
-            aspect *= 0.5f;
+        aspect = (float)columns / (float)lines;
         break;
     case ASPECT_STRETCH: aspect = (float)out_w / out_h; break;
     default: aspect = display_aspect > 0.0f ? display_aspect : 4.0f / 3.0f; break;
@@ -969,6 +980,18 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     static const uint8_t scan_strength[] = {0, 110, 200};
     uint8_t scan = scan_strength[settings->crt % 3];
 #if defined(__PROSPERO__)
+    if (game_gpu && vkp_game_image_ready())
+    {
+        /* a hole in the canvas where the GPU draws the picture; its alpha
+         * darkens the picture for the menus (premultiplied black) */
+        SDL_Rect hole = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - dim));
+        SDL_RenderFillRect(renderer, &hole);
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h);
+        return;
+    }
     if (game_image)
     {
         /* run SDL's queued drawing (the clear) first, then write the picture */

@@ -13,6 +13,11 @@
 
 #include "libretro.h"
 #include "../platform/platform.h"
+#if defined(PSXS5_VULKAN)
+#include "../platform/vk/vk_present.h"
+#include "../platform/vk/vk_present_hw.h" /* before libretro_vulkan.h: no prototypes */
+#include "libretro_vulkan.h"
+#endif
 #include "../platform/ps5_crash.h"
 
 #include <stdarg.h>
@@ -170,9 +175,10 @@ static void apply_beetle_options(const Settings *s)
     static const char *const regions[] = {"auto", "ntsc-u", "pal"};
     static const char *const scales[] = {"1x(native)", "2x", "4x", "8x", "16x"};
     int level = s->internal_res >= 1 && s->internal_res <= 5 ? s->internal_res : 1;
-    if (level > 2)
-        level = 2; /* the software renderer: 4x and up only through Vulkan (next) */
-    set_option("beetle_psx_hw_renderer", "software"); /* the Vulkan renderer comes next */
+    bool gpu = vkp_describe()[0] != '\0'; /* the screen runs through Vulkan */
+    if (!gpu && level > 2)
+        level = 2; /* the software renderer: 4x and up would not fit in memory */
+    set_option("beetle_psx_hw_renderer", gpu ? "hardware_vk" : "software");
     set_option("beetle_psx_hw_internal_resolution", scales[level - 1]);
     set_option("beetle_psx_hw_region", regions[s->region % REGION_COUNT]);
     set_option("beetle_psx_hw_dither_mode", s->dithering ? "1x(native)" : "disabled");
@@ -219,6 +225,118 @@ static void apply_settings_to_options(const Settings *s)
     /* the widescreen codes need the picture's sides drawn */
     set_option("pcsx_rearmed_show_overscan", s->widescreen ? "hack" : "disabled");
 }
+
+/* ---------------------------------------------------------------- Vulkan rendering */
+
+#if defined(PSXS5_VULKAN)
+/* Beetle PSX HW renders through Vulkan: it asks for a Vulkan context
+ * (SET_HW_RENDER), creates the device itself through the negotiation
+ * interface, and hands over a finished image each frame (set_image). The
+ * screen (vk_present.c) moves onto that device and draws the image. */
+static struct retro_hw_render_callback hw;
+static bool hw_requested, hw_running;
+static const struct retro_hw_render_context_negotiation_interface_vulkan *negotiation;
+static struct retro_hw_render_interface_vulkan hw_interface;
+
+static void hw_set_image(void *handle, const struct retro_vulkan_image *image, uint32_t num_semaphores,
+                         const VkSemaphore *semaphores, uint32_t src_queue_family)
+{
+    (void)handle, (void)num_semaphores, (void)semaphores, (void)src_queue_family;
+    vkp_set_game_image(image ? image->image_view : VK_NULL_HANDLE,
+                       image ? image->image_layout : VK_IMAGE_LAYOUT_UNDEFINED);
+}
+static uint32_t hw_get_sync_index(void *handle)
+{
+    (void)handle;
+    return vkp_sync_index();
+}
+static uint32_t hw_get_sync_index_mask(void *handle)
+{
+    (void)handle;
+    return vkp_sync_index_mask();
+}
+static void hw_wait_sync_index(void *handle)
+{
+    (void)handle;
+    vkp_wait_sync_index();
+}
+static void hw_set_command_buffers(void *handle, uint32_t num, const VkCommandBuffer *cmd)
+{
+    (void)handle, (void)num, (void)cmd; /* Beetle submits its own */
+}
+static void hw_queue_noop(void *handle)
+{
+    (void)handle; /* one thread submits: no lock needed */
+}
+static void hw_set_signal_semaphore(void *handle, VkSemaphore semaphore)
+{
+    (void)handle, (void)semaphore;
+}
+
+/* After retro_load_game: the core's device, the screen moved onto it, then
+ * context_reset builds the renderer. */
+static bool hw_start(char *error, size_t size)
+{
+    VkInstance instance;
+    VkPhysicalDevice gpu;
+    VkSurfaceKHR surface;
+    PFN_vkGetInstanceProcAddr gipa;
+    vkp_hw_context(&instance, &gpu, &surface, &gipa);
+    struct retro_vulkan_context context;
+    memset(&context, 0, sizeof(context));
+    const char *extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    if (!negotiation || !negotiation->create_device ||
+        !negotiation->create_device(&context, instance, gpu, surface, gipa, extensions, 1, NULL, 0, NULL))
+    {
+        snprintf(error, size, "Beetle could not create its Vulkan device.");
+        return false;
+    }
+    char why[160];
+    if (!vkp_adopt_device(context.device, context.queue, context.queue_family_index, why, sizeof(why)))
+    {
+        snprintf(error, size, "The screen could not move to Beetle's device: %s", why);
+        return false;
+    }
+    VkDevice device;
+    VkQueue queue;
+    uint32_t family;
+    PFN_vkGetDeviceProcAddr gdpa;
+    vkp_hw_device(&device, &queue, &family, &gdpa);
+    memset(&hw_interface, 0, sizeof(hw_interface));
+    hw_interface.interface_type = RETRO_HW_RENDER_INTERFACE_VULKAN;
+    hw_interface.interface_version = RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION;
+    hw_interface.instance = instance;
+    hw_interface.gpu = context.gpu ? context.gpu : gpu;
+    hw_interface.device = device;
+    hw_interface.get_device_proc_addr = gdpa;
+    hw_interface.get_instance_proc_addr = gipa;
+    hw_interface.queue = queue;
+    hw_interface.queue_index = family;
+    hw_interface.set_image = hw_set_image;
+    hw_interface.get_sync_index = hw_get_sync_index;
+    hw_interface.get_sync_index_mask = hw_get_sync_index_mask;
+    hw_interface.set_command_buffers = hw_set_command_buffers;
+    hw_interface.wait_sync_index = hw_wait_sync_index;
+    hw_interface.lock_queue = hw_queue_noop;
+    hw_interface.unlock_queue = hw_queue_noop;
+    hw_interface.set_signal_semaphore = hw_set_signal_semaphore;
+    hw_running = true;
+    if (hw.context_reset)
+        hw.context_reset();
+    psxs5_log("host: Beetle renders through Vulkan");
+    return true;
+}
+
+static void hw_stop(void)
+{
+    if (hw_running && hw.context_destroy)
+        hw.context_destroy();
+    hw_running = false;
+    hw_requested = false;
+    negotiation = NULL;
+    vkp_set_game_image(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+}
+#endif
 
 /* ---------------------------------------------------------------- callbacks */
 
@@ -337,6 +455,41 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_MESSAGE:
         psxs5_log("core message: %s", ((const struct retro_message *)data)->msg);
         return true;
+#if defined(PSXS5_VULKAN)
+    case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+        *(unsigned *)data = RETRO_HW_CONTEXT_VULKAN;
+        return vkp_describe()[0] != '\0';
+    case RETRO_ENVIRONMENT_SET_HW_RENDER:
+    {
+        struct retro_hw_render_callback *cb = data;
+        if (core != &BEETLE || cb->context_type != RETRO_HW_CONTEXT_VULKAN || !vkp_describe()[0])
+            return false;
+        hw = *cb;
+        hw_requested = true;
+        return true;
+    }
+    case RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE:
+    {
+        const struct retro_hw_render_context_negotiation_interface *i = data;
+        if (i->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN)
+            return false;
+        negotiation = data;
+        return true;
+    }
+    case RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT:
+    {
+        struct retro_hw_render_context_negotiation_interface *i = data;
+        if (i->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN)
+            return false;
+        i->interface_version = 1; /* create_device, not create_device2 */
+        return true;
+    }
+    case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+        if (!hw_running)
+            return false;
+        *(const struct retro_hw_render_interface **)data = (const struct retro_hw_render_interface *)&hw_interface;
+        return true;
+#endif
     case RETRO_ENVIRONMENT_SET_MESSAGE_EXT:
         psxs5_log("core message: %s", ((const struct retro_message_ext *)data)->msg);
         return true;
@@ -353,6 +506,15 @@ static void RETRO_CALLCONV video_cb(const void *data, unsigned width, unsigned h
 {
     if (!data)
         return; /* duplicate frame: keep showing the previous one */
+    if (data == RETRO_HW_FRAME_BUFFER_VALID)
+    {
+        /* rendered on the GPU: the image went through set_image */
+        frame_data = NULL;
+        frame_w = width;
+        frame_h = height;
+        frame_fresh = true;
+        return;
+    }
     frame_data = data;
     frame_w = width;
     frame_h = height;
@@ -453,6 +615,16 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
         core->deinit();
         return false;
     }
+#if defined(PSXS5_VULKAN)
+    if (hw_requested && !hw_start(error, error_size))
+    {
+        psxs5_log("%s", error);
+        hw_stop();
+        core->unload_game();
+        core->deinit();
+        return false;
+    }
+#endif
     STEP("retro_get_system_av_info");
     core->get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
@@ -475,6 +647,9 @@ void host_unload(void)
     if (!loaded)
         return;
     core->unload_game();
+#if defined(PSXS5_VULKAN)
+    hw_stop();
+#endif
     core->deinit();
     loaded = false;
     frame_data = NULL;

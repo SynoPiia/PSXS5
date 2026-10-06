@@ -266,6 +266,8 @@ void app_draw_game(uint8_t dim)
     const void *pixels = host_frame(&w, &h, &pitch, &fmt, &fresh);
     if (pixels && fresh)
         plat_upload_game(pixels, w, h, pitch, fmt, app.settings.upscale, app.settings.upscale_filter);
+    else if (!pixels && fresh && w > 0)
+        plat_upload_game_gpu(w, h); /* the core rendered through Vulkan */
     Settings view = app.settings;
     if (play_widescreen_active())
         view.aspect = ASPECT_16_9;
