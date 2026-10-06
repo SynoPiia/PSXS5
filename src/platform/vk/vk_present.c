@@ -21,7 +21,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#define VK_NO_PROTOTYPES /* every command is a pointer looked up below */
 #include <vulkan/vulkan.h>
+
+/* defined in vk_probe.c, forwarding to RADV's ICD entry point */
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance, const char *name);
 
 #define FRAMES 2 /* frames in flight */
 #define MAX_IMAGES 8
