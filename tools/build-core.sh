@@ -75,11 +75,11 @@ esac
 # the submodule itself stays pristine; each is applied once.
 for patch in "$root"/tools/patches/pcsx_rearmed-*.patch; do
     [[ -f $patch ]] || continue
-    if git -C "$core" apply --reverse --check "$patch" 2>/dev/null; then
+    if git -C "$core" apply --ignore-whitespace --reverse --check "$patch" 2>/dev/null; then
         continue # already applied
     fi
     echo "==> [core] applying $(basename "$patch")"
-    git -C "$core" apply "$patch"
+    git -C "$core" apply --ignore-whitespace "$patch"
 done
 
 if [[ -f $stamp && $(cat "$stamp") != "$target" ]]; then
