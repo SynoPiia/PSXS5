@@ -71,7 +71,9 @@ UnlockResult ps5_unlock_etahen(void)
         return UNLOCK_ALREADY;
     if (access(CRASH_MARKER, F_OK) == 0)
     {
-        /* The previous launch died while asking: never ask again automatically. */
+        /* The previous launch died while asking: skip this one launch (no crash
+         * loop), then ask again on the next. */
+        unlink(CRASH_MARKER);
         return UNLOCK_SKIPPED_AFTER_CRASH;
     }
     int marker = open(CRASH_MARKER, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -124,7 +126,7 @@ const char *ps5_unlock_describe(UnlockResult r)
     case UNLOCK_ALREADY: return "already unlocked";
     case UNLOCK_NO_ANSWER: return "etaHEN didn't answer";
     case UNLOCK_CANT_REQUEST: return "couldn't write the request";
-    case UNLOCK_SKIPPED_AFTER_CRASH: return "skipped (last request closed PSXS5)";
+    case UNLOCK_SKIPPED_AFTER_CRASH: return "skipped once after the last request closed PSXS5 (start again to retry)";
     }
     return "?";
 }
