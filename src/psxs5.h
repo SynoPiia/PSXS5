@@ -63,6 +63,7 @@ enum UpscaleFilter
 {
     UPSCALE_SHARP = 0, /* nearest-neighbour prescale: crisp pixels */
     UPSCALE_SMOOTH_PIXELS, /* Scale2x/Scale3x edge smoothing */
+    UPSCALE_XBR,           /* xBR: edge-directed, smoothest (2x passes) */
     UPSCALE_FILTER_COUNT
 };
 

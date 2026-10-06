@@ -470,7 +470,7 @@ static const char *const ASPECTS[] = {"Auto (game)", "4:3", "16:9", "16:10", "1:
                                       "Stretch to screen"};
 static const char *const INTERNAL[] = {"Native", "2x"};
 static const char *const UPSCALE[] = {"Off", "2x", "3x", "4x"};
-static const char *const FILTERS[] = {"Sharp pixels", "Smooth pixels"};
+static const char *const FILTERS[] = {"Sharp pixels", "Smooth pixels (Scale2x)", "xBR (smoothest)"};
 static const char *const REGIONS[] = {"Auto", "NTSC (60 Hz)", "PAL (50 Hz)"};
 static const char *const BIOS[] = {"Real BIOS if present", "Built-in HLE"};
 static const char *const PADS[] = {"Digital pad", "DualShock (analog)"};
@@ -486,7 +486,7 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_CHOICE, "Internal resolution", &settings.internal_res, 0, INTERNAL, 2, 1,
                       "sharper 3D"};
     rows[n++] = (Row){ROW_CHOICE, "Upscale", &settings.upscale, 0, UPSCALE, 4, 1, 0};
-    rows[n++] = (Row){ROW_CHOICE, "Upscale filter", &settings.upscale_filter, 0, FILTERS, 2, 0, 0};
+    rows[n++] = (Row){ROW_CHOICE, "Upscale filter", &settings.upscale_filter, 0, FILTERS, UPSCALE_FILTER_COUNT, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Aspect ratio", &settings.aspect, 0, ASPECTS, ASPECT_COUNT, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Integer scaling", 0, &settings.integer_scale, OFF_ON, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Smooth final scaling", 0, &settings.smooth, OFF_ON, 2, 0, 0};
