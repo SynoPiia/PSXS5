@@ -689,16 +689,48 @@ static void cheats_screen(uint32_t pressed)
 
 static void game_screen(PadState *pads, uint32_t pressed)
 {
+    (void)pressed;
     static uint32_t combo_prev;
     uint32_t combo = pads[0].buttons & (BIT(BTN_L3) | BIT(BTN_R3));
     bool combo_hit = combo == (BIT(BTN_L3) | BIT(BTN_R3)) && combo_prev != combo;
     combo_prev = combo;
-    if ((pressed & BIT(BTN_MENU)) || combo_hit)
+
+    /* Touchpad: a tap is the PS1's Select (the PS5 SDL driver has no Create
+     * button); holding it opens the PSXS5 menu. */
+    static uint64_t touch_since;
+    static bool touch_used;
+    static int select_frames;
+    bool touch = (pads[0].buttons | pads[1].buttons) & BIT(BTN_MENU);
+    uint64_t t_now = plat_ticks_us();
+    bool open_menu = combo_hit;
+    if (touch)
+    {
+        if (!touch_since)
+            touch_since = t_now;
+        else if (!touch_used && t_now - touch_since > 700000)
+        {
+            touch_used = true;
+            open_menu = true;
+        }
+    }
+    else
+    {
+        if (touch_since && !touch_used)
+            select_frames = 6; /* ~100 ms: long enough for every game to see it */
+        touch_since = 0;
+        touch_used = false;
+    }
+    if (open_menu)
     {
         menu_cursor = MI_RESUME;
         screen = SCREEN_MENU;
         draw_game_frame(70);
         return;
+    }
+    if (select_frames > 0)
+    {
+        pads[0].buttons |= BIT(BTN_SELECT);
+        --select_frames;
     }
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
     {
