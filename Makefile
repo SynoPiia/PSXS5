@@ -20,7 +20,11 @@ PSXS5_CORE := build/core-ps5/libpcsx_rearmed.a
 # RetroAchievements: rcheevos (MIT), built by tools/build-rcheevos.sh.
 PSXS5_RCHEEVOS := build/rcheevos-ps5/librcheevos.a
 APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check third_party/rcheevos/include $(PSXS5_VULKAN_INCLUDE)
-APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS)
+ifeq ($(APP_VULKAN),1)
+# v2: Beetle PSX HW (Vulkan renderer), built by tools/build-beetle.sh
+PSXS5_BEETLE := build/beetle-ps5/libbeetle_psx.a
+endif
+APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS) $(PSXS5_BEETLE)
 APP_RUNTIME_MODULES ?=
 # fcntl: console_curl. The allocator family: ps5_heap.c (the C heap is too small).
 APP_WRAP_SYMBOLS ?= fcntl malloc free calloc realloc reallocf memalign posix_memalign aligned_alloc malloc_usable_size
@@ -252,6 +256,9 @@ endif
 core:
 	@bash tools/build-core.sh ps5
 	@bash tools/build-rcheevos.sh ps5
+ifeq ($(APP_VULKAN),1)
+	@bash tools/build-beetle.sh
+endif
 
 core-desktop:
 	@bash tools/build-core.sh desktop
