@@ -660,11 +660,16 @@ void shelf_screen(uint32_t pressed)
     }
     else
     {
-        float w = 1200, h = 240, x = CENTER_X - w * 0.5f, y = 340;
+        float w = 1200, h = 330, x = CENTER_X - w * 0.5f, y = 300;
         draw_rrect(x, y, w, h, TH_RADIUS, TH_CARD_SOFT);
         icon_draw(ICON_DISC, CENTER_X - 32, y + 30, 64, TH_FOCUS);
         text_draw(CENTER_X, y + 108, 36, FONT_BOLD, TH_TEXT, ALIGN_CENTER, tr("Your shelf is empty"));
-        text_draw(CENTER_X, y + 166, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
+        char line[PSXS5_PATH_MAX + 64];
+        snprintf(line, sizeof(line), tr("Games: %s/<Game name>/"), app.paths.games);
+        text_draw(CENTER_X, y + 166, 24, FONT_REGULAR, TH_TEXT, ALIGN_CENTER, line);
+        snprintf(line, sizeof(line), tr("BIOS (optional): %s/"), app.paths.bios);
+        text_draw(CENTER_X, y + 206, 24, FONT_REGULAR, TH_TEXT, ALIGN_CENTER, line);
+        text_draw(CENTER_X, y + 262, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
                   tr("On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>"));
     }
 
