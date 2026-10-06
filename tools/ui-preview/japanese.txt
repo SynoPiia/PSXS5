@@ -1,0 +1,16 @@
+wait 60
+shot ja-01-shelf
+press square
+wait 30
+shot ja-02-settings
+press r1
+press r1
+wait 20
+press down
+press down
+press down
+press down
+press cross
+wait 30
+shot ja-03-mapping
+quit

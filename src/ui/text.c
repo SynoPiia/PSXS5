@@ -322,27 +322,22 @@ void text_draw(float x, float y, float size, int weight, uint32_t argb, int alig
         float w = text_width(size, weight, s);
         x -= align == ALIGN_CENTER ? w * 0.5f : w;
     }
-    float scale = size / (float)a->px;
-    enum { MAX_GLYPHS = 256 };
-    static PlatVertex v[MAX_GLYPHS * 6];
-    int n = 0;
-    float pen_x = 0.0f, pen_y = 0.0f;
-    while (*s && n < MAX_GLYPHS * 6)
+    /* One blit per glyph: the software renderer's copy path is far cheaper
+     * than textured triangles. */
+    float scale = size / (float)a->px, pen = 0.0f;
+    while (*s)
     {
         int cp = next_cp(&s);
-        stbtt_aligned_quad q;
         const stbtt_packedchar *base;
         int index;
-        atlas_glyph(a, cp, &base, &index);
-        stbtt_GetPackedQuad(base, a->width, a->height, index, &pen_x, &pen_y, &q, 0);
-        float x0 = x + q.x0 * scale, x1 = x + q.x1 * scale;
-        float y0 = y + (a->ascent + q.y0) * scale, y1 = y + (a->ascent + q.y1) * scale;
-        PlatVertex tl = {x0, y0, q.s0, q.t0, argb}, tr = {x1, y0, q.s1, q.t0, argb};
-        PlatVertex bl = {x0, y1, q.s0, q.t1, argb}, br = {x1, y1, q.s1, q.t1, argb};
-        v[n++] = tl; v[n++] = tr; v[n++] = br;
-        v[n++] = tl; v[n++] = br; v[n++] = bl;
+        const stbtt_packedchar *g = atlas_glyph(a, cp, &base, &index);
+        if (g->x1 > g->x0 && g->y1 > g->y0)
+            plat_draw_texture_region(a->texture, g->x0, g->y0, g->x1 - g->x0, g->y1 - g->y0,
+                                     x + (pen + g->xoff) * scale, y + (a->ascent + g->yoff) * scale,
+                                     (g->xoff2 - g->xoff) * scale, (g->yoff2 - g->yoff) * scale,
+                                     argb);
+        pen += g->xadvance;
     }
-    plat_draw_mesh(a->texture, v, n, NULL, 0);
 }
 
 void text_draw_fit(float x, float y, float size, int weight, uint32_t argb, int align,

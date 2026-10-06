@@ -124,6 +124,8 @@ static void RETRO_CALLCONV core_log(enum retro_log_level level, const char *fmt,
     psxs5_log("core: %s", line);
 }
 
+static float rumble_scale = 1.0f; /* Settings > Controls > Vibration */
+
 static bool RETRO_CALLCONV rumble_cb(unsigned port, enum retro_rumble_effect effect,
                                      uint16_t strength)
 {
@@ -134,7 +136,8 @@ static bool RETRO_CALLCONV rumble_cb(unsigned port, enum retro_rumble_effect eff
         strong[port] = strength;
     else
         weak[port] = strength;
-    plat_rumble((int)port, strong[port], weak[port]);
+    plat_rumble((int)port, (uint16_t)(strong[port] * rumble_scale),
+                (uint16_t)(weak[port] * rumble_scale));
     return true;
 }
 
@@ -291,6 +294,7 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     disk_available = false;
     frame_data = NULL;
     pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
+    rumble_scale = settings->rumble ? (settings->rumble_strength + 1) * 0.25f : 0.0f;
     apply_settings_to_options(settings);
 
 #define STEP(s) (psxs5_log("host: %s", s), ps5_crash_step(s))
@@ -400,6 +404,7 @@ void host_reset(void)
 
 void host_apply_settings(const Settings *settings)
 {
+    rumble_scale = settings->rumble ? (settings->rumble_strength + 1) * 0.25f : 0.0f;
     apply_settings_to_options(settings);
 }
 

@@ -1,0 +1,7 @@
+wait 60
+press square
+wait 10
+press l1
+wait 40
+shot 12-about
+quit

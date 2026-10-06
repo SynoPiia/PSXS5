@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 #define PSXS5_NAME "PSXS5"
-#define PSXS5_VERSION "1.0.0"
+#define PSXS5_VERSION "1.1.0"
 #define PSXS5_PATH_MAX 512
 
 /* Pad bits use RetroPad numbering so the host can hand the mask to the core
@@ -97,6 +97,13 @@ typedef struct
     int ui_volume;    /* 0..3 = 25/50/75/100 % */
     int stick_dpad;   /* enum StickDpad */
     int language;     /* enum Lang in i18n.h */
+    bool rumble;          /* controller vibration */
+    int rumble_strength;  /* 0..3 = 25/50/75/100 % */
+    /* Button mapping: for each controller button (BTN_CROSS..BTN_R3), the PS1
+     * button it presses (BTN_*), or -1 for nothing. */
+    int8_t button_map[16];
+    int sort_mode;        /* shelf order, enum SortMode in ui/coverflow.h */
+    int shelf_category;   /* shelf filter, enum ShelfCategory in ui/coverflow.h */
 } Settings;
 
 enum StickDpad

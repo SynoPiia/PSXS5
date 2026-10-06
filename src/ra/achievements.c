@@ -475,3 +475,24 @@ void ra_game_summary(char *out, size_t size)
         snprintf(out, size, "%u of %u achievements, %u of %u points", s.num_unlocked_achievements,
                  s.num_core_achievements, s.points_unlocked, s.points_core);
 }
+
+unsigned ra_user_score(void)
+{
+    if (!client || !signed_in)
+        return 0;
+    const rc_client_user_t *u = rc_client_get_user_info(client);
+    return u ? (hardcore ? u->score : u->score_softcore) : 0;
+}
+
+bool ra_game_progress(int *unlocked, int *total)
+{
+    if (!client || !rc_client_get_game_info(client))
+        return false;
+    rc_client_user_game_summary_t s;
+    rc_client_get_user_game_summary(client, &s);
+    if (!s.num_core_achievements)
+        return false;
+    *unlocked = (int)s.num_unlocked_achievements;
+    *total = (int)s.num_core_achievements;
+    return true;
+}

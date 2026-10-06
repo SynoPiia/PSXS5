@@ -23,6 +23,9 @@ int sceSystemServiceHideSplashScreen(void);
 int psxs5_elevate(const char **route); /* elevation_shim.cpp */
 #else
 static bool init_desktop_window(void);
+#if defined(PSXS5_PREVIEW)
+static bool init_preview_screen(void);
+#endif
 #endif
 
 
@@ -112,6 +115,9 @@ bool plat_init(void)
 #if defined(__PROSPERO__)
     if (!init_ps5_screen())
         return false;
+#elif defined(PSXS5_PREVIEW)
+    if (!init_preview_screen())
+        return false;
 #else
     if (!init_desktop_window())
         return false;
@@ -128,6 +134,97 @@ bool plat_init(void)
     SDL_GameControllerEventState(SDL_ENABLE);
     return true;
 }
+
+#if defined(PSXS5_PREVIEW)
+/* ---- interface preview (tools/ui-preview): the PS5's software renderer on an
+ * off-screen surface, a fixed 60 Hz clock, scripted buttons and screenshots. */
+static SDL_Surface *preview_surface;
+static uint64_t preview_clock;
+static FILE *preview_script;
+static uint32_t preview_buttons;
+static int preview_hold;
+static bool preview_quit, preview_release;
+
+static void preview_step(void)
+{
+    /* script lines: "wait N", "press BUTTONS [N]", "hold BUTTONS N", "shot NAME", "quit"
+     * BUTTONS: names joined by + (cross circle square triangle up down left right
+     * l1 r1 l2 r2 l3 r3 start select menu) */
+    static const struct { const char *name; int bit; } names[] = {
+        {"cross", BTN_CROSS}, {"circle", BTN_CIRCLE}, {"square", BTN_SQUARE},
+        {"triangle", BTN_TRIANGLE}, {"up", BTN_UP}, {"down", BTN_DOWN}, {"left", BTN_LEFT},
+        {"right", BTN_RIGHT}, {"l1", BTN_L1}, {"r1", BTN_R1}, {"l2", BTN_L2}, {"r2", BTN_R2},
+        {"l3", BTN_L3}, {"r3", BTN_R3}, {"start", BTN_START}, {"select", BTN_SELECT},
+        {"menu", BTN_MENU}};
+    if (preview_hold > 0)
+    {
+        --preview_hold;
+        return;
+    }
+    if (preview_release)
+    {
+        /* one frame with nothing held between commands, so presses register */
+        preview_release = false;
+        preview_buttons = 0;
+        return;
+    }
+    preview_buttons = 0;
+    char line[256];
+    while (preview_script && fgets(line, sizeof(line), preview_script))
+    {
+        char cmd[32] = "", arg[200] = "";
+        int n = 1;
+        if (sscanf(line, "%31s %199s %d", cmd, arg, &n) < 1 || cmd[0] == '#')
+            continue;
+        if (!strcmp(cmd, "quit"))
+        {
+            preview_quit = true;
+            return;
+        }
+        if (!strcmp(cmd, "wait"))
+        {
+            preview_hold = atoi(arg) - 1;
+            return;
+        }
+        if (!strcmp(cmd, "shot"))
+        {
+            char path[300];
+            snprintf(path, sizeof(path), "%s/%s.bmp", SDL_getenv("PSXS5_SHOTS") ? SDL_getenv("PSXS5_SHOTS") : ".", arg);
+            SDL_Surface *out = SDL_CreateRGBSurfaceWithFormat(0, 1920, 1080, 32, SDL_PIXELFORMAT_ARGB8888);
+            SDL_Rect r = {0, 36, 1920, 1080}; /* the 1080 lines inside the 1152-line canvas */
+            SDL_BlitSurface(preview_surface, &r, out, NULL);
+            SDL_SaveBMP(out, path);
+            SDL_FreeSurface(out);
+            psxs5_log("preview: %s", path);
+            continue;
+        }
+        if (!strcmp(cmd, "press") || !strcmp(cmd, "hold"))
+        {
+            for (char *tok = strtok(arg, "+"); tok; tok = strtok(NULL, "+"))
+                for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
+                    if (!strcmp(tok, names[i].name))
+                        preview_buttons |= BIT(names[i].bit);
+            /* press: down for one frame, then up for one */
+            preview_hold = (!strcmp(cmd, "hold") ? n : 1) - 1;
+            preview_release = true;
+            return;
+        }
+    }
+}
+
+static bool init_preview_screen(void)
+{
+    preview_surface = SDL_CreateRGBSurfaceWithFormat(0, 1920, 1152, 32, SDL_PIXELFORMAT_ARGB8888);
+    if (!preview_surface)
+        return init_failed("preview surface");
+    renderer = SDL_CreateSoftwareRenderer(preview_surface);
+    if (!renderer)
+        return init_failed("preview renderer");
+    const char *script = SDL_getenv("PSXS5_SCRIPT");
+    preview_script = script ? fopen(script, "r") : NULL;
+    return true;
+}
+#endif
 
 #if !defined(__PROSPERO__)
 static bool init_desktop_window(void)
@@ -450,6 +547,13 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
         p->ry = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTY);
     }
 
+#if defined(PSXS5_PREVIEW)
+    preview_step();
+    pads[0].connected = true;
+    pads[0].buttons = preview_buttons;
+    if (preview_quit && quit)
+        *quit = true;
+#endif
 #if !defined(__PROSPERO__)
     const Uint8 *keys = SDL_GetKeyboardState(NULL);
     for (size_t k = 0; k < sizeof(key_map) / sizeof(key_map[0]); ++k)
@@ -542,6 +646,9 @@ int plat_height(void)
 
 void plat_begin_frame(uint32_t clear_argb)
 {
+    SDL_RenderSetClipRect(renderer, NULL);
+    if ((clear_argb >> 24) == 0)
+        return; /* the screen draws an opaque backdrop: skip the clear */
     set_draw_color(clear_argb);
     SDL_RenderClear(renderer);
 }
@@ -845,6 +952,9 @@ void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
 void plat_end_frame(void)
 {
     SDL_RenderPresent(renderer);
+#if defined(PSXS5_PREVIEW)
+    preview_clock += 16667;
+#endif
 #if defined(__PROSPERO__)
     static uint64_t frame_start, draw_us, present_us;
     static int frames;
@@ -959,6 +1069,39 @@ void plat_draw_texture(PlatTexture *texture, float x, float y, float w, float h,
     SDL_SetTextureBlendMode(texture->sdl, SDL_BLENDMODE_BLEND);
 }
 
+void plat_draw_texture_region(PlatTexture *texture, int sx, int sy, int sw, int sh, float x,
+                              float y, float w, float h, uint32_t tint)
+{
+    if (!texture || (tint >> 24) == 0)
+        return;
+    SDL_SetTextureColorMod(texture->sdl, (tint >> 16) & 0xff, (tint >> 8) & 0xff, tint & 0xff);
+    SDL_SetTextureAlphaMod(texture->sdl, tint >> 24);
+    SDL_Rect src = {sx, sy, sw, sh};
+    int x0 = (int)(x + 0.5f), y0 = (int)(y + 0.5f);
+    SDL_Rect dst = {x0, y0, (int)(x + w + 0.5f) - x0, (int)(y + h + 0.5f) - y0};
+    if (dst.w > 0 && dst.h > 0)
+        SDL_RenderCopy(renderer, texture->sdl, &src, &dst);
+}
+
+void plat_fill_rectf(float x, float y, float w, float h, uint32_t argb)
+{
+    if ((argb >> 24) == 0)
+        return;
+    int x0 = (int)(x + 0.5f), y0 = (int)(y + 0.5f);
+    SDL_Rect r = {x0, y0, (int)(x + w + 0.5f) - x0, (int)(y + h + 0.5f) - y0};
+    if (r.w <= 0 || r.h <= 0)
+        return;
+    SDL_SetRenderDrawBlendMode(renderer, (argb >> 24) == 0xff ? SDL_BLENDMODE_NONE : SDL_BLENDMODE_BLEND);
+    set_draw_color(argb);
+    SDL_RenderFillRect(renderer, &r);
+}
+
+void plat_set_clip(int x, int y, int w, int h)
+{
+    SDL_Rect r = {x, y, w, h};
+    SDL_RenderSetClipRect(renderer, w > 0 && h > 0 ? &r : NULL);
+}
+
 void plat_asset_path(char *out, size_t size, const char *relative)
 {
 #if defined(__PROSPERO__)
@@ -988,6 +1131,9 @@ void plat_asset_path(char *out, size_t size, const char *relative)
 
 uint64_t plat_ticks_us(void)
 {
+#if defined(PSXS5_PREVIEW)
+    return 1000000ull + preview_clock;
+#endif
     return SDL_GetPerformanceCounter() * 1000000ull / SDL_GetPerformanceFrequency();
 }
 

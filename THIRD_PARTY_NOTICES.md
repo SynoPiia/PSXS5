@@ -161,3 +161,4 @@ No proprietary runtime module, encryption key, or game file is included.
 | Scale2x / Scale3x by Andrea Mazzoleni (AdvanceMAME) | upscale filter, reimplemented in `src/platform/plat_sdl.c` | algorithm credit |
 | [RetroAchievements](https://retroachievements.org) | achievement sets and accounts, used online; not bundled | service terms of retroachievements.org |
 | [Noto Sans JP](https://github.com/notofonts/noto-cjk) (subset by `tools/make_jp_font.py`) | Japanese interface text (`assets/fonts/NotoSansJP-PSXS5.ttf`) | SIL Open Font License 1.1 (`assets/fonts/OFL-NotoSansJP.txt`) |
+| [Tabler Icons](https://tabler.io/icons) 3.31.0 (subset by `tools/make_icon_font.py`) | interface icons (`assets/fonts/tabler-psxs5.ttf`) | MIT (`assets/fonts/LICENSE-tabler-icons.txt`) |
