@@ -13,7 +13,7 @@ void ra_init(const Paths *paths);
 void ra_shutdown(void);
 
 /* After the core loaded a game: hashes the disc and loads its achievements. */
-void ra_game_loaded(void);
+void ra_game_loaded(const char *game_path);
 void ra_game_unloaded(void);
 void ra_frame(void);  /* after every emulated frame */
 void ra_idle(void);   /* while paused (menus): keeps the server session alive */

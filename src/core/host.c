@@ -44,6 +44,8 @@ typedef struct
     size_t (*serialize_size)(void);
     bool (*serialize)(void *, size_t);
     bool (*unserialize)(const void *, size_t);
+    void *(*get_memory_data)(unsigned);
+    size_t (*get_memory_size)(unsigned);
 } CoreApi;
 
 #define CORE_API(label, p)                                                                         \
@@ -52,7 +54,8 @@ typedef struct
             p##retro_set_audio_sample_batch, p##retro_set_input_poll, p##retro_set_input_state,  \
             p##retro_init, p##retro_deinit, p##retro_load_game, p##retro_unload_game,            \
             p##retro_get_system_av_info, p##retro_set_controller_port_device, p##retro_run,      \
-            p##retro_reset, p##retro_serialize_size, p##retro_serialize, p##retro_unserialize    \
+            p##retro_reset, p##retro_serialize_size, p##retro_serialize, p##retro_unserialize,   \
+            p##retro_get_memory_data, p##retro_get_memory_size                                  \
     }
 
 static const CoreApi PCSX = CORE_API("PCSX-ReARMed", );
@@ -75,6 +78,8 @@ void beetle_retro_reset(void);
 size_t beetle_retro_serialize_size(void);
 bool beetle_retro_serialize(void *, size_t);
 bool beetle_retro_unserialize(const void *, size_t);
+void *beetle_retro_get_memory_data(unsigned);
+size_t beetle_retro_get_memory_size(unsigned);
 static const CoreApi BEETLE = CORE_API("Beetle PSX HW", beetle_);
 #endif
 
@@ -165,6 +170,8 @@ static void apply_beetle_options(const Settings *s)
     static const char *const regions[] = {"auto", "ntsc-u", "pal"};
     static const char *const scales[] = {"1x(native)", "2x", "4x", "8x", "16x"};
     int level = s->internal_res >= 1 && s->internal_res <= 5 ? s->internal_res : 1;
+    if (level > 2)
+        level = 2; /* the software renderer: 4x and up only through Vulkan (next) */
     set_option("beetle_psx_hw_renderer", "software"); /* the Vulkan renderer comes next */
     set_option("beetle_psx_hw_internal_resolution", scales[level - 1]);
     set_option("beetle_psx_hw_region", regions[s->region % REGION_COUNT]);
@@ -478,6 +485,16 @@ void host_unload(void)
 bool host_loaded(void)
 {
     return loaded;
+}
+
+void *host_memory_data(unsigned id)
+{
+    return loaded ? core->get_memory_data(id) : NULL;
+}
+
+size_t host_memory_size(unsigned id)
+{
+    return loaded ? core->get_memory_size(id) : 0;
 }
 
 const struct retro_memory_map *host_memory_map(void)

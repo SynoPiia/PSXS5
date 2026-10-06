@@ -42,6 +42,8 @@ void host_set_patches_dir(const char *dir);
 /* For RetroAchievements */
 struct retro_memory_map;
 const struct retro_memory_map *host_memory_map(void);
+void *host_memory_data(unsigned id); /* retro_get_memory_data of the running core */
+size_t host_memory_size(unsigned id);
 bool host_read_sector(uint32_t lba, uint8_t out[2048]); /* user data of a disc sector */
 
 int host_disc_count(void);

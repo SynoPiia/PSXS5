@@ -170,8 +170,8 @@ static void RC_CCONV server_call(const rc_api_request_t *request,
 
 static void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t *info)
 {
-    info->data = retro_get_memory_data(id);
-    info->size = retro_get_memory_size(id);
+    info->data = host_memory_data(id);
+    info->size = host_memory_size(id);
 }
 
 static uint32_t RC_CCONV read_memory(uint32_t address, uint8_t *buffer, uint32_t num_bytes,
@@ -417,14 +417,51 @@ static void RC_CCONV on_game_loaded(int result, const char *error, rc_client_t *
     post("RetroAchievements", detail);
 }
 
-void ra_game_loaded(void)
+/* The image rcheevos reads when the core can't hand it sectors: the first
+ * disc of a .m3u playlist (one path per line, relative to the playlist). */
+static void first_disc(const char *game_path, char *out, size_t size)
+{
+    str_copy(out, size, game_path);
+    if (str_icmp(path_ext(game_path), "m3u") != 0)
+        return;
+    FILE *f = fopen(game_path, "r");
+    char line[PSXS5_PATH_MAX] = "";
+    while (f && fgets(line, sizeof(line), f))
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (line[0] && line[0] != '#')
+            break;
+        line[0] = '\0';
+    }
+    if (f)
+        fclose(f);
+    if (!line[0])
+        return;
+    if (line[0] == '/')
+        str_copy(out, size, line);
+    else
+    {
+        char dir[PSXS5_PATH_MAX];
+        str_copy(dir, sizeof(dir), game_path);
+        char *slash = strrchr(dir, '/');
+        if (slash)
+            *slash = '\0';
+        path_join(out, size, dir, line);
+    }
+}
+
+void ra_game_loaded(const char *game_path)
 {
     if (!client)
         return;
     regions_ready = rc_libretro_memory_init(&regions, host_memory_map(), core_memory_info,
                                             RC_CONSOLE_PLAYSTATION) != 0;
-    char hash[33] = "";
-    if (!rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, "disc.cue"))
+    char hash[33] = "", disc[PSXS5_PATH_MAX];
+    if (core_disc())
+        str_copy(disc, sizeof(disc), "disc.cue"); /* any .cue name: sectors come from the core */
+    else
+        first_disc(game_path, disc, sizeof(disc));
+    if (!rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, disc))
     {
         psxs5_log("ra: could not hash this disc");
         return;

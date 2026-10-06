@@ -326,7 +326,7 @@ void app_start_game(int index, bool resume)
     }
     plat_audio_open(host_sample_rate());
     plat_audio_clear();
-    ra_game_loaded();
+    ra_game_loaded(g->path);
     if (ra_hardcore())
         cheats_clear(&app.cheats); /* hardcore: no cheats */
     else if (cheats_load(&app.cheats, g, app.paths.cheats))

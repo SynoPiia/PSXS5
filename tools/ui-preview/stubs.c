@@ -32,6 +32,8 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
 void host_unload(void) { loaded = false; }
 bool host_loaded(void) { return loaded; }
 const char *host_core_name(void) { return "PCSX-ReARMed"; }
+void *host_memory_data(unsigned id) { (void)id; return NULL; }
+size_t host_memory_size(unsigned id) { (void)id; return 0; }
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]) { (void)pads; }
 bool host_pad_digital(int port) { (void)port; return false; }
 void host_run_frame(void) {}
@@ -67,7 +69,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char *code)
 static bool hardcore;
 void ra_init(const Paths *paths) { (void)paths; }
 void ra_shutdown(void) {}
-void ra_game_loaded(void) {}
+void ra_game_loaded(const char *game_path) {}
 void ra_game_unloaded(void) {}
 void ra_frame(void) {}
 void ra_idle(void) {}
