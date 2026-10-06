@@ -16,7 +16,7 @@ mkdir -p "$out/shots"
 export ZIG_GLOBAL_CACHE_DIR="$root/build/zigcache" ZIG_LOCAL_CACHE_DIR="$root/build/zigcache"
 
 sources=(src/cheats.c src/config.c src/covers.c src/disc.c src/i18n.c src/library.c src/main.c
-    src/net.c src/stats.c src/stb_impl.c src/util.c src/play.c src/remote.c src/update.c src/vendor.c src/platform/vk/vk_probe.c src/platform/plat_sdl.c src/platform/xbr.c src/platform/blit.c
+    src/net.c src/stats.c src/stb_impl.c src/util.c src/play.c src/remote.c src/update.c src/vendor.c src/platform/plat_sdl.c src/platform/xbr.c src/platform/blit.c
     src/ui/*.c tools/ui-preview/stubs.c)
 python -m ziglang cc -target x86_64-windows-gnu -std=gnu11 -O2 -w \
     -DPSXS5_PREVIEW -DSDL_MAIN_HANDLED -include tools/ui-preview/compat.h \
