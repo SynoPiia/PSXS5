@@ -732,7 +732,9 @@ int main(void)
 
     if (!plat_init())
     {
-        plat_notify("PSXS5: video initialisation failed");
+        char msg[300];
+        snprintf(msg, sizeof(msg), "PSXS5: %s", plat_init_error());
+        plat_notify(msg);
         for (;;)
             plat_sleep_us(1000000);
     }
