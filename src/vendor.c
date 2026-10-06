@@ -9,6 +9,7 @@
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wextra"
 
+#define NDEBUG /* no __assert in the PS5 libc */
 #define MINIZ_NO_ZLIB_COMPATIBLE_NAMES
 #include "../third_party/miniz/miniz.c"
 #include "../third_party/miniz/miniz_tdef.c"
