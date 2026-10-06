@@ -16,7 +16,7 @@ Status: **pre-alpha, not yet built or tested on hardware.**
 ## Data layout on the console
 
 ```text
-/data/homebrew/PPSA05001/     the app (eboot.bin, sce_sys, sce_module, lapy.elf)
+/data/homebrew/PPSA97510/     the app (eboot.bin, sce_sys, sce_module, lapy.elf)
 /data/PSXS5/
 ├── games/<Game Name>/        .cue+.bin, .chd, .pbp, .iso or .m3u — one folder per game
 ├── bios/                     optional scph*.bin
@@ -97,7 +97,7 @@ sudo apt install curl git make ninja-build ccache pkg-config python3 python3-ven
   tar wget unzip clang-18 lld-18 llvm-18 clang-format-18 clang-tidy-18 \
   libsdl2-dev libcurl4-openssl-dev zlib1g-dev
 git submodule update --init --recursive
-make                                  # -> dist/PPSA05001/ and dist/PPSA05001.zip
+make                                  # -> dist/PPSA97510/ and dist/PPSA97510.zip
 make deploy PS5_HOST=192.168.1.50     # upload the app over FTP
 make run-desktop                      # PC test build; PSXS5_ROOT=/mnt/e/PSXS5_ready/.. etc.
 ```

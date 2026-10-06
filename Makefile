@@ -249,7 +249,7 @@ run-desktop: desktop
 help:
 	@printf '%s\n' \
 	  'PSXS5:' \
-	  'make                 Build the PS5 app folder dist/PPSA05001 (core + frontend)' \
+	  'make                 Build the PS5 app folder dist/PPSA97510 (core + frontend)' \
 	  'make deploy PS5_HOST=<ip>  Build and upload to /data/homebrew over FTP' \
 	  'make desktop         Build the desktop test build (needs libsdl2-dev)' \
 	  'make run-desktop     Run it; set PSXS5_ROOT to a folder with games/' \
