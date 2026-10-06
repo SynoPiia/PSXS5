@@ -12,7 +12,7 @@ SDL_CFLAGS := $(shell sdl2-config --cflags)
 SDL_LIBS := $(shell sdl2-config --libs)
 
 SRCS := src/main.c src/util.c src/library.c src/config.c src/cheats.c src/disc.c \
-	src/covers.c src/net.c src/stb_impl.c src/ra/achievements.c src/i18n.c \
+	src/covers.c src/net.c src/stb_impl.c src/ra/achievements.c src/i18n.c src/platform/vk/vk_probe.c \
 	src/core/host.c src/platform/plat_sdl.c src/platform/blit.c src/platform/xbr.c \
 	src/ui/text.c src/ui/draw.c src/ui/sfx.c src/ui/coverflow.c
 OBJS := $(SRCS:src/%.c=$(OUT)/obj/%.o)

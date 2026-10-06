@@ -8,7 +8,7 @@ name: Build PSXS5
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2-vulkan]
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes clang-18 lld-18 llvm-18 make ninja-build ccache \
-            pkg-config tar unzip wget python3 python3-venv
+            pkg-config tar unzip wget python3 python3-venv zstd
 
       - name: Restore downloaded SDK and libraries
         uses: actions/cache@v4
@@ -49,6 +49,8 @@ jobs:
           key: deps-${{ runner.os }}-${{ hashFiles('tools/setup-*-dependencies.sh', 'tools/build-lapy-helper.py') }}
 
       - name: Build
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: make
 
       - name: Check system module imports

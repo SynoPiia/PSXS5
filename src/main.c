@@ -19,6 +19,7 @@
 #include "platform/ps5_crash.h"
 #include "ra/achievements.h"
 #include "i18n.h"
+#include "platform/vk/vk_probe.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -930,6 +931,7 @@ int main(void)
     psxs5_log(sandboxed ? "storage: sandboxed (%s)" : "storage: unlocked%s",
               sandboxed ? sandbox_reason : "");
     psxs5_log("storage probe before unlock: %s", plat_sandbox_probe());
+    vk_probe(paths.root); /* v2: proves the Vulkan driver runs; logs only */
     unlock_setting = !plat_unlock_disabled();
 
     config_load(&settings, paths.config);

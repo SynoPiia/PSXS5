@@ -241,13 +241,55 @@ if [[ -n ${pacbrew_root:-} ]]; then
         ninja_inputs+=("$input")
     done < <(find "$pacbrew_root" -type f \( -name '*.a' -o -name '*.so' \) -print0 | sort -z)
 fi
-ninja_edge LINK "$build/llvm-pie.elf" "$sdk_root/bin/prospero-lld" -T "$native/ps5-pie.ld" --eh-frame-hdr \
+# PSXS5 v2: APP_VULKAN=1 links RADV, Mihawk-99's PS5 port of Mesa's AMD Vulkan
+# driver (a title can't load a driver library at run time), the way PS5
+# RetroArch does: the driver whole, the SDK's C++ runtime and platform layer,
+# the platform's libc bindings (tooling/radv/radv-link.sh, from PS5_Vulkan),
+# and link stubs for the AGC system modules. PSXS5 keeps its own heap, so the
+# recipe's allocator wraps are left out.
+linker_options=(-T "$native/ps5-pie.ld")
+stub_options=()
+if [[ ${APP_VULKAN:-0} == 1 ]]; then
+    radv_archive="$root/.deps/native/radv-release/lib/libvulkan_radeon.ps5.a"
+    [[ -f $sdk_root/target/lib/libps5platform.a ]] || {
+        echo "APP_VULKAN=1 needs the SDK platform layer (tools/fetch-radv.sh)" >&2; exit 2;
+    }
+    # shellcheck source=/dev/null
+    source "$root/tooling/radv/radv-link.sh"
+    PS5_CLANG="$target_compiler" LLVM_NM="${LLVM_NM:-$(command -v llvm-nm-18 || command -v llvm-nm)}" \
+        radv_link_recipe "$root" "$sdk_root" "$radv_archive" || exit 2
+    linker_options=("${radv_linker_script[@]}" --no-dynamic-linker -z nodynamic-undefined-weak)
+    for flag in "${radv_link_flags[@]}"; do
+        case $flag in
+            --wrap=malloc | --wrap=calloc | --wrap=realloc | --wrap=free | --wrap=posix_memalign | \
+            --wrap=aligned_alloc | --wrap=memalign | --wrap=malloc_usable_size | --wrap=reallocf | \
+            --wrap=reallocarray | --wrap=getline | --wrap=getdelim) ;;
+            *) linker_options+=("$flag") ;;
+        esac
+    done
+    link_inputs+=("${radv_link_inputs[@]}")
+    # AGC lives in system modules the SDK has no stubs for: tiny link-only
+    # libraries let the converter record the imports (PS5 RetroArch's).
+    for library in libSceAgc:agc_link_stub libSceAgcDriver:agc_driver_link_stub; do
+        name=${library%%:*} source=${library#*:}
+        mkdir -p "$build/stubs"
+        PS5_PAYLOAD_SDK="$sdk_root" PS5_CLANG="$target_compiler" USE_CCACHE=0 \
+            sh "$root/tooling/prospero-clang18" -std=c11 -O2 -fPIC \
+            -c "$root/tooling/ps5-stubs/$source.c" -o "$build/stubs/$source.o"
+        "$sdk_root/bin/prospero-lld" --shared -soname "$name.prx" -o "$build/stubs/$name.so" \
+            "$build/stubs/$source.o"
+        link_inputs+=("$build/stubs/$name.so")
+        stub_options+=(--stub "$build/stubs/$name.so")
+    done
+    echo "==> [vulkan] linking RADV ($(du -m "$radv_archive" | cut -f1) MB archive)"
+fi
+ninja_edge LINK "$build/llvm-pie.elf" "$sdk_root/bin/prospero-lld" "${linker_options[@]}" --eh-frame-hdr \
     "${wrap_options[@]}" --version-script "$native/app-symbols.map" \
     -e _start -o "$build/llvm-pie.elf" -L "$sdk_root/target/lib" --as-needed "${link_inputs[@]}" \
     "$sdk_root"/target/lib/*.so
 ninja_inputs=("$build/llvm-pie.elf" "$tool" "$sdk_root"/target/lib/*.so)
 ninja_edge CONVERT "$build/eboot.elf" "$tool" link --in "$build/llvm-pie.elf" --out "$build/eboot.elf" \
-    --stub-dir "$sdk_root/target/lib" --module-sdk "$module_sdk" \
+    --stub-dir "$sdk_root/target/lib" "${stub_options[@]}" --module-sdk "$module_sdk" \
     --companion-sdk "$companion_sdk" --file-name eboot.elf
 ninja_run
 
