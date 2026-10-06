@@ -619,7 +619,24 @@ void plat_end_frame(void)
 {
     SDL_RenderPresent(renderer);
 #if defined(__PROSPERO__)
+    static uint64_t frame_start, draw_us, present_us;
+    static int frames;
+    uint64_t drawn = plat_ticks_us();
     ps5_video_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+    uint64_t shown = plat_ticks_us();
+    if (frame_start)
+    {
+        draw_us += drawn - frame_start;
+        present_us += shown - drawn;
+        if (++frames == 600)
+        {
+            psxs5_log("ui: draw %.1f ms, present %.1f ms per frame (avg of 600)",
+                      draw_us / 600 / 1000.0, present_us / 600 / 1000.0);
+            frames = 0;
+            draw_us = present_us = 0;
+        }
+    }
+    frame_start = shown;
 #endif
 }
 
@@ -700,6 +717,19 @@ void plat_draw_mesh(PlatTexture *texture, const PlatVertex *v, int count, const 
 #else
     (void)texture; (void)v; (void)count; (void)indices; (void)index_count;
 #endif
+}
+
+void plat_draw_texture(PlatTexture *texture, float x, float y, float w, float h, uint32_t tint,
+                       bool blend)
+{
+    if (!texture)
+        return;
+    SDL_SetTextureBlendMode(texture->sdl, blend ? SDL_BLENDMODE_BLEND : SDL_BLENDMODE_NONE);
+    SDL_SetTextureColorMod(texture->sdl, (tint >> 16) & 0xff, (tint >> 8) & 0xff, tint & 0xff);
+    SDL_SetTextureAlphaMod(texture->sdl, tint >> 24);
+    SDL_Rect dst = {(int)(x + 0.5f), (int)(y + 0.5f), (int)(w + 0.5f), (int)(h + 0.5f)};
+    SDL_RenderCopy(renderer, texture->sdl, NULL, &dst);
+    SDL_SetTextureBlendMode(texture->sdl, SDL_BLENDMODE_BLEND);
 }
 
 void plat_asset_path(char *out, size_t size, const char *relative)

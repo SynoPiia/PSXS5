@@ -10,6 +10,7 @@
 
 #include "libretro.h"
 #include "../platform/platform.h"
+#include "../platform/ps5_crash.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -280,14 +281,18 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
     apply_settings_to_options(settings);
 
+#define STEP(s) (psxs5_log("host: %s", s), ps5_crash_step(s))
+    STEP("retro_set_environment");
     retro_set_environment(environment);
     retro_set_video_refresh(video_cb);
     retro_set_audio_sample(audio_cb);
     retro_set_audio_sample_batch(audio_batch_cb);
     retro_set_input_poll(input_poll_cb);
     retro_set_input_state(input_state_cb);
+    STEP("retro_init");
     retro_init();
 
+    STEP("retro_load_game");
     struct retro_game_info info = {game_path, NULL, 0, NULL};
     if (!retro_load_game(&info))
     {
@@ -295,6 +300,7 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
         retro_deinit();
         return false;
     }
+    STEP("retro_get_system_av_info");
     retro_get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
     unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
@@ -302,6 +308,8 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     retro_set_controller_port_device(0, device);
     retro_set_controller_port_device(1, device);
     loaded = true;
+    STEP("running");
+#undef STEP
     psxs5_log("loaded %s: %.3f fps, %.0f Hz, base %ux%u", game_path, av_info.timing.fps,
               av_info.timing.sample_rate, av_info.geometry.base_width,
               av_info.geometry.base_height);

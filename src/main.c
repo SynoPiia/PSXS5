@@ -16,6 +16,7 @@
 #include "ui/draw.h"
 #include "ui/sfx.h"
 #include "ui/text.h"
+#include "platform/ps5_crash.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -212,6 +213,7 @@ static void start_game(int index)
         return;
     const Game *g = &library.games[index];
     char error[160];
+    psxs5_log("start: %s (%s) from %s", g->title, g->serial, g->path);
     if (!host_load(g->path, &paths, &settings, error, sizeof(error)))
     {
         show_toast(error);
@@ -779,6 +781,7 @@ int main(void)
     char log_path[PSXS5_PATH_MAX];
     path_join(log_path, sizeof(log_path), paths.logs, "psxs5.log");
     psxs5_log_open(log_path);
+    ps5_crash_install(log_path);
     psxs5_log("PSXS5 %s starting, data root %s", PSXS5_VERSION, paths.root);
 #if defined(__PROSPERO__)
     extern size_t ps5_heap_size_mb(void);
@@ -812,6 +815,8 @@ int main(void)
         plat_poll(pads, &quit);
         uint32_t pressed = nav_pressed(pads);
         plat_begin_frame(0xff000000u);
+        static const char *const screen_names[] = {"library", "game", "menu", "settings", "cheats"};
+        ps5_crash_step(screen_names[screen]);
         switch (screen)
         {
         case SCREEN_LIBRARY: library_screen(pressed); break;
