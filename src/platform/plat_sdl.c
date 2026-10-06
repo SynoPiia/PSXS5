@@ -965,8 +965,8 @@ void plat_asset_path(char *out, size_t size, const char *relative)
     /* /app0 exists only inside the sandbox. Once the HEN frees PSXS5 its
      * file system is the console's real one, where the title is mounted at
      * /system_ex/app/<id> (ShadowMountPlus) and stored in /data/homebrew/<id>. */
-    static const char *const bases[] = {"/app0/assets", "/system_ex/app/PPSA05001/assets",
-                                        "/data/homebrew/PPSA05001/assets"};
+    static const char *const bases[] = {"/app0/assets", "/system_ex/app/PPSA97510/assets",
+                                        "/data/homebrew/PPSA97510/assets"};
     static int chosen = -1;
     if (chosen < 0)
     {

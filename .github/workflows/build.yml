@@ -1,8 +1,8 @@
 # PSXS5 - cloud build: the PS5 app folder plus a desktop compile/link check.
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Download the result from the run's page: Artifacts > PSXS5-PPSA05001.
-# Unzip it and copy the PPSA05001 folder to /data/homebrew/ on the PS5.
+# Download the result from the run's page: Artifacts > PSXS5-PPSA97510.
+# Unzip it and copy the PPSA97510 folder to /data/homebrew/ on the PS5.
 
 name: Build PSXS5
 
@@ -51,7 +51,7 @@ jobs:
         run: make
 
       - name: Check system module imports
-        run: python3 tools/check-imports.py dist/PPSA05001/eboot.bin
+        run: python3 tools/check-imports.py dist/PPSA97510/eboot.bin
 
       # Crash reports in psxs5.log give addresses as offsets from main();
       # this map turns them into function names.
@@ -67,32 +67,10 @@ jobs:
       - name: Upload the app folder
         uses: actions/upload-artifact@v4
         with:
-          name: PSXS5-PPSA05001
+          name: PSXS5-PPSA97510
           path: |
             dist/
             !dist/*.zip
-          if-no-files-found: error
-
-      # The boilerplate's unmodified Hello World as a separate title: if it
-      # also fails to launch, the problem is the toolchain/packaging on that
-      # firmware rather than PSXS5's code.
-      - name: Build hardware test title (PPSA05002)
-        env:
-          APP_SOURCE_DIR: tests/hw/hello/src
-          APP_PARAM: tests/hw/hello/sce_sys/param.json
-          APP_SCE_SYS: sce_sys
-          APP_ASSETS: tests/hw/hello/assets
-          APP_LAPY_HELPER: "0"
-        run: bash tools/build.sh Folder
-
-      - name: Upload the hardware test title
-        uses: actions/upload-artifact@v4
-        with:
-          name: PSXS5-hwtest-PPSA05002
-          path: |
-            dist/
-            !dist/*.zip
-            !dist/PPSA05001/**
           if-no-files-found: error
 
   desktop:
