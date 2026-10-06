@@ -612,6 +612,26 @@ def ra_login(host: str, port: int, user: str | None, hardcore: bool) -> None:
     print(f"Signed in as {reply.get('User') or user}. Restart PSXS5 to use it.")
 
 
+# Beetle PSX HW looks for one file name per region (scph5500/5501/5502.bin);
+# PCSX-ReARMed takes any of them. The region is the letter that ends the
+# version text inside the dump: "System ROM Version 4.1 12/16/97 E".
+BIOS_REGION_NAMES = {"J": "scph5500.bin", "A": "scph5501.bin", "E": "scph5502.bin"}
+
+
+def bios_upload_name(path):
+    data = path.read_bytes()
+    if len(data) != 512 * 1024:
+        sys.exit(f"{path.name}: {len(data)} bytes; a PS1 BIOS dump is 512 KB")
+    at = data.rfind(b"System ROM Version")  # the last one: the first is a template
+    if at >= 0:
+        text = data[at:at + 48].split(b"\0")[0].decode("ascii", "replace").strip()
+        region = text[-1:]
+        if region in BIOS_REGION_NAMES:
+            return BIOS_REGION_NAMES[region]
+    print(f"  {path.name}: region not recognised, uploading it under its own name")
+    return path.name.lower()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app",
@@ -695,7 +715,9 @@ def main() -> None:
     elif args.command == "bios":
         tmp = Path(tempfile.mkdtemp())
         for f in args.files:
-            shutil.copy2(f, tmp / Path(f).name.lower())
+            name = bios_upload_name(Path(f))
+            print(f"  {Path(f).name} -> bios/{name}")
+            shutil.copy2(f, tmp / name)
         upload_tree(tmp, f"{REMOTE_ROOT}/bios", args.host, args.port)
         shutil.rmtree(tmp)
 
