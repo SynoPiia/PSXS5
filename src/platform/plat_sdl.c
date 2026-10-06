@@ -18,7 +18,6 @@
 #include "ps5_unlock.h"
 #include "ps5_video.h"
 #include "vk/vk_present.h"
-#include <unistd.h>
 #include <sys/mman.h>
 int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
 int sceSystemServiceHideSplashScreen(void);
@@ -86,7 +85,11 @@ static bool init_ps5_screen(void)
 #if defined(PSXS5_VULKAN)
     /* v2: the screen through Vulkan; the old VideoOut path stays as the
      * fallback (and is forced by creating /data/PSXS5/no_vulkan). */
-    bool forced_off = access("/data/PSXS5/no_vulkan", F_OK) == 0;
+    /* fopen, not access(): access() fails in the sandbox even for files that open */
+    FILE *off = fopen("/data/PSXS5/no_vulkan", "rb");
+    bool forced_off = off != NULL;
+    if (off)
+        fclose(off);
     use_vulkan = !forced_off && vkp_open(PS5_SCREEN_W, PS5_SCREEN_H, error, sizeof(error));
     if (use_vulkan)
         snprintf(screen_info, sizeof(screen_info), "Vulkan, %s", vkp_describe());
