@@ -1,0 +1,3 @@
+[submodule "third_party/pcsx_rearmed"]
+	path = third_party/pcsx_rearmed
+	url = https://github.com/libretro/pcsx_rearmed.git
