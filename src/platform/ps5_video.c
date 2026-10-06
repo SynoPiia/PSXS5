@@ -53,21 +53,34 @@ int sceVideoOutRegisterBuffers2(int32_t handle, int32_t set_index, int32_t buffe
 #define MAP_CPU_GPU_RW 0x33
 #define PIXEL_FORMAT_RGBA8_SRGB 0x8000000022000000ull
 
+int sceVideoOutIsFlipPending(int32_t handle);
+
+#define BUFFERS 3 /* draw into one while another waits for vblank */
+
 static int handle = -1;
-static uint8_t *frames[2];
-static int back = 1;
+static uint8_t *frames[BUFFERS];
+static int last_submitted;
 static uint64_t flip_count = 1;
-/* Tiled offset = 64 KiB block base + (row bits XOR column bits) inside a 128x128 block. */
-static uint32_t row_bits[128], col_bits[128];
+/* Inside a 64 KiB / 128x128 block, a pixel's tiled offset is
+ * (row bits) XOR (column bits). `inverse` maps each 4-byte slot of a block,
+ * in memory order, back to its (y << 7 | x): the block is then written
+ * strictly sequentially, which write-combined memory needs to be fast
+ * (scattered 4-byte writes made presenting a frame take ~14 ms). */
+static uint16_t inverse[16384];
 
 static void build_swizzle(void)
 {
     for (uint32_t y = 0; y < 128; ++y)
-        row_bits[y] = ((y << 4) & 0x70u) ^ ((y << 5) & 0xf00u) ^ ((y << 9) & 0x1000u) ^
-                      ((y << 8) & 0x4000u);
-    for (uint32_t x = 0; x < 128; ++x)
-        col_bits[x] = ((x << 2) & 0xcu) ^ ((x << 5) & 0x380u) ^ ((x << 4) & 0x400u) ^
-                      ((x << 6) & 0x800u) ^ ((x << 9) & 0xa000u);
+    {
+        uint32_t row = ((y << 4) & 0x70u) ^ ((y << 5) & 0xf00u) ^ ((y << 9) & 0x1000u) ^
+                       ((y << 8) & 0x4000u);
+        for (uint32_t x = 0; x < 128; ++x)
+        {
+            uint32_t col = ((x << 2) & 0xcu) ^ ((x << 5) & 0x380u) ^ ((x << 4) & 0x400u) ^
+                           ((x << 6) & 0x800u) ^ ((x << 9) & 0xa000u);
+            inverse[(row ^ col) >> 2] = (uint16_t)(y << 7 | x);
+        }
+    }
 }
 
 bool ps5_video_open(char *error, size_t size)
@@ -79,7 +92,7 @@ bool ps5_video_open(char *error, size_t size)
         snprintf(error, size, "sceVideoOutOpen failed (0x%x)", (unsigned)handle);
         return false;
     }
-    const size_t total = (size_t)FRAME_BYTES * 2;
+    const size_t total = (size_t)FRAME_BYTES * BUFFERS;
     int64_t physical = 0;
     int rc = sceKernelAllocateDirectMemory(0, (int64_t)sceKernelGetDirectMemorySize(), total,
                                            MEMORY_ALIGN, MEMORY_TYPE_WC_GARLIC, &physical);
@@ -95,17 +108,19 @@ bool ps5_video_open(char *error, size_t size)
         snprintf(error, size, "direct memory mapping failed (0x%x)", (unsigned)rc);
         return false;
     }
-    frames[0] = mapped;
-    frames[1] = (uint8_t *)mapped + FRAME_BYTES;
+    VideoBuffer buffers[BUFFERS];
+    for (int i = 0; i < BUFFERS; ++i)
+    {
+        frames[i] = (uint8_t *)mapped + (size_t)i * FRAME_BYTES;
+        buffers[i] = (VideoBuffer){frames[i], NULL, NULL, NULL};
+    }
     memset(mapped, 0, total);
-
-    VideoBuffer buffers[2] = {{frames[0], NULL, NULL, NULL}, {frames[1], NULL, NULL, NULL}};
     VideoAttribute attribute;
     memset(&attribute, 0, sizeof(attribute));
     sceVideoOutSetFlipRate(handle, 0);
     sceVideoOutSetBufferAttribute2(&attribute, PIXEL_FORMAT_RGBA8_SRGB, 0, PS5_SCREEN_W,
                                    PS5_SCREEN_H, 0, 0, 0);
-    rc = sceVideoOutRegisterBuffers2(handle, 0, 0, buffers, 2, &attribute, 0, NULL);
+    rc = sceVideoOutRegisterBuffers2(handle, 0, 0, buffers, BUFFERS, &attribute, 0, NULL);
     if (rc < 0)
     {
         snprintf(error, size, "sceVideoOutRegisterBuffers2 failed (0x%x)", (unsigned)rc);
@@ -119,24 +134,31 @@ void ps5_video_present(const uint32_t *pixels, size_t pitch_bytes)
 {
     if (handle < 0)
         return;
-    uint8_t *dst = frames[back];
-    const uint32_t blocks_per_row = (PS5_SCREEN_W + 127) / 128;
-    for (uint32_t y = 0; y < PS5_SCREEN_H; ++y)
-    {
-        const uint32_t *src = (const uint32_t *)((const uint8_t *)pixels + (size_t)y * pitch_bytes);
-        const size_t block_row = (size_t)(y >> 7) * blocks_per_row;
-        const uint32_t rb = row_bits[y & 127];
-        for (uint32_t x = 0; x < PS5_SCREEN_W; ++x)
+    /* Of three buffers, the next one is neither on screen nor queued, even
+     * while the previous flip still waits for its vblank. */
+    const int target = (last_submitted + 1) % BUFFERS;
+    uint32_t *dst = (uint32_t *)frames[target];
+    const size_t pitch = pitch_bytes / 4;
+    const uint32_t blocks_per_row = PS5_SCREEN_W / 128;              /* 15 */
+    const uint32_t block_rows = (PS5_SCREEN_H + 127) / 128;          /* 9: rows up to 1151 */
+    for (uint32_t by = 0; by < block_rows; ++by)
+        for (uint32_t bx = 0; bx < blocks_per_row; ++bx)
         {
-            size_t offset = ((block_row + (x >> 7)) << 16) + (rb ^ col_bits[x & 127]);
-            *(uint32_t *)(dst + offset) = src[x];
+            /* the canvas has PS5_CANVAS_ROWS rows, so the last block row can be read whole */
+            const uint32_t *src = pixels + (size_t)by * 128 * pitch + (size_t)bx * 128;
+            uint32_t *out = dst + ((size_t)(by * blocks_per_row + bx) << 14);
+            for (uint32_t i = 0; i < 16384; ++i)
+            {
+                const uint32_t v = inverse[i];
+                out[i] = src[(size_t)(v >> 7) * pitch + (v & 127)];
+            }
         }
-    }
-    /* The framebuffers are write-combined (WC_GARLIC): writes bypass the
-     * cache, so a store fence is enough; no 8 MB clflush walk per frame. */
+    /* write-combined memory: a store fence makes the frame visible */
     __asm__ volatile("sfence" ::: "memory");
-    sceVideoOutSubmitFlip(handle, back, 1, (int64_t)flip_count++);
-    sceVideoOutWaitVblank(handle); /* paces the UI at the display rate */
-    back ^= 1;
+    /* never queue a second flip: wait for the previous one to happen first */
+    for (int spins = 0; sceVideoOutIsFlipPending(handle) > 0 && spins < 4; ++spins)
+        sceVideoOutWaitVblank(handle);
+    sceVideoOutSubmitFlip(handle, target, 1, (int64_t)flip_count++);
+    last_submitted = target;
 }
 #endif
