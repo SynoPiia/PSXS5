@@ -39,16 +39,32 @@ static void set_draw_color(uint32_t argb)
                            argb >> 24);
 }
 
+static char init_error[256];
+
+const char *plat_init_error(void)
+{
+    return init_error;
+}
+
+static bool init_failed(const char *stage)
+{
+    snprintf(init_error, sizeof(init_error), "%s failed: %s", stage, SDL_GetError());
+    psxs5_log("%s", init_error);
+    return false;
+}
+
 bool plat_init(void)
 {
 #if defined(__PROSPERO__)
     sceSystemServiceHideSplashScreen();
 #endif
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
-    {
-        psxs5_log("SDL_Init failed: %s", SDL_GetError());
-        return false;
-    }
+    /* Only video is required; sound or controller trouble must not stop the app. */
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        return init_failed("SDL video");
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0)
+        psxs5_log("SDL audio unavailable: %s", SDL_GetError());
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
+        psxs5_log("SDL controllers unavailable: %s", SDL_GetError());
 
 #if defined(__PROSPERO__)
     Uint32 flags = SDL_WINDOW_FULLSCREEN;
@@ -61,20 +77,22 @@ bool plat_init(void)
                               out_w, out_h, flags);
     if (!window)
     {
-        psxs5_log("SDL_CreateWindow failed: %s", SDL_GetError());
-        return false;
+        /* The PS5 driver shows its single window full-screen regardless of flags. */
+        psxs5_log("fullscreen window refused (%s), retrying plain", SDL_GetError());
+        window = SDL_CreateWindow(PSXS5_NAME, 0, 0, out_w, out_h, 0);
     }
+    if (!window)
+        return init_failed("SDL window");
+
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer)
     {
+        /* The PS5 port has no hardware renderer: draw in software into the window framebuffer. */
         psxs5_log("accelerated renderer unavailable (%s), using software", SDL_GetError());
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
     }
     if (!renderer)
-    {
-        psxs5_log("SDL_CreateRenderer failed: %s", SDL_GetError());
-        return false;
-    }
+        return init_failed("SDL renderer");
     /* Draw in a fixed 1920x1080 space; SDL scales to the real window. */
     out_w = 1920;
     out_h = 1080;

@@ -8,6 +8,7 @@
 #include "../psxs5.h"
 
 bool plat_init(void);
+const char *plat_init_error(void); /* "SDL window failed: <reason>" after plat_init fails */
 void plat_shutdown(void);
 
 /* PS5: requests sandbox elevation so /data can be listed. Desktop: no-op.

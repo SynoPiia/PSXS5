@@ -332,6 +332,15 @@ def ftp_connect(host: str, port: int) -> ftplib.FTP:
     return ftp
 
 
+def ftp_chmod(ftp: ftplib.FTP, path: str) -> None:
+    """Files uploaded over FTP arrive as 0644/0755; a PS5 title whose eboot.bin
+    isn't executable fails with "Can't start the game or app" (CE-107750-0)."""
+    try:
+        ftp.sendcmd(f"SITE CHMOD 777 {path}")
+    except ftplib.all_errors:
+        pass
+
+
 def ftp_mkdirs(ftp: ftplib.FTP, path: str) -> None:
     cur = ""
     for part in path.strip("/").split("/"):
@@ -340,6 +349,7 @@ def ftp_mkdirs(ftp: ftplib.FTP, path: str) -> None:
             ftp.mkd(cur)
         except ftplib.error_perm:
             pass
+        ftp_chmod(ftp, cur)
 
 
 def ftp_size(ftp: ftplib.FTP, path: str) -> int:
@@ -349,7 +359,7 @@ def ftp_size(ftp: ftplib.FTP, path: str) -> int:
         return -1
 
 
-def upload_tree(local: Path, remote: str, host: str, port: int) -> None:
+def upload_tree(local: Path, remote: str, host: str, port: int, force: bool = False) -> None:
     ftp = ftp_connect(host, port)
     files = sorted(p for p in local.rglob("*") if p.is_file())
     total = sum(p.stat().st_size for p in files)
@@ -363,12 +373,13 @@ def upload_tree(local: Path, remote: str, host: str, port: int) -> None:
         if rdir not in made:
             ftp_mkdirs(ftp, rdir)
             made.add(rdir)
-        if ftp_size(ftp, dst) == size:
+        if not force and ftp_size(ftp, dst) == size:
             done += size
             continue
         print(f"  [{done * 100 // max(total, 1):3d}%] {rel} ({size >> 20} MB)", flush=True)
         with p.open("rb") as fh:
             ftp.storbinary(f"STOR {dst}", fh, blocksize=1 << 20)
+        ftp_chmod(ftp, dst)
         done += size
     ftp.quit()
     print(f"  [100%] {len(files)} files in {remote}")
@@ -443,7 +454,9 @@ def fetch_cheats(dest: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["plan", "prepare", "upload", "covers", "cheats", "bios"])
+    ap.add_argument("command", choices=["plan", "prepare", "upload", "covers", "cheats", "bios", "app"])
+    ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA05001",
+                    help="app: the built title folder to install")
     ap.add_argument("--all", action="store_true", help="covers: the whole database, not just your games")
     ap.add_argument("--style", choices=["default", "3d", "both"], default="default",
                     help="covers: flat front art (default), 3D boxes, or both")
@@ -491,6 +504,11 @@ def main() -> None:
 
     if not args.host:
         sys.exit("--host is required (your PS5's IP address)")
+    if args.command == "app":
+        if not (args.app_dir / "eboot.bin").exists():
+            sys.exit(f"no eboot.bin in {args.app_dir}; download the build first")
+        upload_tree(args.app_dir, f"/data/homebrew/{args.app_dir.name}", args.host, args.port, force=True)
+        return
     if args.command == "upload":
         upload_tree(args.staging, f"{REMOTE_ROOT}/games", args.host, args.port)
     elif args.command == "bios":
