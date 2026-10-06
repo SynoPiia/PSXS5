@@ -80,7 +80,7 @@ typedef struct
     int aspect;       /* enum AspectMode */
     bool integer_scale; /* whole-number scale factors only */
     bool smooth;      /* bilinear for the final scale to the screen */
-    int internal_res; /* 1 or 2: the core renders 3D at 2x (enhanced GPU) */
+    int internal_res; /* 1..5 = native, 2x, 4x, 8x, 16x; PCSX-ReARMed stops at 2x */
     int upscale;      /* 1..4: prescale before the final scale */
     int upscale_filter; /* enum UpscaleFilter */
     bool show_fps;
@@ -113,7 +113,17 @@ typedef struct
     int border;           /* around the picture: 0 black, 1 glow, 2 TV frame */
     bool remote;          /* settings page for phones on the local network */
     bool update_check;    /* look for new PSXS5 releases at start */
+    int emulator;         /* enum Emulator */
+    bool pgxp;            /* Beetle: precise geometry, no wobbling polygons */
 } Settings;
+
+enum Emulator
+{
+    EMU_AUTO,   /* Beetle when it can run the game, else PCSX-ReARMed */
+    EMU_PCSX,
+    EMU_BEETLE,
+    EMU_COUNT
+};
 
 enum StickDpad
 {

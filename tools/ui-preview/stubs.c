@@ -31,6 +31,7 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
 }
 void host_unload(void) { loaded = false; }
 bool host_loaded(void) { return loaded; }
+const char *host_core_name(void) { return "PCSX-ReARMed"; }
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]) { (void)pads; }
 bool host_pad_digital(int port) { (void)port; return false; }
 void host_run_frame(void) {}

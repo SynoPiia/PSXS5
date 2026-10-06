@@ -76,7 +76,10 @@ static bool config_apply(Settings *s, const char *path)
         else if (strcmp(key, "integer_scale") == 0)
             s->integer_scale = as_bool(value);
         else if (strcmp(key, "internal_res") == 0)
-            s->internal_res = atoi(value) == 2 ? 2 : 1;
+        {
+            int r = atoi(value);
+            s->internal_res = r >= 1 && r <= 5 ? r : 1;
+        }
         else if (strcmp(key, "upscale") == 0)
             s->upscale = atoi(value) >= 1 && atoi(value) <= 4 ? atoi(value) : 1;
         else if (strcmp(key, "upscale_filter") == 0)
@@ -103,6 +106,10 @@ static bool config_apply(Settings *s, const char *path)
             s->widescreen = as_bool(value);
         else if (strcmp(key, "multitap") == 0)
             s->multitap = as_bool(value);
+        else if (strcmp(key, "emulator") == 0)
+            s->emulator = atoi(value) % EMU_COUNT;
+        else if (strcmp(key, "pgxp") == 0)
+            s->pgxp = as_bool(value);
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -184,6 +191,7 @@ bool config_save(const Settings *s, const char *path)
     fprintf(f, "widescreen=%d\nmultitap=%d\nrewind=%d\nquick_resume=%d\ncrt=%d\nborder=%d\nremote=%d\nupdate_check=%d\n",
             s->widescreen, s->multitap, s->rewind, s->quick_resume, s->crt, s->border, s->remote,
             s->update_check);
+    fprintf(f, "emulator=%d\npgxp=%d\n", s->emulator, s->pgxp);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

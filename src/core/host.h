@@ -11,6 +11,8 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
                char *error, size_t error_size);
 void host_unload(void);
 bool host_loaded(void);
+/* "PCSX-ReARMed" or "Beetle PSX HW": the emulator of the loaded game */
+const char *host_core_name(void);
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */

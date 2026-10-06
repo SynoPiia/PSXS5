@@ -85,7 +85,8 @@ typedef struct
 static const char *const OFF_ON[] = {"Off", "On"};
 static const char *const ASPECTS[] = {"Auto (game)", "4:3", "16:9", "16:10", "1:1 pixels",
                                       "Stretch to screen"};
-static const char *const INTERNAL[] = {"Native", "2x"};
+static const char *const INTERNAL[] = {"Native", "2x", "4x", "8x", "16x"};
+static const char *const EMULATORS[] = {"Automatic", "PCSX-ReARMed", "Beetle PSX HW"};
 static const char *const UPSCALE[] = {"Off", "2x", "3x", "4x"};
 static const char *const FILTERS[] = {"Sharp pixels", "Smooth pixels (Scale2x)", "xBR (smoothest)"};
 static const char *const REGIONS[] = {"Auto", "NTSC (60 Hz)", "PAL (50 Hz)"};
@@ -123,8 +124,10 @@ static const Row DISPLAY[] = {
 };
 
 static const Row GRAPHICS[] = {
-    {"Rendering", "Internal resolution", "Draws 3D at twice the PS1's resolution: sharper polygons.",
-     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(internal_res), INTERNAL, 2, 1},
+    {"Rendering", "Internal resolution", "Draws 3D at a higher resolution: sharper polygons. Above 2x needs Beetle PSX HW.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(internal_res), INTERNAL, 5, 1},
+    {NULL, "Precise geometry (PGXP)", "Beetle PSX HW: stops polygons wobbling and textures warping.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pgxp), OFF_ON, 2, 0},
     {NULL, "Dithering", "The PS1's dot pattern that fakes more colours. Off looks cleaner.", K_TOGGLE,
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(dithering), OFF_ON, 2, 0},
 };
@@ -176,7 +179,9 @@ static const Row LIBRARY[] = {
 };
 
 static const Row SYSTEM[] = {
-    {"Emulation", "Region", "Auto follows the disc; force 50 or 60 Hz if a game misbehaves.", K_CHOICE,
+    {"Emulation", "Emulator", "Beetle PSX HW is more accurate and renders on the GPU, but needs your BIOS. PCSX-ReARMed also runs without one.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(emulator), EMULATORS, 3, 0},
+    {NULL, "Region", "Auto follows the disc; force 50 or 60 Hz if a game misbehaves.", K_CHOICE,
      APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(region), REGIONS, 3, 0},
     {NULL, "BIOS", "Your own BIOS dump in /data/PSXS5/bios, or the built-in one.", K_CHOICE,
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},

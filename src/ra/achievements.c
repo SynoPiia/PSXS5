@@ -185,17 +185,29 @@ static uint32_t RC_CCONV read_memory(uint32_t address, uint8_t *buffer, uint32_t
 
 /* ---------------------------------------------------------------- disc hashing */
 
+/* PCSX-ReARMed: sectors come from the disc the core has open, whatever the
+ * image format. Other cores (Beetle PSX HW): rcheevos reads the image file
+ * itself (bin/cue, iso). A handle of (void *)1 means the core's disc. */
+static rc_hash_cdreader_t file_reader;
+
+static bool core_disc(void)
+{
+    return strcmp(host_core_name(), "PCSX-ReARMed") == 0;
+}
+
 static void *RC_CCONV cd_open_track(const char *path, uint32_t track)
 {
-    (void)path;
+    if (!core_disc())
+        return file_reader.open_track ? file_reader.open_track(path, track) : NULL;
     (void)track; /* PS1 hashing only reads the data track */
-    return (void *)1; /* sectors come from the disc the core has open */
+    return (void *)1;
 }
 
 static size_t RC_CCONV cd_read_sector(void *handle, uint32_t sector, void *buffer,
                                       size_t requested)
 {
-    (void)handle;
+    if (handle != (void *)1)
+        return file_reader.read_sector(handle, sector, buffer, requested);
     uint8_t data[2048];
     size_t done = 0;
     while (done < requested)
@@ -211,12 +223,14 @@ static size_t RC_CCONV cd_read_sector(void *handle, uint32_t sector, void *buffe
 
 static void RC_CCONV cd_close_track(void *handle)
 {
-    (void)handle;
+    if (handle != (void *)1 && file_reader.close_track)
+        file_reader.close_track(handle);
 }
 
 static uint32_t RC_CCONV cd_first_track_sector(void *handle)
 {
-    (void)handle;
+    if (handle != (void *)1)
+        return file_reader.first_track_sector(handle);
     return 0;
 }
 
@@ -358,6 +372,7 @@ void ra_init(const Paths *p)
 
     static rc_hash_cdreader_t reader = {cd_open_track, cd_read_sector, cd_close_track,
                                         cd_first_track_sector, NULL};
+    rc_hash_get_default_cdreader(&file_reader);
     rc_hash_init_custom_cdreader(&reader);
     rc_hash_init_error_message_callback(hash_error);
 
