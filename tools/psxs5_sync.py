@@ -234,6 +234,14 @@ def extract(archive: Path, out_dir: Path) -> None:
         if r.returncode != 0:
             print(f"    ! 7-Zip failed on {archive.name}: {r.stderr.strip()[:200]}")
             return
+        # an archive inside the archive (e.g. a split "S3.7z.001"...): unpack it too
+        if not any(f.suffix.lower() in DISC_EXTS for f in tmp.rglob("*") if f.is_file()):
+            inner = sorted(f for f in tmp.rglob("*") if f.is_file() and
+                           (f.suffix.lower() in ARCHIVE_EXTS or re.search(r"\.(7z|zip|rar)\.0*1$", f.name, re.I)))
+            for nested in inner[:1]:
+                print(f"    extracting nested {nested.name} ...", flush=True)
+                subprocess.run([seven_zip(), "x", "-y", f"-o{tmp / 'nested'}", str(nested)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for f in tmp.rglob("*"):
             if f.is_file() and f.suffix.lower() in DISC_EXTS:
                 dst = out_dir / f.name
@@ -295,6 +303,9 @@ def sync(games: list[Source], staging: Path, host: str, port: int, only: str | N
         out = prepare_one(g, staging)
         upload_tree(out, f"{REMOTE_ROOT}/games/{out.name}", host, port)
         if g.archives:  # extracted copies take real space; hardlinks don't
+            entry = game_entry(out)
+            if entry:  # remember what was uploaded, so the index still lists it
+                (out / "uploaded.txt").write_text("\t".join(map(str, entry)) + "\n", encoding="utf-8")
             for p in out.iterdir():
                 if p.suffix.lower() in DISC_DATA:
                     p.unlink()
@@ -487,6 +498,11 @@ def game_entry(folder: Path) -> tuple[str, str, int, str, str] | None:
         serial_file = folder / "serial.txt"
         serial = serial_file.read_text().strip() if serial_file.exists() else (write_serial(folder) or "")
         return folder.name, serial, discs, chosen.name, first
+    # disc images already uploaded and removed by `sync`
+    marker = folder / "uploaded.txt"
+    if marker.exists():
+        title, serial, discs, name, first = marker.read_text(encoding="utf-8").rstrip("\n").split("\t")
+        return title, serial, int(discs), name, first
     return None
 
 

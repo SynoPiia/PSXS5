@@ -630,20 +630,20 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
                 memcpy(out + (size_t)y * width, src + (size_t)y * pitch_px, (size_t)width * 4);
         else if (filter == UPSCALE_XBR)
         {
-            /* xBR doubles per pass: 2x = one pass, 3x/4x = two (the final
-             * bilinear scale to the screen covers the difference). */
-            if (k >= 3)
+            /* One xBR pass (2x) for any upscale: a second pass on 4x the
+             * pixels cost too much; the smooth final scale does the rest.
+             * Hi-res frames (menus, interlaced 640x480) don't need it. */
+            if (width > 400)
             {
-                uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
-                out = scratch(0, (size_t)width * 4 * height * 4);
-                if (!mid || !out)
-                    return;
-                xbr2x(src, width, height, pitch_px, mid);
-                xbr2x(mid, width * 2, height * 2, (size_t)width * 2, out);
-                k = 4;
+                for (int y = 0; y < height; ++y)
+                    memcpy(out + (size_t)y * width, src + (size_t)y * pitch_px, (size_t)width * 4);
+                k = 1;
             }
             else
+            {
                 xbr2x(src, width, height, pitch_px, out);
+                k = 2;
+            }
         }
         else if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
             scale2x(src, width, height, pitch_px, out);
@@ -685,18 +685,8 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
         return;
     if (filter == UPSCALE_XBR)
     {
-        if (k >= 3)
-        {
-            uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
-            out = scratch(0, (size_t)width * 4 * height * 4);
-            if (!mid || !out)
-                return;
-            xbr2x(src, width, height, pitch_px, mid);
-            xbr2x(mid, width * 2, height * 2, (size_t)width * 2, out);
-            k = 4;
-        }
-        else
-            xbr2x(src, width, height, pitch_px, out);
+        xbr2x(src, width, height, pitch_px, out); /* one pass; the final scale does the rest */
+        k = 2;
     }
     else if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
         scale2x(src, width, height, pitch_px, out);
