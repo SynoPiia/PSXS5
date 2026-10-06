@@ -96,6 +96,7 @@ typedef struct
     int ui_sound;     /* SFX_STYLE_* in ui/sfx.h; SFX_STYLE_OFF mutes */
     int ui_volume;    /* 0..3 = 25/50/75/100 % */
     int stick_dpad;   /* enum StickDpad */
+    int language;     /* enum Lang in i18n.h */
 } Settings;
 
 enum StickDpad

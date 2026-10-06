@@ -54,6 +54,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
   - On digital-only games, the left stick drives the D-pad.
   - Cross confirms and Circle goes back in the menus.
 - **Real BIOS or none.** Games boot with PCSX-ReARMed's built-in HLE BIOS. If you put your own BIOS dump in `bios/`, PSXS5 uses it.
+- **Five languages.** English, Français, Português (Portugal), Español (Latinoamérica) and 日本語, under Settings → Library → Language.
 - **Quiet interface sounds.** Five styles (Soft, Wood, Pop, Chime, Classic), a volume setting, or off.
 - **A PC tool for your library.** `tools/psxs5_sync.py` prepares your games on Windows and uploads them over FTP:
   - unpacks archives
@@ -141,7 +142,7 @@ The **PSXS5 menu** has:
 | Video | Internal resolution (native, 2x), upscale (off, 2x, 3x, 4x), upscale filter (sharp, Scale2x, xBR), aspect ratio, integer scaling, smooth final scaling, dithering, FPS counter |
 | System | Region (auto, NTSC, PAL), BIOS (real if present, or built-in HLE), controller (digital or DualShock), left stick as D-pad, fast CD loading, unlocking `/data` with etaHEN |
 | RetroAchievements | Account, hardcore mode |
-| Library | Cover style (flat or 3D box), download missing covers, interface sound and volume, rescan library |
+| Library | Cover style (flat or 3D box), download missing covers, language, interface sound and volume, rescan library |
 
 Video settings apply while you play. Region, BIOS and controller apply from the next game.
 
@@ -240,7 +241,7 @@ PSXS5 is built on the work of a lot of people. Thank you all.
 * **The [libretro-database](https://github.com/libretro/libretro-database) contributors**, for the PlayStation cheat library.
 * **Swordpdf**, for [PS5SX2](https://github.com/Swordpdf/PS5SX2). Its shelf and project page inspired PSXS5's, and studying it and the other PS5 emulator ports showed how a native emulator title runs on the console.
 * **Hyllian**, for the xBR upscaler, and **Andrea Mazzoleni** (AdvanceMAME), for Scale2x / Scale3x.
-* **Sam Lantinga and the SDL contributors** for [SDL2](https://www.libsdl.org/), **Daniel Stenberg** for [curl](https://curl.se/), **Sean Barrett** for [stb](https://github.com/nothings/stb), **Rasmus Andersson** for the [Inter](https://github.com/rsms/inter) font, and **Doug Lea** for [dlmalloc](https://gee.cs.oswego.edu/dl/html/malloc.html).
+* **Sam Lantinga and the SDL contributors** for [SDL2](https://www.libsdl.org/), **Daniel Stenberg** for [curl](https://curl.se/), **Sean Barrett** for [stb](https://github.com/nothings/stb), **Rasmus Andersson** for the [Inter](https://github.com/rsms/inter) font, **Google and Adobe** for [Noto Sans JP](https://github.com/notofonts/noto-cjk) (the Japanese text), and **Doug Lea** for [dlmalloc](https://gee.cs.oswego.edu/dl/html/malloc.html).
 * **Microsoft's [DirectXTex](https://github.com/microsoft/DirectXTex)**, **[Pillow](https://python-pillow.org/)** and **[7-Zip](https://www.7-zip.org/)**, for the art pipeline and the PC tool.
 * Developed with the help of [Claude Code](https://claude.com/claude-code).
 

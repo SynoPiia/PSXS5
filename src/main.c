@@ -18,6 +18,7 @@
 #include "ui/text.h"
 #include "platform/ps5_crash.h"
 #include "ra/achievements.h"
+#include "i18n.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -64,7 +65,7 @@ static bool covers_download_loaded;
 
 static void show_toast(const char *msg)
 {
-    str_copy(toast, sizeof(toast), msg);
+    str_copy(toast, sizeof(toast), tr(msg));
     toast_until = plat_ticks_us() + 2500000;
     psxs5_log("%s", msg);
 }
@@ -117,7 +118,7 @@ static void describe_bios(char *out, size_t size)
 {
     if (settings.force_hle)
     {
-        str_copy(out, size, "Using the built-in HLE BIOS");
+        str_copy(out, size, tr("Using the built-in HLE BIOS"));
         return;
     }
     DIR *d = opendir(paths.bios);
@@ -128,13 +129,13 @@ static void describe_bios(char *out, size_t size)
         while ((e = readdir(d)))
             if (str_icmp(path_ext(e->d_name), "bin") == 0)
             {
-                snprintf(out, size, "Real BIOS found: %.60s", e->d_name);
+                snprintf(out, size, tr("Real BIOS found: %.60s"), e->d_name);
                 break;
             }
         closedir(d);
     }
     if (!out[0])
-        str_copy(out, size, "No BIOS file in bios/, using the built-in HLE BIOS");
+        str_copy(out, size, tr("No BIOS file in bios/, using the built-in HLE BIOS"));
 }
 
 static void restart_covers(void)
@@ -180,7 +181,7 @@ static void draw_toast(void)
 
 static void draw_title(const char *title, const char *subtitle)
 {
-    text_draw(64, 44, 44, FONT_BOLD, COL_TEXT, ALIGN_LEFT, title);
+    text_draw(64, 44, 44, FONT_BOLD, COL_TEXT, ALIGN_LEFT, tr(title));
     if (subtitle)
         text_draw_fit(66, 102, 22, FONT_REGULAR, COL_DIM, ALIGN_LEFT, 1200, subtitle);
 }
@@ -213,7 +214,7 @@ static void draw_hints3(enum PadGlyph g1, const char *l1, enum PadGlyph g2, cons
     if (l2)
         x += draw_hint(x, y, g2, l2, 26, 0xffdfe5ffu);
     if (extra)
-        text_draw(x, y, 26, FONT_REGULAR, 0xffdfe5ffu, ALIGN_LEFT, extra);
+        text_draw(x, y, 26, FONT_REGULAR, 0xffdfe5ffu, ALIGN_LEFT, tr(extra));
 }
 
 /* ---------------------------------------------------------------- game start/stop */
@@ -258,7 +259,7 @@ static void start_game(int index)
         if (on)
         {
             char msg[64];
-            snprintf(msg, sizeof(msg), "%d cheat%s active", on, on == 1 ? "" : "s");
+            snprintf(msg, sizeof(msg), tr(on == 1 ? "%d cheat active" : "%d cheats active"), on);
             show_toast(msg);
         }
     }
@@ -283,8 +284,8 @@ static void library_screen(uint32_t pressed)
     if (storage_error[0])
     {
         coverflow_backdrop();
-        draw_title(PSXS5_NAME, "Storage unavailable");
-        text_draw(960, 440, 40, FONT_BOLD, COL_TEXT, ALIGN_CENTER, "PSXS5 can't open /data/PSXS5");
+        draw_title(PSXS5_NAME, tr("Storage unavailable"));
+        text_draw(960, 440, 40, FONT_BOLD, COL_TEXT, ALIGN_CENTER, tr("PSXS5 can't open /data/PSXS5"));
         text_draw_fit(960, 510, 26, FONT_REGULAR, COL_DIM, ALIGN_CENTER, 1600, storage_error);
         draw_hints3(GLYPH_SQUARE, "Settings", GLYPH_CROSS, NULL, NULL);
         if (pressed & BIT(BTN_SQUARE))
@@ -369,33 +370,33 @@ static void menu_screen(uint32_t pressed)
             make_dirs(paths.states);
             if (host_save_state(st))
             {
-                snprintf(msg, sizeof(msg), "Saved to slot %d", settings.state_slot);
+                snprintf(msg, sizeof(msg), tr("Saved to slot %d"), settings.state_slot);
                 screen = SCREEN_GAME;
             }
             else
-                snprintf(msg, sizeof(msg), "Couldn't save to slot %d", settings.state_slot);
+                snprintf(msg, sizeof(msg), tr("Couldn't save to slot %d"), settings.state_slot);
             show_toast(msg);
             break;
         case MI_LOAD:
             if (ra_hardcore())
-                snprintf(msg, sizeof(msg), "Not allowed in hardcore mode");
+                snprintf(msg, sizeof(msg), "%s", tr("Not allowed in hardcore mode"));
             else if (host_load_state(st))
             {
-                snprintf(msg, sizeof(msg), "Loaded slot %d", settings.state_slot);
+                snprintf(msg, sizeof(msg), tr("Loaded slot %d"), settings.state_slot);
                 screen = SCREEN_GAME;
             }
             else
-                snprintf(msg, sizeof(msg), "Slot %d is empty", settings.state_slot);
+                snprintf(msg, sizeof(msg), tr("Slot %d is empty"), settings.state_slot);
             show_toast(msg);
             break;
         case MI_DISC:
             if (host_disc_select(disc_choice))
             {
-                snprintf(msg, sizeof(msg), "Disc %d inserted", disc_choice + 1);
+                snprintf(msg, sizeof(msg), tr("Disc %d inserted"), disc_choice + 1);
                 screen = SCREEN_GAME;
             }
             else
-                snprintf(msg, sizeof(msg), "Disc change failed");
+                snprintf(msg, sizeof(msg), "%s", tr("Disc change failed"));
             show_toast(msg);
             break;
         case MI_CHEATS:
@@ -444,33 +445,33 @@ static void menu_screen(uint32_t pressed)
         char label[64], value[48] = "";
         switch (i)
         {
-        case MI_RESUME: str_copy(label, sizeof(label), "Resume"); break;
-        case MI_SAVE: str_copy(label, sizeof(label), "Save state"); break;
+        case MI_RESUME: str_copy(label, sizeof(label), tr("Resume")); break;
+        case MI_SAVE: str_copy(label, sizeof(label), tr("Save state")); break;
         case MI_LOAD:
-            str_copy(label, sizeof(label), "Load state");
+            str_copy(label, sizeof(label), tr("Load state"));
             if (ra_hardcore())
                 str_copy(value, sizeof(value), "hardcore");
             else if (!path_exists(st))
-                str_copy(value, sizeof(value), "empty");
+                str_copy(value, sizeof(value), tr("empty"));
             break;
         case MI_SLOT:
-            str_copy(label, sizeof(label), "Slot");
+            str_copy(label, sizeof(label), tr("Slot"));
             snprintf(value, sizeof(value), "<  %d  >", settings.state_slot);
             break;
         case MI_DISC:
-            str_copy(label, sizeof(label), "Disc");
-            snprintf(value, sizeof(value), "<  %d of %d  >", disc_choice + 1, discs);
+            str_copy(label, sizeof(label), tr("Disc"));
+            snprintf(value, sizeof(value), tr("<  %d of %d  >"), disc_choice + 1, discs);
             break;
         case MI_CHEATS:
-            str_copy(label, sizeof(label), "Cheats");
+            str_copy(label, sizeof(label), tr("Cheats"));
             if (ra_hardcore())
                 str_copy(value, sizeof(value), "hardcore");
             else
                 snprintf(value, sizeof(value), "%d", cheats.count);
             break;
-        case MI_RESET: str_copy(label, sizeof(label), "Reset"); break;
-        case MI_SETTINGS: str_copy(label, sizeof(label), "Settings"); break;
-        default: str_copy(label, sizeof(label), "Quit to library"); break;
+        case MI_RESET: str_copy(label, sizeof(label), tr("Reset")); break;
+        case MI_SETTINGS: str_copy(label, sizeof(label), tr("Settings")); break;
+        default: str_copy(label, sizeof(label), tr("Quit to library")); break;
         }
         if (i == menu_cursor)
             draw_rect(x + 16, y - 10, w - 32, row_h - 8, COL_SELECT);
@@ -518,6 +519,7 @@ static const char *const SOUND_STYLES[] = {"Soft", "Wood", "Pop", "Chime", "Clas
 static const char *const VOLUMES[] = {"25%", "50%", "75%", "100%"};
 static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
 static bool hardcore_setting;
+static const char *LANGUAGES[LANG_COUNT];
 
 static int build_rows(Row *rows)
 {
@@ -544,9 +546,9 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_SECTION, "RetroAchievements", 0, 0, 0, 0, 0, 0};
     static char account[96];
     if (ra_user()[0])
-        snprintf(account, sizeof(account), "%s%s", ra_user(), ra_signed_in() ? "" : " (not signed in)");
+        snprintf(account, sizeof(account), "%s%s", ra_user(), ra_signed_in() ? "" : tr(" (not signed in)"));
     else
-        str_copy(account, sizeof(account), "set up with psxs5_sync.py ra-login");
+        str_copy(account, sizeof(account), tr("set up with psxs5_sync.py ra-login"));
     hardcore_setting = ra_hardcore();
     rows[n++] = (Row){ROW_ACTION, "Account", 0, 0, 0, 0, 0, account};
     rows[n++] = (Row){ROW_CHOICE, "Hardcore mode", 0, &hardcore_setting, OFF_ON, 2, 0,
@@ -554,6 +556,9 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_SECTION, "Library", 0, 0, 0, 0, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Cover art", &settings.cover_style, 0, COVER_STYLES, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Download missing covers", 0, &settings.cover_download, OFF_ON, 2, 0, 0};
+    for (int i = 0; i < LANG_COUNT; ++i)
+        LANGUAGES[i] = i18n_name(i);
+    rows[n++] = (Row){ROW_CHOICE, "Language", &settings.language, 0, LANGUAGES, LANG_COUNT, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Interface sound", &settings.ui_sound, 0, SOUND_STYLES, 6, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Interface volume", &settings.ui_volume, 0, VOLUMES, 4, 0, 0};
     rows[n++] = (Row){ROW_ACTION, "Rescan library", 0, 0, 0, 0, 0, host_loaded() ? "quit the game first" : 0};
@@ -606,6 +611,8 @@ static void settings_screen(uint32_t pressed)
                     cheats_clear(&cheats);
             }
         }
+        if (r->value == &settings.language)
+            i18n_set(settings.language);
         sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
         sfx_play(SFX_CLICK); /* also previews the chosen sound */
     }
@@ -616,7 +623,7 @@ static void settings_screen(uint32_t pressed)
         {
             rescan();
             char msg[64];
-            snprintf(msg, sizeof(msg), "Found %d game%s", library.count, library.count == 1 ? "" : "s");
+            snprintf(msg, sizeof(msg), tr(library.count == 1 ? "Found %d game" : "Found %d games"), library.count);
             show_toast(msg);
         }
     }
@@ -635,7 +642,7 @@ static void settings_screen(uint32_t pressed)
         draw_game_frame(45);
     else
         coverflow_backdrop();
-    draw_title("Settings", current_game ? current_game->title : "Applies to every game");
+    draw_title("Settings", current_game ? current_game->title : tr("Applies to every game"));
 
     const int visible = 12;
     const float top = 170, row_h = 62, x = 64, w = plat_width() - 128.0f;
@@ -651,20 +658,20 @@ static void settings_screen(uint32_t pressed)
         bool sel = settings_scroll + i == settings_cursor;
         if (row->kind == ROW_SECTION)
         {
-            text_draw(x + 8, y + 18, 24, FONT_BOLD, 0xff8fb0ffu, ALIGN_LEFT, row->name);
+            text_draw(x + 8, y + 18, 24, FONT_BOLD, 0xff8fb0ffu, ALIGN_LEFT, tr(row->name));
             continue;
         }
         draw_rect(x, y, w, row_h - 8, sel ? COL_SELECT : COL_ROW);
-        text_draw(x + 28, y + 12, 28, FONT_REGULAR, COL_TEXT, ALIGN_LEFT, row->name);
+        text_draw(x + 28, y + 12, 28, FONT_REGULAR, COL_TEXT, ALIGN_LEFT, tr(row->name));
         if (row->kind == ROW_CHOICE)
         {
             char v[80];
-            snprintf(v, sizeof(v), "<   %s   >", row->labels[row_value(row)]);
+            snprintf(v, sizeof(v), "<   %s   >", tr(row->labels[row_value(row)]));
             text_draw(x + 900, y + 12, 28, FONT_REGULAR, COL_TEXT, ALIGN_LEFT, v);
         }
         if (row->note)
             text_draw(x + w - 28, y + 16, 22, FONT_REGULAR, sel ? COL_TEXT : COL_DIM, ALIGN_RIGHT,
-                      row->note);
+                      tr(row->note));
     }
     char bios[96];
     describe_bios(bios, sizeof(bios));
@@ -726,12 +733,12 @@ static void cheats_screen(uint32_t pressed)
     draw_title("Cheats", cheats.count ? (src ? src + 1 : cheats.source) : NULL);
     if (cheats.count == 0)
     {
-        text_draw(960, 420, 40, FONT_BOLD, COL_TEXT, ALIGN_CENTER, "No cheats for this game");
+        text_draw(960, 420, 40, FONT_BOLD, COL_TEXT, ALIGN_CENTER, tr("No cheats for this game"));
         char where[PSXS5_PATH_MAX + 48];
-        snprintf(where, sizeof(where), "Put .cht files in %s, or one next to the game.", paths.cheats);
+        snprintf(where, sizeof(where), tr("Put .cht files in %s, or one next to the game."), paths.cheats);
         text_draw_fit(960, 490, 26, FONT_REGULAR, COL_DIM, ALIGN_CENTER, 1700, where);
         text_draw(960, 534, 26, FONT_REGULAR, COL_DIM, ALIGN_CENTER,
-                  "tools/psxs5_sync.py cheats installs the libretro cheat library.");
+                  tr("tools/psxs5_sync.py cheats installs the libretro cheat library."));
     }
     else
     {
@@ -926,6 +933,7 @@ int main(void)
     unlock_setting = !plat_unlock_disabled();
 
     config_load(&settings, paths.config);
+    i18n_set(settings.language);
     plat_audio_open(UI_RATE);
     sfx_init(UI_RATE);
     sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);

@@ -6,6 +6,7 @@
 
 #include "../platform/platform.h"
 #include "text.h"
+#include "../i18n.h"
 
 #include <math.h>
 
@@ -124,6 +125,7 @@ float draw_hint(float x, float y, enum PadGlyph glyph, const char *label, float 
                 uint32_t argb)
 {
     draw_pad_glyph(glyph, x + size * 0.5f, y + size * 0.55f, size);
+    label = tr(label);
     text_draw(x + size * 1.3f, y, size, FONT_REGULAR, argb, ALIGN_LEFT, label);
     return size * 1.3f + text_width(size, FONT_REGULAR, label) + size * 1.4f;
 }

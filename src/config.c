@@ -83,6 +83,8 @@ void config_load(Settings *s, const char *path)
             s->ui_sound = 5; /* older config: sounds off -> SFX_STYLE_OFF */
         else if (strcmp(key, "ui_sound") == 0)
             s->ui_sound = atoi(value) % 6;
+        else if (strcmp(key, "language") == 0)
+            s->language = atoi(value) % 5;
         else if (strcmp(key, "ui_volume") == 0)
             s->ui_volume = atoi(value) % 4;
     }
@@ -101,11 +103,11 @@ bool config_save(const Settings *s, const char *path)
             "aspect=%d\nsmooth=%d\nshow_fps=%d\nregion=%d\nforce_hle=%d\n"
             "dithering=%d\ncd_fast=%d\nanalog=%d\nstate_slot=%d\nlast_game=%d\n"
             "cover_style=%d\ncover_download=%d\nui_sound=%d\nui_volume=%d\n"
-            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\n",
+            "integer_scale=%d\ninternal_res=%d\nupscale=%d\nupscale_filter=%d\nstick_dpad=%d\nlanguage=%d\n",
             s->aspect, s->smooth, s->show_fps, s->region, s->force_hle, s->dithering,
             s->cd_fast, s->analog, s->state_slot, s->last_game, s->cover_style,
             s->cover_download, s->ui_sound, s->ui_volume, s->integer_scale, s->internal_res, s->upscale,
-            s->upscale_filter, s->stick_dpad);
+            s->upscale_filter, s->stick_dpad, s->language);
     bool ok = fclose(f) == 0;
     return ok && rename(temp, path) == 0;
 }
