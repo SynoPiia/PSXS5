@@ -264,6 +264,13 @@ if [[ ${APP_VULKAN:-0} == 1 ]]; then
             --wrap=malloc | --wrap=calloc | --wrap=realloc | --wrap=free | --wrap=posix_memalign | \
             --wrap=aligned_alloc | --wrap=memalign | --wrap=malloc_usable_size | --wrap=reallocf | \
             --wrap=reallocarray | --wrap=getline | --wrap=getdelim) ;;
+            # libc's own versions already work for PSXS5 (the library scan, the
+            # unlock check, cover downloads, ps5_shims.c); the platform's opendir
+            # took PSXS5 down while etaHEN was opening /data.
+            --defsym=opendir=* | --defsym=fdopendir=* | --defsym=readdir=* | \
+            --defsym=rewinddir=* | --defsym=dirfd=* | --defsym=closedir=* | \
+            --defsym=access=* | --defsym=getaddrinfo=* | --defsym=freeaddrinfo=* | \
+            --defsym=nl_langinfo=* | --defsym=nl_langinfo_l=* | --defsym=strcasestr=*) ;;
             *) linker_options+=("$flag") ;;
         esac
     done
