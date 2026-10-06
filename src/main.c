@@ -52,6 +52,7 @@ static int menu_cursor, settings_cursor, settings_scroll, cheat_cursor, cheat_sc
 static const Game *current_game;
 static char storage_error[256];
 static bool sandboxed;          /* /data folders can't be listed: use library.txt */
+static bool unlock_setting = true; /* Settings > System > Unlock /data with etaHEN */
 static char sandbox_reason[200];
 static char toast[128];
 static uint64_t toast_until;
@@ -499,6 +500,8 @@ static int build_rows(Row *rows)
     rows[n++] = (Row){ROW_CHOICE, "Left stick as D-pad", &settings.stick_dpad, 0, STICK_MODES,
                       STICK_DPAD_COUNT, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Fast CD loading", 0, &settings.cd_fast, OFF_ON, 2, 0, 0};
+    rows[n++] = (Row){ROW_CHOICE, "Unlock /data with etaHEN", 0, &unlock_setting, OFF_ON, 2, 0,
+                      "next launch"};
     rows[n++] = (Row){ROW_SECTION, "Library", 0, 0, 0, 0, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Cover art", &settings.cover_style, 0, COVER_STYLES, 2, 0, 0};
     rows[n++] = (Row){ROW_CHOICE, "Download missing covers", 0, &settings.cover_download, OFF_ON, 2, 0, 0};
@@ -541,6 +544,8 @@ static void settings_screen(uint32_t pressed)
             *r->value = v + r->base;
         if (host_loaded())
             host_apply_settings(&settings);
+        if (r->flag == &unlock_setting)
+            plat_set_unlock_disabled(!unlock_setting);
         sfx_configure(settings.ui_sound, (settings.ui_volume + 1) * 25);
         sfx_play(SFX_CLICK); /* also previews the chosen sound */
     }
@@ -854,6 +859,8 @@ int main(void)
 #endif
     psxs5_log(sandboxed ? "storage: sandboxed (%s)" : "storage: unlocked%s",
               sandboxed ? sandbox_reason : "");
+    psxs5_log("storage probe before unlock: %s", plat_sandbox_probe());
+    unlock_setting = !plat_unlock_disabled();
 
     config_load(&settings, paths.config);
     plat_audio_open(UI_RATE);

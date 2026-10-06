@@ -170,9 +170,63 @@ void plat_default_root(char *out, size_t size)
 #endif
 }
 
+/* What a still-sandboxed PSXS5 can do with its data folder, for the log. */
+static char sandbox_probe[96] = "not probed";
+
+const char *plat_sandbox_probe(void)
+{
+    return sandbox_probe;
+}
+
+/* Settings > System > "Unlock /data with etaHEN": stored as a marker file so
+ * it can be read before any unlock (paths that may work while sandboxed). */
+static const char *const NO_UNLOCK_MARKERS[] = {"/download0/psxs5_no_unlock",
+                                                "/data/PSXS5/no_unlock"};
+
+bool plat_unlock_disabled(void)
+{
+    for (size_t i = 0; i < 2; ++i)
+        if (path_exists(NO_UNLOCK_MARKERS[i]))
+            return true;
+    return false;
+}
+
+void plat_set_unlock_disabled(bool disabled)
+{
+    for (size_t i = 0; i < 2; ++i)
+    {
+        if (disabled)
+        {
+            FILE *f = fopen(NO_UNLOCK_MARKERS[i], "w");
+            if (f)
+                fclose(f);
+        }
+        else
+            remove(NO_UNLOCK_MARKERS[i]);
+    }
+}
+
 bool plat_prepare_storage(char *error, size_t size)
 {
 #if defined(__PROSPERO__)
+    {
+        FILE *r = fopen("/data/PSXS5/psxs5.ini", "r");
+        FILE *w = fopen("/data/PSXS5/.sandbox-test", "w");
+        snprintf(sandbox_probe, sizeof(sandbox_probe), "sandboxed read %s, write %s, list %s",
+                 r ? "ok" : "no", w ? "ok" : "no", ps5_data_listable() ? "ok" : "no");
+        if (r)
+            fclose(r);
+        if (w)
+        {
+            fclose(w);
+            remove("/data/PSXS5/.sandbox-test");
+        }
+    }
+    if (plat_unlock_disabled())
+    {
+        snprintf(error, size, "unlock turned off in Settings");
+        return ps5_data_listable();
+    }
     /* 1. etaHEN's jailbreak-on-demand (answered on 13.60). */
     UnlockResult hen = ps5_unlock_etahen();
     if (hen == UNLOCK_OK || hen == UNLOCK_ALREADY)
