@@ -37,16 +37,20 @@ mkdir -p "$out"
 archive="$out/libmednafen_psx_hw.a"
 # Rebuild only when the source revision or this script changed.
 stamp="$out/.stamp"
-want="$(git -C "$core" rev-parse HEAD) $(sha256sum "$0" | cut -c1-16)"
+want="$(git -C "$core" rev-parse HEAD) $(cat "$0" "$root/tools/beetle-archive.mk" | sha256sum | cut -c1-16)"
 if [[ ! -f $out/libbeetle_psx.a || ! -f $stamp || $(cat "$stamp") != "$want" ]]; then
     echo "==> [beetle] building Beetle PSX HW ($jobs jobs)"
     make -C "$core" clean >/dev/null 2>&1 || true
     # FLAGS through the environment: the Makefile appends its own with +=.
     export CFLAGS="-O2 -fPIC -ffunction-sections -fdata-sections -march=znver2"
     export CXXFLAGS="$CFLAGS"
-    make -C "$core" -j"$jobs" platform=ps5 STATIC_LINKING=1 TARGET=libmednafen_psx_hw.a \
+    # Not STATIC_LINKING: that build leaves libretro-common to the frontend,
+    # and PSXS5's copy belongs to PCSX-ReARMed. The shared-library source list
+    # carries Beetle's own; beetle-archive.mk archives it instead of linking.
+    make -C "$core" -f Makefile -f "$root/tools/beetle-archive.mk" -j"$jobs" platform=ps5 \
+        TARGET=libmednafen_psx_hw.a \
         CC="sh $root/tooling/prospero-clang18" CXX="sh $root/tooling/prospero-clang18 -x c++" \
-        AR="$ar"
+        AR="$ar" psxs5-archive
     cp "$core/libmednafen_psx_hw.a" "$archive"
 
     echo "==> [beetle] isolating its symbols"
