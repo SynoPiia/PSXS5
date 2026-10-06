@@ -95,7 +95,7 @@ else
 fi
 
 if ((failed)); then
-    echo 'One or more required tools are missing. See docs/GETTING_STARTED.md.' >&2
+    echo 'One or more required tools are missing. See docs/boilerplate/GETTING_STARTED.md.' >&2
     exit 1
 fi
 echo 'Required Linux/WSL build prerequisites are available.'

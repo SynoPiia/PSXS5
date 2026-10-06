@@ -9,6 +9,7 @@ name: Build PSXS5
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -87,3 +88,37 @@ jobs:
           sudo apt-get install --yes build-essential libsdl2-dev libcurl4-openssl-dev zlib1g-dev
       - name: Build
         run: make desktop
+
+  release:
+    name: Publish the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ps5, desktop]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: PSXS5-PPSA97510
+          path: app
+      - uses: actions/download-artifact@v4
+        with:
+          name: PSXS5-symbols
+          path: .
+      - name: Package
+        run: |
+          name=PSXS5-${GITHUB_REF_NAME}
+          mkdir -p "$name/tools"
+          cp -r app/PPSA97510 "$name/"
+          cp tools/psxs5_sync.py tools/psx_disc.py "$name/tools/"
+          cp README.md LICENSE THIRD_PARTY_NOTICES.md "$name/"
+          zip -qr "$name.zip" "$name"
+          echo "ZIP=$name.zip" >> "$GITHUB_ENV"
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=docs/releases/${GITHUB_REF_NAME}.md
+          [ -f "$notes" ] || notes=/dev/null
+          gh release create "$GITHUB_REF_NAME" "$ZIP" PSXS5-symbols.txt --title "PSXS5 ${GITHUB_REF_NAME#v}" --notes-file "$notes"
