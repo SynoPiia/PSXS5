@@ -21,6 +21,23 @@ PSXS5 (PlayStation X Super 5) is a PlayStation 1 emulator that installs as an ap
 - You pick a game from a cover-flow shelf with your covers.
 - Games are upscaled with xBR for a 4K TV.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/media/screens/shelf.jpg" alt="The shelf" width="49%">
+  <img src="docs/media/screens/settings.jpg" alt="Settings" width="49%">
+</p>
+<p align="center">
+  <img src="docs/media/screens/menu.jpg" alt="The in-game menu" width="49%">
+  <img src="docs/media/screens/mapping.jpg" alt="Button mapping" width="49%">
+</p>
+<p align="center">
+  <img src="docs/media/screens/continue.jpg" alt="Continue where you left off" width="49%">
+  <img src="docs/media/screens/tv.jpg" alt="TV frame with scanlines" width="49%">
+</p>
+
+The in-game shots show a test picture; your games appear there.
+
 ## A passion project
 
 PSXS5 is a hobby project, made for the love of the PS1 library. No company or schedule is behind it, and nothing is for sale. Expect rough edges. Bug reports that come with `/data/PSXS5/logs/psxs5.log` are the most helpful.
