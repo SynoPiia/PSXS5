@@ -7,11 +7,14 @@
  */
 #include "platform.h"
 
+#include "xbr.h"
+
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <string.h>
 
 #if defined(__PROSPERO__)
+#include "blit.h"
 #include "ps5_unlock.h"
 #include "ps5_video.h"
 #include <sys/mman.h>
@@ -595,6 +598,14 @@ static bool ensure_game_texture(int format, int w, int h)
     return game_texture != NULL;
 }
 
+#if defined(__PROSPERO__)
+/* PS5: the latest game picture, kept in PSXS5's memory and scaled straight
+ * into the canvas by blit.c (SDL's software stretch was the bottleneck). */
+static const uint32_t *game_image;
+static int game_image_w, game_image_h;
+static size_t game_image_pitch;
+#endif
+
 void plat_upload_game(const void *pixels, int width, int height, size_t pitch, int pixel_format,
                       int upscale, int filter)
 {
@@ -605,6 +616,56 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
     int k = pixel_format == 1 ? upscale : 1; /* prescalers work on 32-bit frames */
     while (k > 1 && (width * k > 4096 || height * k > 2048))
         --k; /* keep the texture within limits (2x internal frames are already big) */
+
+#if defined(__PROSPERO__)
+    if (pixel_format == 1)
+    {
+        const uint32_t *src = pixels;
+        size_t pitch_px = pitch / 4;
+        uint32_t *out = scratch(0, (size_t)width * k * height * k);
+        if (!out)
+            return;
+        if (k <= 1)
+            for (int y = 0; y < height; ++y) /* the core reuses its buffer: keep a copy */
+                memcpy(out + (size_t)y * width, src + (size_t)y * pitch_px, (size_t)width * 4);
+        else if (filter == UPSCALE_XBR)
+        {
+            /* xBR doubles per pass: 2x = one pass, 3x/4x = two (the final
+             * bilinear scale to the screen covers the difference). */
+            if (k >= 3)
+            {
+                uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
+                out = scratch(0, (size_t)width * 4 * height * 4);
+                if (!mid || !out)
+                    return;
+                xbr2x(src, width, height, pitch_px, mid);
+                xbr2x(mid, width * 2, height * 2, (size_t)width * 2, out);
+                k = 4;
+            }
+            else
+                xbr2x(src, width, height, pitch_px, out);
+        }
+        else if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
+            scale2x(src, width, height, pitch_px, out);
+        else if (filter == UPSCALE_SMOOTH_PIXELS && k == 3)
+            scale3x(src, width, height, pitch_px, out);
+        else if (filter == UPSCALE_SMOOTH_PIXELS && k == 4)
+        {
+            uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
+            if (!mid)
+                return;
+            scale2x(src, width, height, pitch_px, mid);
+            scale2x(mid, width * 2, height * 2, (size_t)width * 2, out);
+        }
+        else
+            prescale_sharp(src, width, height, pitch_px, out, k);
+        game_image = out;
+        game_image_w = width * (k > 1 ? k : 1);
+        game_image_h = height * (k > 1 ? k : 1);
+        game_image_pitch = (size_t)game_image_w;
+        return;
+    }
+#endif
 
     if (k <= 1)
     {
@@ -622,7 +683,22 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
     uint32_t *out = scratch(0, (size_t)width * k * height * k);
     if (!out)
         return;
-    if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
+    if (filter == UPSCALE_XBR)
+    {
+        if (k >= 3)
+        {
+            uint32_t *mid = scratch(1, (size_t)width * 2 * height * 2);
+            out = scratch(0, (size_t)width * 4 * height * 4);
+            if (!mid || !out)
+                return;
+            xbr2x(src, width, height, pitch_px, mid);
+            xbr2x(mid, width * 2, height * 2, (size_t)width * 2, out);
+            k = 4;
+        }
+        else
+            xbr2x(src, width, height, pitch_px, out);
+    }
+    else if (filter == UPSCALE_SMOOTH_PIXELS && k == 2)
         scale2x(src, width, height, pitch_px, out);
     else if (filter == UPSCALE_SMOOTH_PIXELS && k == 3)
         scale3x(src, width, height, pitch_px, out);
@@ -647,8 +723,13 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
 
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 {
+#if defined(__PROSPERO__)
+    if (!game_image && !game_texture)
+        return;
+#else
     if (!game_texture)
         return;
+#endif
     /* Scanlines the game actually has: interlaced (480) and 2x-internal frames
      * show at the same size as 240-line ones. */
     int lines = game_src_h;
@@ -687,11 +768,24 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             dw = out_w;
     }
 
+#if defined(__PROSPERO__)
+    if (game_image)
+    {
+        /* run SDL's queued drawing (the clear) first, then write the picture */
+        SDL_RenderFlush(renderer);
+        BlitJob job = {game_image, game_image_w, game_image_h, game_image_pitch,
+                       (uint32_t *)canvas->pixels, (size_t)canvas->pitch / 4,
+                       (out_w - dw) / 2, (out_h - dh) / 2, dw, dh, settings->smooth, dim};
+        blit_scaled(&job);
+        return;
+    }
+#endif
 #if SDL_VERSION_ATLEAST(2, 0, 12)
     SDL_SetTextureScaleMode(game_texture, settings->smooth ? SDL_ScaleModeLinear
                                                            : SDL_ScaleModeNearest);
 #endif
     SDL_SetTextureColorMod(game_texture, dim, dim, dim);
+    SDL_SetTextureBlendMode(game_texture, SDL_BLENDMODE_NONE); /* opaque: no per-pixel blend */
     SDL_Rect src = {0, 0, game_w, game_h};
     SDL_Rect dst = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
     SDL_RenderCopy(renderer, game_texture, &src, &dst);

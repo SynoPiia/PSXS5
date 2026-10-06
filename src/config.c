@@ -14,8 +14,8 @@ void config_defaults(Settings *s)
     s->aspect = ASPECT_AUTO;
     s->smooth = true;
     s->internal_res = 1;
-    s->upscale = 1;
-    s->upscale_filter = UPSCALE_SHARP;
+    s->upscale = 2;
+    s->upscale_filter = UPSCALE_XBR;
     s->region = REGION_AUTO;
     s->dithering = true;
     s->analog = true;
