@@ -160,3 +160,4 @@ No proprietary runtime module, encryption key, or game file is included.
 | xBR by Hyllian | upscale filter, reimplemented in `src/platform/xbr.c` | algorithm credit (MIT-licensed reference) |
 | Scale2x / Scale3x by Andrea Mazzoleni (AdvanceMAME) | upscale filter, reimplemented in `src/platform/plat_sdl.c` | algorithm credit |
 | [RetroAchievements](https://retroachievements.org) | achievement sets and accounts, used online; not bundled | service terms of retroachievements.org |
+| [Noto Sans JP](https://github.com/notofonts/noto-cjk) (subset by `tools/make_jp_font.py`) | Japanese interface text (`assets/fonts/NotoSansJP-PSXS5.ttf`) | SIL Open Font License 1.1 (`assets/fonts/OFL-NotoSansJP.txt`) |

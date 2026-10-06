@@ -22,6 +22,7 @@ enum
 
 bool text_init(void);
 void text_shutdown(void);
+void text_language_changed(void); /* repacks glyphs for the new language */
 
 /* (x, y) is the top-left of the line box for ALIGN_LEFT; size is the pixel height. */
 void text_draw(float x, float y, float size, int weight, uint32_t argb, int align, const char *s);

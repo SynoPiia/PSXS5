@@ -14,6 +14,7 @@
 #include "draw.h"
 #include "sfx.h"
 #include "text.h"
+#include "../i18n.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -94,12 +95,12 @@ void coverflow_init(Coverflow *cf, int cursor)
 static const char *region_name(const char *serial)
 {
     if (!serial[0])
-        return "Unknown region";
+        return tr("Unknown region");
     if (!strncmp(serial, "SLUS", 4) || !strncmp(serial, "SCUS", 4))
-        return "USA";
+        return tr("USA");
     if (!strncmp(serial, "SLES", 4) || !strncmp(serial, "SCES", 4) || !strncmp(serial, "SCED", 4))
-        return "Europe";
-    return "Japan";
+        return tr("Europe");
+    return tr("Japan");
 }
 
 static float clampf(float v, float lo, float hi)
@@ -186,7 +187,7 @@ static void draw_details(const Game *g, float t)
     char line[160];
     const char *labels[] = {"Serial", "Region", "Discs", "Format", "Folder"};
     char values[5][128];
-    snprintf(values[0], 128, "%s", g->serial[0] ? g->serial : "Unknown");
+    snprintf(values[0], 128, "%s", g->serial[0] ? g->serial : tr("Unknown"));
     snprintf(values[1], 128, "%s", region_name(g->serial));
     snprintf(values[2], 128, "%d", g->discs);
     snprintf(values[3], 128, "%s", path_ext(g->path));
@@ -194,11 +195,11 @@ static void draw_details(const Game *g, float t)
     snprintf(values[4], 128, "%s", folder ? folder + 1 : g->folder);
     for (int i = 0; i < 5; ++i)
     {
-        text_draw(x + 40, y + 110 + i * 60, 24, FONT_REGULAR, dim, ALIGN_LEFT, labels[i]);
+        text_draw(x + 40, y + 110 + i * 60, 24, FONT_REGULAR, dim, ALIGN_LEFT, tr(labels[i]));
         text_draw_fit(x + 200, y + 110 + i * 60, 24, FONT_BOLD, white, ALIGN_LEFT, w - 240,
                       values[i]);
     }
-    snprintf(line, sizeof(line), "Saves and cheats follow the serial.");
+    snprintf(line, sizeof(line), "%s", tr("Saves and cheats follow the serial."));
     text_draw(x + 40, y + h - 60, 20, FONT_REGULAR, dim, ALIGN_LEFT, line);
 }
 
@@ -320,33 +321,34 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
         float text_a = 1.0f - launch;
         text_draw_fit(CENTER_X, 870, 56, FONT_BOLD, argb_alpha(0xffffffffu, text_a), ALIGN_CENTER,
                       1600, g->title);
-        char meta[128];
-        snprintf(meta, sizeof(meta), "%s  \xc2\xb7  %s  \xc2\xb7  %d disc%s",
-                 g->serial[0] ? g->serial : "No serial", region_name(g->serial), g->discs,
-                 g->discs == 1 ? "" : "s");
+        char meta[160], discs[48];
+        snprintf(discs, sizeof(discs), tr(g->discs == 1 ? "%d disc" : "%d discs"), g->discs);
+        snprintf(meta, sizeof(meta), "%s  \xc2\xb7  %s  \xc2\xb7  %s",
+                 g->serial[0] ? g->serial : tr("No serial"), region_name(g->serial), discs);
         text_draw(CENTER_X, 944, 26, FONT_REGULAR, argb_alpha(0xffc9d2ffu, text_a), ALIGN_CENTER,
                   meta);
         draw_details(g, cf->details_t);
     }
     else
     {
-        text_draw(CENTER_X, 400, 48, FONT_BOLD, 0xffffffffu, ALIGN_CENTER, "Your shelf is empty");
+        text_draw(CENTER_X, 400, 48, FONT_BOLD, 0xffffffffu, ALIGN_CENTER, tr("Your shelf is empty"));
         text_draw(CENTER_X, 480, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
-                  "On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>");
+                  tr("On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>"));
         text_draw(CENTER_X, 524, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
-                  "Then choose Settings > Rescan library.");
+                  tr("Then choose Settings > Rescan library."));
     }
 
     /* ------------------------------------------------ chrome */
     text_draw(64, 44, 44, FONT_BOLD, 0xffffffffu, ALIGN_LEFT, PSXS5_NAME);
-    char sub[96];
-    snprintf(sub, sizeof(sub), "%d game%s  \xc2\xb7  v" PSXS5_VERSION, count, count == 1 ? "" : "s");
+    char sub[96], games[48];
+    snprintf(games, sizeof(games), tr(count == 1 ? "%d game" : "%d games"), count);
+    snprintf(sub, sizeof(sub), "%s  \xc2\xb7  v" PSXS5_VERSION, games);
     text_draw(66, 102, 22, FONT_REGULAR, 0xffc9d2ffu, ALIGN_LEFT, sub);
     int pending = covers_downloading();
     if (pending > 0)
     {
         char dl[64];
-        snprintf(dl, sizeof(dl), "Getting covers (%d)", pending);
+        snprintf(dl, sizeof(dl), tr("Getting covers (%d)"), pending);
         text_draw(plat_width() - 64, 56, 22, FONT_REGULAR, 0xffc9d2ffu, ALIGN_RIGHT, dl);
     }
     if (notice && *notice)
@@ -356,7 +358,7 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
     hx += draw_hint(hx, hy, GLYPH_CROSS, "Play", 26, 0xffdfe5ffu);
     hx += draw_hint(hx, hy, GLYPH_TRIANGLE, cf->details ? "Hide details" : "Details", 26, 0xffdfe5ffu);
     hx += draw_hint(hx, hy, GLYPH_SQUARE, "Settings", 26, 0xffdfe5ffu);
-    text_draw(hx, hy, 26, FONT_REGULAR, 0xffdfe5ffu, ALIGN_LEFT, "L1 / R1  Jump");
+    text_draw(hx, hy, 26, FONT_REGULAR, 0xffdfe5ffu, ALIGN_LEFT, tr("L1 / R1  Jump"));
 
     if (cf->launch_t > 0.0f)
         draw_rect(0, 0, (float)plat_width(), (float)plat_height(),

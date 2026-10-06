@@ -4,8 +4,12 @@
  *
  * Glyphs for Latin-1 are packed into one atlas per (weight, size bucket) the
  * first time that size is used; a line of text is then a single mesh draw.
+ * Japanese: the characters the current language's strings use are packed into
+ * the same atlases from a Noto Sans JP subset (see i18n.c).
  */
 #include "text.h"
+
+#include "../i18n.h"
 
 #include "../platform/platform.h"
 #include "stb_truetype.h"
@@ -18,6 +22,7 @@
 #define FIRST_CP 32
 #define CP_COUNT 224 /* U+0020..U+00FF */
 #define MAX_ATLASES 16
+#define MAX_EXTRA 1024
 
 typedef struct
 {
@@ -25,6 +30,7 @@ typedef struct
     int width, height;
     float ascent;
     stbtt_packedchar chars[CP_COUNT];
+    stbtt_packedchar *extra; /* parallel to extra_cp[] */
     PlatTexture *texture;
 } Atlas;
 
@@ -33,6 +39,14 @@ static stbtt_fontinfo font_info[2];
 static bool font_ok[2];
 static Atlas atlases[MAX_ATLASES];
 static int atlas_count;
+
+/* Japanese fallback font and the characters packed from it, sorted. */
+static unsigned char *jp_data;
+static stbtt_fontinfo jp_info;
+static bool jp_ok;
+static int extra_cp[MAX_EXTRA];
+static int extra_count;
+static bool extra_dirty = true;
 
 static const int buckets[] = {16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128};
 
@@ -68,6 +82,12 @@ bool text_init(void)
         if (!font_ok[w])
             psxs5_log("font missing or invalid: %s", path);
     }
+    char jp_path[PSXS5_PATH_MAX];
+    plat_asset_path(jp_path, sizeof(jp_path), "fonts/NotoSansJP-PSXS5.ttf");
+    jp_data = read_file(jp_path);
+    jp_ok = jp_data && stbtt_InitFont(&jp_info, jp_data, stbtt_GetFontOffsetForIndex(jp_data, 0));
+    if (!jp_ok)
+        psxs5_log("font missing or invalid: %s (Japanese will show as ?)", jp_path);
     if (!font_ok[FONT_BOLD] && font_ok[FONT_REGULAR])
     {
         font_info[FONT_BOLD] = font_info[FONT_REGULAR];
@@ -76,13 +96,73 @@ bool text_init(void)
     return font_ok[FONT_REGULAR];
 }
 
-void text_shutdown(void)
+static void free_atlases(void)
 {
     for (int i = 0; i < atlas_count; ++i)
+    {
         plat_texture_free(atlases[i].texture);
+        free(atlases[i].extra);
+        atlases[i].extra = NULL;
+    }
     atlas_count = 0;
+}
+
+void text_shutdown(void)
+{
+    free_atlases();
     for (int w = 0; w < 2; ++w)
         free(font_data[w]);
+    free(jp_data);
+}
+
+static int decode(const char **p);
+
+static int cmp_int(const void *a, const void *b)
+{
+    return *(const int *)a - *(const int *)b;
+}
+
+/* The non-Latin-1 characters the current language needs (always including the
+ * language selector's own names). */
+static void collect_extra(void)
+{
+    extra_dirty = false;
+    extra_count = 0;
+    if (!jp_ok)
+        return;
+    int lang = i18n_get();
+    for (int i = 0;; ++i)
+    {
+        if (i >= LANG_COUNT && lang != LANG_JA)
+            break;
+        const char *s = i18n_string(lang, i);
+        if (!s)
+            break;
+        while (*s)
+        {
+            int cp = decode(&s);
+            if (cp <= 0xff || extra_count == MAX_EXTRA || !stbtt_FindGlyphIndex(&jp_info, cp))
+                continue;
+            bool seen = false;
+            for (int k = 0; k < extra_count && !seen; ++k)
+                seen = extra_cp[k] == cp;
+            if (!seen)
+                extra_cp[extra_count++] = cp;
+        }
+    }
+    qsort(extra_cp, (size_t)extra_count, sizeof(int), cmp_int);
+}
+
+void text_language_changed(void)
+{
+    free_atlases();
+    extra_dirty = true;
+}
+
+/* Japanese glyphs are drawn at Inter's em size for the same pixel height. */
+static float jp_em_px(const stbtt_fontinfo *main, float px)
+{
+    return stbtt_ScaleForPixelHeight(main, px) / stbtt_ScaleForMappingEmToPixels(main, 1.0f);
 }
 
 static int bucket_for(float size)
@@ -104,11 +184,26 @@ static Atlas *get_atlas(int weight, float size)
             return &atlases[i];
     if (atlas_count == MAX_ATLASES)
         return &atlases[0];
+    if (extra_dirty)
+        collect_extra();
 
     Atlas *a = &atlases[atlas_count];
     int over = px <= 32 ? 2 : 1;
     a->width = px <= 32 ? 512 : px <= 64 ? 1024 : 2048;
     a->height = px <= 48 ? 512 : 1024;
+    if (extra_count)
+    {
+        /* room for the Japanese glyphs too: about (1.25 px)^2 each */
+        double need = (CP_COUNT * 0.6 + extra_count) * (px * 1.25) * (px * 1.25) * over * 1.3;
+        while ((double)a->width * a->height < need && a->height < 4096)
+        {
+            if (a->height < a->width)
+                a->height *= 2;
+            else
+                a->width *= 2;
+        }
+        a->extra = calloc((size_t)extra_count, sizeof(stbtt_packedchar));
+    }
     unsigned char *alpha = calloc((size_t)a->width * a->height, 1);
     if (!alpha)
         return NULL;
@@ -117,6 +212,15 @@ static Atlas *get_atlas(int weight, float size)
     stbtt_PackSetOversampling(&pc, (unsigned)over, 1);
     stbtt_PackFontRange(&pc, font_data[weight] ? font_data[weight] : font_data[0], 0,
                         (float)px, FIRST_CP, CP_COUNT, a->chars);
+    if (a->extra)
+    {
+        stbtt_pack_range r = {0};
+        r.font_size = STBTT_POINT_SIZE(jp_em_px(&font_info[weight], (float)px));
+        r.array_of_unicode_codepoints = extra_cp;
+        r.num_chars = extra_count;
+        r.chardata_for_range = a->extra;
+        stbtt_PackFontRanges(&pc, jp_data, 0, &r, 1);
+    }
     stbtt_PackEnd(&pc);
 
     uint8_t *rgba = malloc((size_t)a->width * a->height * 4);
@@ -143,8 +247,8 @@ static Atlas *get_atlas(int weight, float size)
     return a;
 }
 
-/* Decodes one UTF-8 sequence; anything outside Latin-1 becomes '?'. */
-static int next_cp(const char **p)
+/* Decodes one UTF-8 sequence. */
+static int decode(const char **p)
 {
     const unsigned char *s = (const unsigned char *)*p;
     int cp, len;
@@ -153,13 +257,44 @@ static int next_cp(const char **p)
     else if ((s[0] & 0xe0) == 0xc0 && s[1])
         cp = ((s[0] & 0x1f) << 6) | (s[1] & 0x3f), len = 2;
     else if ((s[0] & 0xf0) == 0xe0 && s[1] && s[2])
-        cp = '?', len = 3;
+        cp = ((s[0] & 0x0f) << 12) | ((s[1] & 0x3f) << 6) | (s[2] & 0x3f), len = 3;
     else if ((s[0] & 0xf8) == 0xf0 && s[1] && s[2] && s[3])
-        cp = '?', len = 4;
+        cp = ((s[0] & 0x07) << 18) | ((s[1] & 0x3f) << 12) | ((s[2] & 0x3f) << 6) | (s[3] & 0x3f),
+        len = 4;
     else
         cp = s[0], len = 1; /* stray Latin-1 byte */
     *p += len;
-    return (cp >= FIRST_CP && cp < FIRST_CP + CP_COUNT) ? cp : '?';
+    return cp;
+}
+
+static int next_cp(const char **p)
+{
+    return decode(p);
+}
+
+/* The packed glyph for a character: Latin-1, then the Japanese set, else '?'. */
+static const stbtt_packedchar *atlas_glyph(const Atlas *a, int cp, const stbtt_packedchar **base,
+                                           int *index)
+{
+    if (cp >= FIRST_CP && cp < FIRST_CP + CP_COUNT)
+    {
+        *base = a->chars;
+        *index = cp - FIRST_CP;
+        return &a->chars[*index];
+    }
+    if (a->extra && extra_count)
+    {
+        const int *hit = bsearch(&cp, extra_cp, (size_t)extra_count, sizeof(int), cmp_int);
+        if (hit)
+        {
+            *base = a->extra;
+            *index = (int)(hit - extra_cp);
+            return &a->extra[*index];
+        }
+    }
+    *base = a->chars;
+    *index = '?' - FIRST_CP;
+    return &a->chars[*index];
 }
 
 float text_width(float size, int weight, const char *s)
@@ -169,7 +304,11 @@ float text_width(float size, int weight, const char *s)
         return 0.0f;
     float scale = size / (float)a->px, w = 0.0f;
     while (*s)
-        w += a->chars[next_cp(&s) - FIRST_CP].xadvance;
+    {
+        const stbtt_packedchar *base;
+        int index;
+        w += atlas_glyph(a, next_cp(&s), &base, &index)->xadvance;
+    }
     return w * scale;
 }
 
@@ -192,7 +331,10 @@ void text_draw(float x, float y, float size, int weight, uint32_t argb, int alig
     {
         int cp = next_cp(&s);
         stbtt_aligned_quad q;
-        stbtt_GetPackedQuad(a->chars, a->width, a->height, cp - FIRST_CP, &pen_x, &pen_y, &q, 0);
+        const stbtt_packedchar *base;
+        int index;
+        atlas_glyph(a, cp, &base, &index);
+        stbtt_GetPackedQuad(base, a->width, a->height, index, &pen_x, &pen_y, &q, 0);
         float x0 = x + q.x0 * scale, x1 = x + q.x1 * scale;
         float y0 = y + (a->ascent + q.y0) * scale, y1 = y + (a->ascent + q.y1) * scale;
         PlatVertex tl = {x0, y0, q.s0, q.t0, argb}, tr = {x1, y0, q.s1, q.t0, argb};
@@ -230,15 +372,34 @@ void text_draw_fit(float x, float y, float size, int weight, uint32_t argb, int 
 
 /* ---------------------------------------------------------------- CPU rendering */
 
+/* Inter for Latin-1, the Japanese subset for what it has (at Inter's em size). */
+static const stbtt_fontinfo *cpu_font(const stbtt_fontinfo *f, float scale, int *cp,
+                                      float *glyph_scale)
+{
+    *glyph_scale = scale;
+    if (*cp <= 0xff)
+        return f;
+    if (jp_ok && stbtt_FindGlyphIndex(&jp_info, *cp))
+    {
+        *glyph_scale = stbtt_ScaleForMappingEmToPixels(
+            &jp_info, scale / stbtt_ScaleForMappingEmToPixels(f, 1.0f));
+        return &jp_info;
+    }
+    *cp = '?';
+    return f;
+}
+
 static float cpu_line_width(const stbtt_fontinfo *f, float scale, const char *s, size_t n)
 {
     float w = 0.0f;
     const char *end = s + n;
     while (s < end && *s)
     {
-        int adv, lsb;
-        stbtt_GetCodepointHMetrics(f, next_cp(&s), &adv, &lsb);
-        w += adv * scale;
+        int adv, lsb, cp = next_cp(&s);
+        float gs;
+        const stbtt_fontinfo *g = cpu_font(f, scale, &cp, &gs);
+        stbtt_GetCodepointHMetrics(g, cp, &adv, &lsb);
+        w += adv * gs;
     }
     return w;
 }
@@ -253,13 +414,15 @@ static void cpu_draw_line(uint8_t *rgba, int width, int height, float x, int bas
     {
         int cp = next_cp(&s);
         int adv, lsb, x0, y0, x1, y1;
-        stbtt_GetCodepointHMetrics(f, cp, &adv, &lsb);
-        stbtt_GetCodepointBitmapBox(f, cp, scale, scale, &x0, &y0, &x1, &y1);
+        float gs;
+        const stbtt_fontinfo *g = cpu_font(f, scale, &cp, &gs);
+        stbtt_GetCodepointHMetrics(g, cp, &adv, &lsb);
+        stbtt_GetCodepointBitmapBox(g, cp, gs, gs, &x0, &y0, &x1, &y1);
         int gw = x1 - x0, gh = y1 - y0;
         if (gw > 0 && gh > 0 && gw < 512 && gh < 512)
         {
             static unsigned char glyph[512 * 512];
-            stbtt_MakeCodepointBitmap(f, glyph, gw, gh, gw, scale, scale, cp);
+            stbtt_MakeCodepointBitmap(g, glyph, gw, gh, gw, gs, gs, cp);
             for (int gy = 0; gy < gh; ++gy)
                 for (int gx = 0; gx < gw; ++gx)
                 {
@@ -273,7 +436,7 @@ static void cpu_draw_line(uint8_t *rgba, int width, int height, float x, int bas
                     d[2] = (uint8_t)((cb * a + d[2] * (255 - a)) / 255);
                 }
         }
-        x += adv * scale;
+        x += adv * gs;
     }
 }
 

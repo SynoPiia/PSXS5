@@ -13,6 +13,7 @@
 #include "achievements.h"
 
 #include "../core/host.h"
+#include "../i18n.h"
 #include "../net.h"
 
 #include "libretro.h"
@@ -227,38 +228,38 @@ static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
     switch (e->type)
     {
     case RC_CLIENT_EVENT_ACHIEVEMENT_TRIGGERED:
-        snprintf(detail, sizeof(detail), "%s  (%u points)", e->achievement->description,
+        snprintf(detail, sizeof(detail), tr("%s  (%u points)"), e->achievement->description,
                  e->achievement->points);
         post(e->achievement->title, detail);
         break;
     case RC_CLIENT_EVENT_GAME_COMPLETED:
     {
         const rc_client_game_t *g = rc_client_get_game_info(c);
-        post(hardcore ? "Mastered!" : "Completed!", g ? g->title : "");
+        post(tr(hardcore ? "Mastered!" : "Completed!"), g ? g->title : "");
         break;
     }
     case RC_CLIENT_EVENT_LEADERBOARD_STARTED:
-        post("Leaderboard attempt started", e->leaderboard->title);
+        post(tr("Leaderboard attempt started"), e->leaderboard->title);
         break;
     case RC_CLIENT_EVENT_LEADERBOARD_FAILED:
-        post("Leaderboard attempt failed", e->leaderboard->title);
+        post(tr("Leaderboard attempt failed"), e->leaderboard->title);
         break;
     case RC_CLIENT_EVENT_LEADERBOARD_SUBMITTED:
         snprintf(detail, sizeof(detail), "%s: %s", e->leaderboard->title,
                  e->leaderboard->tracker_value);
-        post("Leaderboard score submitted", detail);
+        post(tr("Leaderboard score submitted"), detail);
         break;
     case RC_CLIENT_EVENT_RESET:
         host_reset(); /* switching to hardcore restarts the game */
         break;
     case RC_CLIENT_EVENT_SERVER_ERROR:
-        post("RetroAchievements error", e->server_error->error_message);
+        post(tr("RetroAchievements error"), e->server_error->error_message);
         break;
     case RC_CLIENT_EVENT_DISCONNECTED:
-        post("RetroAchievements offline", "Unlocks will be sent when the connection is back.");
+        post(tr("RetroAchievements offline"), tr("Unlocks will be sent when the connection is back."));
         break;
     case RC_CLIENT_EVENT_RECONNECTED:
-        post("RetroAchievements online", "Pending unlocks were sent.");
+        post(tr("RetroAchievements online"), tr("Pending unlocks were sent."));
         break;
     default:
         break;
@@ -323,9 +324,9 @@ static void RC_CCONV on_login(int result, const char *error, rc_client_t *c, voi
     (void)userdata;
     signed_in = result == RC_OK;
     if (signed_in)
-        post("RetroAchievements", "Signed in.");
+        post("RetroAchievements", tr("Signed in."));
     else
-        post("RetroAchievements sign-in failed", error ? error : "check the token");
+        post(tr("RetroAchievements sign-in failed"), error ? error : tr("check the token"));
 }
 
 void ra_init(const Paths *p)
@@ -387,11 +388,11 @@ static void RC_CCONV on_game_loaded(int result, const char *error, rc_client_t *
     rc_client_get_user_game_summary(c, &s);
     char detail[192];
     if (s.num_core_achievements)
-        snprintf(detail, sizeof(detail), "%s: %u of %u achievements unlocked%s", g ? g->title : "",
+        snprintf(detail, sizeof(detail), tr("%s: %u of %u achievements unlocked%s"), g ? g->title : "",
                  s.num_unlocked_achievements, s.num_core_achievements,
-                 hardcore ? " (hardcore)" : "");
+                 hardcore ? tr(" (hardcore)") : "");
     else
-        snprintf(detail, sizeof(detail), "%s has no achievements yet", g ? g->title : "This game");
+        snprintf(detail, sizeof(detail), tr("%s has no achievements yet"), g ? g->title : tr("This game"));
     post("RetroAchievements", detail);
 }
 

@@ -9,6 +9,7 @@
  *   cheat0_enable = false
  */
 #include "cheats.h"
+#include "i18n.h"
 
 #include "libretro.h"
 
@@ -82,7 +83,7 @@ static bool parse_cht(CheatList *list, const char *path)
         if (!list->items[i].code[0])
             continue;
         if (!list->items[i].desc[0])
-            snprintf(list->items[i].desc, sizeof(list->items[i].desc), "Code %d", i + 1);
+            snprintf(list->items[i].desc, sizeof(list->items[i].desc), tr("Code %d"), i + 1);
         list->items[w++] = list->items[i];
     }
     list->count = w;
