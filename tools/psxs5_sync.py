@@ -278,29 +278,58 @@ def prepare(games: list[Source], staging: Path, only: str | None) -> None:
     for g in games:
         if g.duplicate_of or (only and only.lower() not in g.title.lower()):
             continue
-        out = staging / g.title
-        out.mkdir(parents=True, exist_ok=True)
-        print(f"  {g.title}")
-        for cue in g.loadables:
-            place(cue, out / cue.name)
-            if cue.suffix.lower() == ".cue":
-                for ref in cue_files(cue):
-                    place(cue.parent / ref, out / Path(ref).name)
-        for b in g.loose_bins:
-            place(b, out / b.name)
-        if g.loose_bins:
-            write_cue_for_bins([out / b.name for b in g.loose_bins], out)
-        for a in g.archives:
-            extract(a, out)
-        # archives may also bring bins without sheets
-        sheets = {r.lower() for c in out.glob("*.cue") for r in cue_files(c)}
-        orphans = [b for b in out.glob("*.bin") if b.name.lower() not in sheets]
-        if orphans:
-            write_cue_for_bins(orphans, out)
-        write_m3u(out, g.title)
-        write_serial(out)
-        if g.cover and not any(out.glob("fallback-cover.*")):
-            save_cover(g.cover, out)
+        prepare_one(g, staging)
+
+
+DISC_DATA = {".bin", ".img", ".iso", ".chd", ".pbp", ".mdf", ".sub"}
+
+
+def sync(games: list[Source], staging: Path, host: str, port: int, only: str | None) -> None:
+    """Prepare, upload and clean up one game at a time, so the PC never holds
+    more than one extracted game. Small files (cue, m3u, serial.txt, covers)
+    stay in staging so the library index can still be written afterwards."""
+    staging.mkdir(parents=True, exist_ok=True)
+    todo = [g for g in games if not g.duplicate_of and (not only or only.lower() in g.title.lower())]
+    for n, g in enumerate(todo, 1):
+        print(f"[{n}/{len(todo)}] {g.title}", flush=True)
+        out = prepare_one(g, staging)
+        upload_tree(out, f"{REMOTE_ROOT}/games/{out.name}", host, port)
+        if g.archives:  # extracted copies take real space; hardlinks don't
+            for p in out.iterdir():
+                if p.suffix.lower() in DISC_DATA:
+                    p.unlink()
+    index = write_index(staging)
+    tmp = Path(tempfile.mkdtemp())
+    shutil.copyfile(index, tmp / "library.txt")
+    upload_tree(tmp, REMOTE_ROOT, host, port, force=True)
+    shutil.rmtree(tmp)
+
+
+def prepare_one(g: Source, staging: Path) -> Path:
+    out = staging / g.title
+    out.mkdir(parents=True, exist_ok=True)
+    print(f"  {g.title}")
+    for cue in g.loadables:
+        place(cue, out / cue.name)
+        if cue.suffix.lower() == ".cue":
+            for ref in cue_files(cue):
+                place(cue.parent / ref, out / Path(ref).name)
+    for b in g.loose_bins:
+        place(b, out / b.name)
+    if g.loose_bins:
+        write_cue_for_bins([out / b.name for b in g.loose_bins], out)
+    for a in g.archives:
+        extract(a, out)
+    # archives may also bring bins without sheets
+    sheets = {r.lower() for c in out.glob("*.cue") for r in cue_files(c)}
+    orphans = [b for b in out.glob("*.bin") if b.name.lower() not in sheets]
+    if orphans:
+        write_cue_for_bins(orphans, out)
+    write_m3u(out, g.title)
+    write_serial(out)
+    if g.cover and not any(out.glob("fallback-cover.*")):
+        save_cover(g.cover, out)
+    return out
 
 
 def print_plan(games: list[Source]) -> None:
@@ -535,7 +564,7 @@ def fetch_cheats(dest: Path) -> Path:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["plan", "prepare", "upload", "covers", "cheats", "bios", "app"])
+    ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app"])
     ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA05001",
                     help="app: the built title folder to install")
     ap.add_argument("--all", action="store_true", help="covers: the whole database, not just your games")
@@ -550,6 +579,12 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=2121, help="etaHEN FTP port")
     ap.add_argument("--only", help="limit prepare to titles containing this text")
     args = ap.parse_args()
+
+    if args.command == "sync":
+        if not args.host:
+            sys.exit("--host is required (your PS5's IP address)")
+        sync(discover(args.source), args.staging, args.host, args.port, args.only)
+        return
 
     if args.command in {"plan", "prepare"}:
         games = discover(args.source)
