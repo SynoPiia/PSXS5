@@ -9,6 +9,8 @@
 
 bool plat_init(void);
 const char *plat_init_error(void); /* "SDL window failed: <reason>" after plat_init fails */
+/* How frames reach the screen, for the log (plat_init runs before the log opens). */
+const char *plat_screen_info(void);
 void plat_shutdown(void);
 
 /* PS5: asks the HEN to let PSXS5 list /data. Call before plat_init, while the

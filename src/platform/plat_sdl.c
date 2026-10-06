@@ -59,6 +59,13 @@ const char *plat_init_error(void)
     return init_error;
 }
 
+static char screen_info[256] = "SDL window";
+
+const char *plat_screen_info(void)
+{
+    return screen_info;
+}
+
 static bool init_failed(const char *stage)
 {
     snprintf(init_error, sizeof(init_error), "%s failed: %s", stage, SDL_GetError());
@@ -79,10 +86,16 @@ static bool init_ps5_screen(void)
 #if defined(PSXS5_VULKAN)
     /* v2: the screen through Vulkan; the old VideoOut path stays as the
      * fallback (and is forced by creating /data/PSXS5/no_vulkan). */
-    use_vulkan = access("/data/PSXS5/no_vulkan", F_OK) != 0 &&
-                 vkp_open(PS5_SCREEN_W, PS5_SCREEN_H, error, sizeof(error));
+    bool forced_off = access("/data/PSXS5/no_vulkan", F_OK) == 0;
+    use_vulkan = !forced_off && vkp_open(PS5_SCREEN_W, PS5_SCREEN_H, error, sizeof(error));
+    if (use_vulkan)
+        snprintf(screen_info, sizeof(screen_info), "Vulkan, %s", vkp_describe());
+    else
+        snprintf(screen_info, sizeof(screen_info), "VideoOut (Vulkan %s)",
+                 forced_off ? "turned off by /data/PSXS5/no_vulkan" : error);
     if (!use_vulkan && !ps5_video_open(error, sizeof(error)))
 #else
+    snprintf(screen_info, sizeof(screen_info), "VideoOut");
     if (!ps5_video_open(error, sizeof(error)))
 #endif
     {

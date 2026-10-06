@@ -635,6 +635,7 @@ int main(void)
     psxs5_log_open(log_path);
     ps5_crash_install(log_path);
     psxs5_log("PSXS5 %s starting, data root %s", PSXS5_VERSION, app.paths.root);
+    psxs5_log("screen: %s", plat_screen_info());
 #if defined(__PROSPERO__)
     extern size_t ps5_heap_size_mb(void);
     psxs5_log("heap: %zu MB of direct memory%s", ps5_heap_size_mb(),
