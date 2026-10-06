@@ -22,7 +22,7 @@ ps5)
     export PS5_PAYLOAD_SDK=$sdk USE_CCACHE=0
     cc=(sh "$root/tooling/prospero-clang18")
     ar=$(command -v llvm-ar-18 || command -v llvm-ar)
-    flags=(-O2 -fPIC -ffunction-sections -fdata-sections)
+    flags=(-O2 -fPIC -ffunction-sections -fdata-sections -DNDEBUG) # no __assert in the PS5 libc
     ;;
 desktop)
     cc=("${CC:-gcc}")
