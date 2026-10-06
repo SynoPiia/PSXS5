@@ -705,7 +705,24 @@ void plat_draw_mesh(PlatTexture *texture, const PlatVertex *v, int count, const 
 void plat_asset_path(char *out, size_t size, const char *relative)
 {
 #if defined(__PROSPERO__)
-    path_join(out, size, "/app0/assets", relative);
+    /* /app0 exists only inside the sandbox. Once the HEN frees PSXS5 its
+     * file system is the console's real one, where the title is mounted at
+     * /system_ex/app/<id> (ShadowMountPlus) and stored in /data/homebrew/<id>. */
+    static const char *const bases[] = {"/app0/assets", "/system_ex/app/PPSA05001/assets",
+                                        "/data/homebrew/PPSA05001/assets"};
+    static int chosen = -1;
+    if (chosen < 0)
+    {
+        chosen = 0;
+        for (int i = 0; i < 3; ++i)
+            if (path_is_dir(bases[i]))
+            {
+                chosen = i;
+                break;
+            }
+        psxs5_log("assets: %s", bases[chosen]);
+    }
+    path_join(out, size, bases[chosen], relative);
 #else
     const char *base = SDL_getenv("PSXS5_ASSETS");
     path_join(out, size, base && *base ? base : "assets", relative);
