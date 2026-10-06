@@ -57,6 +57,10 @@ void plat_texture_size(const PlatTexture *texture, int *width, int *height);
 /* texture may be NULL for flat-coloured geometry. indices may be NULL for a plain triangle list. */
 void plat_draw_mesh(PlatTexture *texture, const PlatVertex *vertices, int vertex_count,
                     const int *indices, int index_count);
+/* Copies a whole texture into a rectangle: one blit, no seams. Much cheaper
+ * than a mesh with the software renderer the PS5 build uses. */
+void plat_draw_texture(PlatTexture *texture, float x, float y, float w, float h, uint32_t tint,
+                       bool blend);
 /* Full-screen-relative path to packaged read-only assets (/app0/assets on PS5). */
 void plat_asset_path(char *out, size_t size, const char *relative);
 

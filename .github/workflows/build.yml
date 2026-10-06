@@ -53,6 +53,17 @@ jobs:
       - name: Check system module imports
         run: python3 tools/check-imports.py dist/PPSA05001/eboot.bin
 
+      # Crash reports in psxs5.log give addresses as offsets from main();
+      # this map turns them into function names.
+      - name: Write the symbol map
+        run: llvm-nm-18 -n --defined-only build/llvm-pie.elf > PSXS5-symbols.txt
+
+      - name: Upload the symbol map
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSXS5-symbols
+          path: PSXS5-symbols.txt
+
       - name: Upload the app folder
         uses: actions/upload-artifact@v4
         with:

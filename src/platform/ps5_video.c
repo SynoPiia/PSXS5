@@ -115,14 +115,6 @@ bool ps5_video_open(char *error, size_t size)
     return true;
 }
 
-static void flush_range(void *address, size_t length)
-{
-    uint8_t *at = address, *end = at + length;
-    for (; at < end; at += 64)
-        __asm__ volatile("clflush (%0)" : : "r"(at) : "memory");
-    __asm__ volatile("mfence" ::: "memory");
-}
-
 void ps5_video_present(const uint32_t *pixels, size_t pitch_bytes)
 {
     if (handle < 0)
@@ -140,7 +132,9 @@ void ps5_video_present(const uint32_t *pixels, size_t pitch_bytes)
             *(uint32_t *)(dst + offset) = src[x];
         }
     }
-    flush_range(dst, FRAME_BYTES);
+    /* The framebuffers are write-combined (WC_GARLIC): writes bypass the
+     * cache, so a store fence is enough; no 8 MB clflush walk per frame. */
+    __asm__ volatile("sfence" ::: "memory");
     sceVideoOutSubmitFlip(handle, back, 1, (int64_t)flip_count++);
     sceVideoOutWaitVblank(handle); /* paces the UI at the display rate */
     back ^= 1;

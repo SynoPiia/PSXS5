@@ -32,9 +32,52 @@
 static const uint32_t BG_COLORS[] = {0xff1a2470u, 0xff3049c4u, 0xff2a3faeu, 0xff0d1440u};
 static const float BG_STOPS[] = {0.0f, 0.46f, 0.62f, 1.0f};
 
+static uint32_t lerp_color(uint32_t a, uint32_t b, float t)
+{
+    uint32_t out = 0xff000000u;
+    for (int s = 0; s < 24; s += 8)
+    {
+        float ca = (float)((a >> s) & 0xff), cb = (float)((b >> s) & 0xff);
+        out |= (uint32_t)(ca + (cb - ca) * t + 0.5f) << s;
+    }
+    return out;
+}
+
+/* The gradient is built once on the CPU and blitted each frame: redrawing a
+ * full-screen gradient mesh every frame is costly in the software renderer. */
 void coverflow_backdrop(void)
 {
-    draw_vgradient(0, 0, (float)plat_width(), (float)plat_height(), BG_COLORS, BG_STOPS, 4);
+    static PlatTexture *backdrop;
+    static bool tried;
+    if (!backdrop && !tried)
+    {
+        tried = true;
+        enum { W = 480, H = 270 }; /* scaled up with smoothing; gradients don't need more */
+        static uint8_t px[W * H * 4];
+        for (int y = 0; y < H; ++y)
+        {
+            float t = (float)y / (H - 1);
+            int i = 0;
+            while (i < 2 && t > BG_STOPS[i + 1])
+                ++i;
+            float k = (t - BG_STOPS[i]) / (BG_STOPS[i + 1] - BG_STOPS[i]);
+            uint32_t c = lerp_color(BG_COLORS[i], BG_COLORS[i + 1], k);
+            for (int x = 0; x < W; ++x)
+            {
+                uint8_t *p = &px[(y * W + x) * 4];
+                p[0] = (c >> 16) & 0xff;
+                p[1] = (c >> 8) & 0xff;
+                p[2] = c & 0xff;
+                p[3] = 255;
+            }
+        }
+        backdrop = plat_texture_create(px, W, H, true);
+    }
+    if (backdrop)
+        plat_draw_texture(backdrop, 0, 0, (float)plat_width(), (float)plat_height(), 0xffffffffu,
+                          false);
+    else
+        draw_vgradient(0, 0, (float)plat_width(), (float)plat_height(), BG_COLORS, BG_STOPS, 4);
 }
 
 void coverflow_init(Coverflow *cf, int cursor)
@@ -81,19 +124,32 @@ static void project(Shape *s, float ox, float hw, float hh, float yaw, float lif
     }
 }
 
-static void draw_shape(PlatTexture *tex, const Shape *s, uint32_t tint, float reflect_alpha)
+static void draw_shape(PlatTexture *tex, const Shape *s, uint32_t tint, float reflect_alpha,
+                       bool flat)
 {
     PlatVertex v[STRIPS * 12];
     int n = 0;
-    for (int k = 0; k < STRIPS; ++k)
+    if (flat && tex)
     {
-        float u0 = (float)k / STRIPS, u1 = (float)(k + 1) / STRIPS;
-        PlatVertex a = {s->x[k], s->top[k], u0, 0, tint}, b = {s->x[k + 1], s->top[k + 1], u1, 0, tint};
-        PlatVertex c = {s->x[k + 1], s->bottom[k + 1], u1, 1, tint}, d = {s->x[k], s->bottom[k], u0, 1, tint};
-        v[n++] = a; v[n++] = b; v[n++] = c;
-        v[n++] = a; v[n++] = c; v[n++] = d;
+        /* Facing the viewer: one seamless blit instead of strips. */
+        plat_draw_texture(tex, s->x[0], s->top[0], s->x[STRIPS] - s->x[0],
+                          s->bottom[0] - s->top[0], tint, true);
     }
-    plat_draw_mesh(tex, v, n, NULL, 0);
+    else
+    {
+        for (int k = 0; k < STRIPS; ++k)
+        {
+            float u0 = (float)k / STRIPS, u1 = (float)(k + 1) / STRIPS;
+            /* overlap the next strip by a pixel: the software rasteriser
+             * otherwise leaves a hairline of background between strips */
+            float xr = s->x[k + 1] + (k + 1 < STRIPS ? 1.0f : 0.0f);
+            PlatVertex a = {s->x[k], s->top[k], u0, 0, tint}, b = {xr, s->top[k + 1], u1, 0, tint};
+            PlatVertex c = {xr, s->bottom[k + 1], u1, 1, tint}, d = {s->x[k], s->bottom[k], u0, 1, tint};
+            v[n++] = a; v[n++] = b; v[n++] = c;
+            v[n++] = a; v[n++] = c; v[n++] = d;
+        }
+        plat_draw_mesh(tex, v, n, NULL, 0);
+    }
 
     if (reflect_alpha <= 0.0f)
         return;
@@ -105,8 +161,9 @@ static void draw_shape(PlatTexture *tex, const Shape *s, uint32_t tint, float re
         float u0 = (float)k / STRIPS, u1 = (float)(k + 1) / STRIPS;
         float h0 = (s->bottom[k] - s->top[k]) * 0.45f, h1 = (s->bottom[k + 1] - s->top[k + 1]) * 0.45f;
         float y0 = s->bottom[k] + 6, y1 = s->bottom[k + 1] + 6;
-        PlatVertex a = {s->x[k], y0, u0, 1, top_c}, b = {s->x[k + 1], y1, u1, 1, top_c};
-        PlatVertex c = {s->x[k + 1], y1 + h1, u1, 0.55f, end_c}, d = {s->x[k], y0 + h0, u0, 0.55f, end_c};
+        float xr = s->x[k + 1] + (k + 1 < STRIPS ? 1.0f : 0.0f);
+        PlatVertex a = {s->x[k], y0, u0, 1, top_c}, b = {xr, y1, u1, 1, top_c};
+        PlatVertex c = {xr, y1 + h1, u1, 0.55f, end_c}, d = {s->x[k], y0 + h0, u0, 0.55f, end_c};
         v[n++] = a; v[n++] = b; v[n++] = c;
         v[n++] = a; v[n++] = c; v[n++] = d;
     }
@@ -250,9 +307,9 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
                 draw_glow(x0, y0, x1 - x0, y1 - y0, 4.0f, argb_alpha(0xffffffffu, g));
             }
             if (tex)
-                draw_shape(tex, &s, tint, 0.30f * (1.0f - launch));
+                draw_shape(tex, &s, tint, 0.30f * (1.0f - launch), fabsf(yaw) < 0.02f);
             else
-                draw_shape(NULL, &s, 0xff1d2348u, 0.0f); /* still loading */
+                draw_shape(NULL, &s, 0xff1d2348u, 0.0f, false); /* still loading */
         }
 
         const Game *g = &lib->games[cf->cursor];
