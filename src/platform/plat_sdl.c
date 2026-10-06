@@ -628,10 +628,10 @@ void plat_end_frame(void)
     {
         draw_us += drawn - frame_start;
         present_us += shown - drawn;
-        if (++frames == 600)
+        if (++frames == 120)
         {
-            psxs5_log("ui: draw %.1f ms, present %.1f ms per frame (avg of 600)",
-                      draw_us / 600 / 1000.0, present_us / 600 / 1000.0);
+            psxs5_log("ui: draw %.1f ms, present %.1f ms per frame (avg of 120)",
+                      draw_us / 120 / 1000.0, present_us / 120 / 1000.0);
             frames = 0;
             draw_us = present_us = 0;
         }

@@ -35,6 +35,26 @@ int __cpu_indicator_init(void)
     return 0;
 }
 
+/* strcasestr exists on the PS5 only in libScePosixForWebKit, the browser's
+ * library: called from a game process (the core checks a path for ".m3u")
+ * it crashed with a null access inside the system library. Defining it here
+ * keeps the linker from importing that module. */
+#include <ctype.h>
+char *strcasestr(const char *haystack, const char *needle)
+{
+    if (!*needle)
+        return (char *)haystack;
+    for (; *haystack; ++haystack)
+    {
+        const char *h = haystack, *n = needle;
+        while (*h && *n && tolower((unsigned char)*h) == tolower((unsigned char)*n))
+            ++h, ++n;
+        if (!*n)
+            return (char *)haystack;
+    }
+    return NULL;
+}
+
 /* PacBrew's SDL2 supports USB keyboards and the on-screen keyboard through
  * libSceKeyboard and libSceImeDialog. Importing those modules stops the title
  * from launching at all ("Can't start the game or app"), and PSXS5 needs
