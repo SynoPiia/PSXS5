@@ -40,6 +40,7 @@ static void set_draw_color(uint32_t argb)
 }
 
 static char init_error[256];
+static bool surface_renderer; /* software renderer drawing into the window surface */
 
 const char *plat_init_error(void)
 {
@@ -86,13 +87,33 @@ bool plat_init(void)
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (!renderer)
+        renderer = SDL_CreateRenderer(window, -1, 0);
+    if (!renderer)
     {
-        /* The PS5 port has no hardware renderer: draw in software into the window framebuffer. */
-        psxs5_log("accelerated renderer unavailable (%s), using software", SDL_GetError());
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+        /* The PS5 port registers no render driver ("Couldn't find matching
+         * render driver" on hardware), but its video driver has a window
+         * framebuffer: draw with a software renderer straight into it. */
+        psxs5_log("no render driver (%s), using the window surface", SDL_GetError());
+        SDL_Surface *surface = SDL_GetWindowSurface(window);
+        if (!surface)
+            return init_failed("SDL window surface");
+        renderer = SDL_CreateSoftwareRenderer(surface);
+        surface_renderer = renderer != NULL;
     }
     if (!renderer)
-        return init_failed("SDL renderer");
+    {
+        char drivers[128] = "";
+        for (int i = 0; i < SDL_GetNumRenderDrivers() && i < 8; ++i)
+        {
+            SDL_RendererInfo ri;
+            if (SDL_GetRenderDriverInfo(i, &ri) == 0)
+                snprintf(drivers + strlen(drivers), sizeof(drivers) - strlen(drivers), " %s", ri.name);
+        }
+        snprintf(init_error, sizeof(init_error), "SDL renderer failed: %s (drivers:%s)",
+                 SDL_GetError(), drivers[0] ? drivers : " none");
+        psxs5_log("%s", init_error);
+        return false;
+    }
     /* Draw in a fixed 1920x1080 space; SDL scales to the real window. */
     out_w = 1920;
     out_h = 1080;
@@ -581,6 +602,16 @@ void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
 void plat_end_frame(void)
 {
     SDL_RenderPresent(renderer);
+    if (!surface_renderer)
+        return;
+    /* The surface renderer only draws into memory: push it to the screen, and
+     * since nothing waits for vblank here, hold the loop at ~60 Hz. */
+    SDL_UpdateWindowSurface(window);
+    static uint64_t last;
+    uint64_t now = plat_ticks_us();
+    if (last && now - last < 16600)
+        SDL_Delay((Uint32)((16600 - (now - last)) / 1000));
+    last = plat_ticks_us();
 }
 
 /* ---------------------------------------------------------------- textures and meshes */
