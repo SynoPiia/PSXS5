@@ -74,4 +74,15 @@ int sceImeDialogInit(const void *param, void *extended) { (void)param; (void)ext
 int sceImeDialogGetStatus(void) { return 0; /* SCE_IME_DIALOG_STATUS_NONE */ }
 int sceImeDialogGetResult(void *result) { (void)result; return SCE_UNAVAILABLE; }
 int sceImeDialogTerm(void) { return SCE_UNAVAILABLE; }
+
+#if defined(PSXS5_VULKAN)
+/* RADV (its shader cache) calls dirfd, which the PS5's libc doesn't export.
+ * PSXS5 keeps libc's opendir, whose DIR is FreeBSD's struct _dirdesc: the
+ * descriptor is its first member. */
+#include <dirent.h>
+int dirfd(DIR *dir)
+{
+    return dir ? *(const int *)(const void *)dir : -1;
+}
+#endif
 #endif
