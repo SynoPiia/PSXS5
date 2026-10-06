@@ -169,7 +169,9 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_internal_resolution", scales[level - 1]);
     set_option("beetle_psx_hw_region", regions[s->region % REGION_COUNT]);
     set_option("beetle_psx_hw_dither_mode", s->dithering ? "1x(native)" : "disabled");
-    set_option("beetle_psx_hw_cd_access_method", "precache");
+    /* read as it plays: "precache" loads every disc of a game into memory,
+     * and two discs already pass PSXS5's 1 GB */
+    set_option("beetle_psx_hw_cd_access_method", "async");
     set_option("beetle_psx_hw_cd_fastload", s->cd_fast ? "4x" : "2x(native)");
     set_option("beetle_psx_hw_skip_bios", "enabled");
     set_option("beetle_psx_hw_pgxp_mode", s->pgxp ? "memory only" : "disabled");
