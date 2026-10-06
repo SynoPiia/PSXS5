@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <sys/stat.h>
 
 static FILE *log_file;
@@ -103,4 +104,14 @@ int str_icmp(const char *a, const char *b)
         if (ca != cb || ca == 0)
             return ca - cb;
     }
+}
+
+bool local_time(long long when, struct tm *out)
+{
+    time_t t = (time_t)when;
+    struct tm *r = localtime(&t); /* main thread only */
+    if (!r)
+        return false;
+    *out = *r;
+    return true;
 }

@@ -352,7 +352,7 @@ static void draw_header(void)
     char clock_text[16] = "";
     time_t now = time(NULL);
     struct tm tm;
-    if (localtime_r(&now, &tm))
+    if (local_time(now, &tm))
         snprintf(clock_text, sizeof(clock_text), "%02d:%02d", tm.tm_hour, tm.tm_min);
     float rx = plat_width() - TH_MARGIN;
     text_draw(rx, 53, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, clock_text);

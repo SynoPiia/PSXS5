@@ -121,8 +121,8 @@ void stats_format_when(int64_t when, char *out, size_t size)
     time_t now = time(NULL);
     struct tm a, b;
     time_t then = (time_t)when;
-    localtime_r(&now, &a);
-    localtime_r(&then, &b);
+    local_time(now, &a);
+    local_time(then, &b);
     long days = (long)((now - a.tm_hour * 3600 - a.tm_min * 60 - a.tm_sec) - then);
     days = days <= 0 ? 0 : days / 86400 + 1;
     if (days == 0)

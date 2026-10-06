@@ -146,5 +146,8 @@ bool path_is_dir(const char *path);
 bool make_dirs(const char *path);
 const char *path_ext(const char *path);  /* lower-case-insensitive extension without dot, "" if none */
 int str_icmp(const char *a, const char *b);
+/* localtime into *out (the PS5 libc has no localtime_r); false on failure */
+struct tm;
+bool local_time(long long when, struct tm *out);
 
 #endif
