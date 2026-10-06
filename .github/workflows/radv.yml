@@ -51,8 +51,8 @@ jobs:
         env:
           PS5_CLANG: /usr/local/bin/clang
         run: |
-          tools/setup-native-dependencies.sh
-          tools/build-radv.sh release
+          bash tools/setup-native-dependencies.sh
+          bash tools/build-radv.sh release
 
       - name: Package
         run: |
