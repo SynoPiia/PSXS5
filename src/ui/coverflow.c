@@ -17,6 +17,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define STRIPS 12
@@ -52,8 +53,10 @@ void coverflow_backdrop(void)
     if (!backdrop && !tried)
     {
         tried = true;
-        enum { W = 480, H = 270 }; /* scaled up with smoothing; gradients don't need more */
-        static uint8_t px[W * H * 4];
+        enum { W = 1920, H = 1080 }; /* screen size: blitted 1:1, no per-frame scaling */
+        uint8_t *px = malloc((size_t)W * H * 4); /* 8 MB, once */
+        if (!px)
+            return;
         for (int y = 0; y < H; ++y)
         {
             float t = (float)y / (H - 1);
@@ -72,6 +75,7 @@ void coverflow_backdrop(void)
             }
         }
         backdrop = plat_texture_create(px, W, H, true);
+        free(px);
     }
     if (backdrop)
         plat_draw_texture(backdrop, 0, 0, (float)plat_width(), (float)plat_height(), 0xffffffffu,
@@ -262,7 +266,7 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
     {
         /* far to near so the selected cover is drawn last */
         int order[64], n = 0;
-        int first = (int)floorf(cf->pos) - 10, last = (int)ceilf(cf->pos) + 10;
+        int first = (int)floorf(cf->pos) - 7, last = (int)ceilf(cf->pos) + 7;
         for (int i = first; i <= last; ++i)
             if (i >= 0 && i < count && n < 64)
                 order[n++] = i;
@@ -307,7 +311,7 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
                 draw_glow(x0, y0, x1 - x0, y1 - y0, 4.0f, argb_alpha(0xffffffffu, g));
             }
             if (tex)
-                draw_shape(tex, &s, tint, 0.30f * (1.0f - launch), fabsf(yaw) < 0.02f);
+                draw_shape(tex, &s, tint, ad < 1.5f ? 0.30f * (1.0f - launch) : 0.0f, fabsf(yaw) < 0.02f);
             else
                 draw_shape(NULL, &s, 0xff1d2348u, 0.0f, false); /* still loading */
         }
