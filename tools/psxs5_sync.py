@@ -437,6 +437,87 @@ def fetch_all_covers(dest: Path, styles: list[str], regions: list[str]) -> Path:
     return repo / "covers"
 
 
+LOAD_ORDER = (".m3u", ".pbp", ".chd", ".cue", ".ccd", ".iso", ".img")
+
+
+def game_entry(folder: Path) -> tuple[str, str, int, str, str] | None:
+    """(title, serial, discs, file name, first disc name) for one staged game folder."""
+    files = sorted(p for p in folder.iterdir() if p.is_file())
+    for ext in LOAD_ORDER:
+        hits = [p for p in files if p.suffix.lower() == ext]
+        if not hits:
+            continue
+        chosen = hits[0]
+        discs, first = 1, chosen.stem
+        if ext == ".m3u":
+            lines = [l.strip() for l in chosen.read_text(errors="replace").splitlines()
+                     if l.strip() and not l.startswith("#")]
+            discs = max(1, len(lines))
+            if lines:
+                first = Path(lines[0]).stem
+        serial_file = folder / "serial.txt"
+        serial = serial_file.read_text().strip() if serial_file.exists() else (write_serial(folder) or "")
+        return folder.name, serial, discs, chosen.name, first
+    return None
+
+
+def write_index(staging: Path) -> Path:
+    """library.txt: what a sandboxed PSXS5 (which can't list folders) loads."""
+    lines = ["# PSXS5 library index - written by tools/psxs5_sync.py; one game per line:",
+             "# title<TAB>serial<TAB>discs<TAB>path<TAB>first disc name"]
+    for folder in sorted((p for p in staging.iterdir() if p.is_dir()), key=lambda p: p.name.lower()):
+        entry = game_entry(folder)
+        if entry:
+            title, serial, discs, name, first = entry
+            lines.append("\t".join([title, serial, str(discs),
+                                    f"{REMOTE_ROOT}/games/{folder.name}/{name}", first]))
+    index = staging.parent / "PSXS5_library.txt"  # beside, not inside, the uploaded tree
+    index.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    print(f"  index: {len(lines) - 2} games in {index}")
+    return index
+
+
+def best_cheat(cheat_dir: Path, title: str, serial: str, disc_name: str) -> Path | None:
+    """Same idea as PSXS5's own matcher: exact disc name, else same title, then region."""
+    want = {normalize(title), normalize(disc_name)}
+    region = ("(USA)" if serial[:4] in ("SLUS", "SCUS") else
+              "(Europe)" if serial[:4] in ("SLES", "SCES", "SCED") else
+              "(Japan)" if serial else None)
+    best, best_score = None, 0
+    for cht in cheat_dir.glob("*.cht"):
+        if cht.stem.lower() == disc_name.lower():
+            return cht
+        if normalize(cht.stem) not in want:
+            continue
+        score = 500
+        if region and region in cht.stem:
+            score += 100
+        elif "(World)" in cht.stem:
+            score += 90
+        if "(GameShark)" in cht.stem:
+            score += 5
+        if "(Disc 1)" in cht.stem or "(Disc" not in cht.stem:
+            score += 10
+        if score > best_score:
+            best, best_score = cht, score
+    return best
+
+
+def place_game_cheats(staging: Path, cheat_dir: Path) -> int:
+    """Copies each game's best .cht into its folder as cheats.cht."""
+    placed = 0
+    for folder in (p for p in staging.iterdir() if p.is_dir()):
+        entry = game_entry(folder)
+        if not entry:
+            continue
+        cht = best_cheat(cheat_dir, entry[0], entry[1], entry[4])
+        if cht:
+            shutil.copyfile(cht, folder / "cheats.cht")
+            placed += 1
+    print(f"  cheats.cht placed for {placed} games")
+    return placed
+
+
 def fetch_cheats(dest: Path) -> Path:
     """Sparse-clones only the PlayStation folder of libretro-database."""
     repo = dest / "libretro-database"
@@ -498,8 +579,12 @@ def main() -> None:
 
     if args.command == "cheats":
         folder = fetch_cheats(args.staging.parent / "PSXS5_cheats")
+        if args.staging.exists():
+            place_game_cheats(args.staging, folder)
         if args.host:
             upload_tree(folder, f"{REMOTE_ROOT}/cheats", args.host, args.port)
+            if args.staging.exists():  # the per-game cheats.cht files
+                upload_tree(args.staging, f"{REMOTE_ROOT}/games", args.host, args.port)
         return
 
     if not args.host:
@@ -510,7 +595,12 @@ def main() -> None:
         upload_tree(args.app_dir, f"/data/homebrew/{args.app_dir.name}", args.host, args.port, force=True)
         return
     if args.command == "upload":
+        index = write_index(args.staging)
         upload_tree(args.staging, f"{REMOTE_ROOT}/games", args.host, args.port)
+        tmp = Path(tempfile.mkdtemp())
+        shutil.copyfile(index, tmp / "library.txt")
+        upload_tree(tmp, REMOTE_ROOT, args.host, args.port, force=True)
+        shutil.rmtree(tmp)
     elif args.command == "bios":
         tmp = Path(tempfile.mkdtemp())
         for f in args.files:

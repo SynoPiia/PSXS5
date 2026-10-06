@@ -12,6 +12,7 @@
 #include <string.h>
 
 #if defined(__PROSPERO__)
+#include "ps5_unlock.h"
 #include "ps5_video.h"
 #include <sys/mman.h>
 int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
@@ -169,17 +170,19 @@ void plat_default_root(char *out, size_t size)
 bool plat_prepare_storage(char *error, size_t size)
 {
 #if defined(__PROSPERO__)
+    /* 1. etaHEN's jailbreak-on-demand (answered on 13.60). */
+    UnlockResult hen = ps5_unlock_etahen();
+    if (hen == UNLOCK_OK || hen == UNLOCK_ALREADY)
+        return true;
+    /* 2. The boilerplate's Lapy helper through the ELF loader (6.02/12.70). */
     const char *route = "none";
     int status = psxs5_elevate(&route);
-    psxs5_log("elevation: status %d via %s", status, route);
-    if (status != 0)
-    {
-        snprintf(error, size,
-                 "Could not unlock /data (code %d). Make sure etaHEN's ELF loader is "
-                 "running on port 9021, then restart PSXS5.",
-                 status);
-        return false;
-    }
+    if (status == 0 && ps5_data_listable())
+        return true;
+    /* 3. Sandboxed: files in /data still open and save, folders can't be listed. */
+    snprintf(error, size, "etaHEN %s; Lapy code %d via %s", ps5_unlock_describe(hen), status,
+             route);
+    return false;
 #else
     (void)error;
     (void)size;

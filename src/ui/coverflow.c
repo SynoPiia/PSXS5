@@ -271,7 +271,7 @@ CoverflowAction coverflow_frame(Coverflow *cf, const Library *lib, uint32_t pres
     {
         text_draw(CENTER_X, 400, 48, FONT_BOLD, 0xffffffffu, ALIGN_CENTER, "Your shelf is empty");
         text_draw(CENTER_X, 480, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
-                  "Copy games to /data/PSXS5/games, one folder per game.");
+                  "On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>");
         text_draw(CENTER_X, 524, 26, FONT_REGULAR, 0xffc9d2ffu, ALIGN_CENTER,
                   "Then choose Settings > Rescan library.");
     }

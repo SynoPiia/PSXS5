@@ -260,9 +260,17 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
 
     char path[PSXS5_PATH_MAX] = "";
     int score = 0;
-    /* 1. A .cht dropped next to the game always wins. */
-    bool found = game->folder[0] && strcmp(game->folder, cheats_dir) != 0 &&
-                 find_any_cht(game->folder, path, sizeof(path));
+    /* 1. A .cht next to the game always wins. "cheats.cht" (placed by the sync
+     *    tool) opens without listing the folder, which a sandboxed PSXS5 can't. */
+    bool found = false;
+    if (game->folder[0])
+    {
+        path_join(path, sizeof(path), game->folder, "cheats.cht");
+        found = path_exists(path);
+    }
+    if (!found)
+        found = game->folder[0] && strcmp(game->folder, cheats_dir) != 0 &&
+                find_any_cht(game->folder, path, sizeof(path));
     /* 2. Otherwise the best match from the cheat library. */
     if (!found)
         found = find_in_dir(cheats_dir, game, path, sizeof(path), &score);

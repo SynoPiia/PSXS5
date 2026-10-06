@@ -364,6 +364,56 @@ void library_scan(Library *lib, const char *const *roots, int root_count)
     psxs5_log("library: %d games", lib->count);
 }
 
+bool library_load_index(Library *lib, const char *index_path)
+{
+    FILE *f = fopen(index_path, "r");
+    if (!f)
+        return false;
+    lib->count = 0;
+    char line[1024];
+    while (fgets(line, sizeof(line), f))
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (!line[0] || line[0] == '#')
+            continue;
+        char *field[5] = {0};
+        char *p = line;
+        for (int i = 0; i < 5 && p; ++i)
+        {
+            field[i] = p;
+            p = strchr(p, '\t');
+            if (p)
+                *p++ = '\0';
+        }
+        if (!field[3] || !field[3][0])
+            continue;
+        Game *g = add_game(lib);
+        if (!g)
+            break;
+        clean_title(field[0][0] ? field[0] : "Game", g->title, sizeof(g->title));
+        str_copy(g->serial, sizeof(g->serial), field[1] ? field[1] : "");
+        g->discs = field[2] ? atoi(field[2]) : 1;
+        if (g->discs < 1)
+            g->discs = 1;
+        str_copy(g->path, sizeof(g->path), field[3]);
+        str_copy(g->folder, sizeof(g->folder), field[3]);
+        char *slash = strrchr(g->folder, '/');
+        if (slash)
+            *slash = '\0';
+        /* already without extension; don't cut names like "Dr. Mario" at the dot */
+        str_copy(g->disc_name, sizeof(g->disc_name), field[4] && field[4][0] ? field[4] : g->title);
+        if (g->serial[0])
+            str_copy(g->id, sizeof(g->id), g->serial);
+        else
+            finish_game(g); /* derive an id from the title */
+    }
+    fclose(f);
+    if (lib->count > 1)
+        qsort(lib->games, (size_t)lib->count, sizeof(Game), cmp_games);
+    psxs5_log("library: %d games from index %s", lib->count, index_path);
+    return true;
+}
+
 void library_free(Library *lib)
 {
     free(lib->games);
