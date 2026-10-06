@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 #define PSXS5_NAME "PSXS5"
-#define PSXS5_VERSION "0.1.0"
+#define PSXS5_VERSION "1.0.0"
 #define PSXS5_PATH_MAX 512
 
 /* Pad bits use RetroPad numbering so the host can hand the mask to the core

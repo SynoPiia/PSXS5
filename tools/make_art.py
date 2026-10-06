@@ -194,9 +194,39 @@ def icon():
     return img.convert("RGB").resize((512, 512), Image.LANCZOS)
 
 
+def banner():
+    """README header for GitHub: the launch art, wide."""
+    S = 2
+    w, h = 1600 * S, 520 * S
+    img = vignette(gradient(w, h), 0.5, bias_x=0.3)
+    img = add_disc_with_glow(img, int(w * 0.24), h // 2, int(h * 0.30))
+    img = add_symbols(img, [
+        ("triangle", int(w * 0.24), int(h * 0.09), int(h * 0.045), GREEN),
+        ("circle", int(w * 0.24) + int(h * 0.44), h // 2, int(h * 0.045), RED),
+        ("cross", int(w * 0.24), int(h * 0.91), int(h * 0.045), BLUE),
+        ("square", int(w * 0.24) - int(h * 0.44), h // 2, int(h * 0.045), PINK),
+    ], int(h * 0.012), int(h * 0.02))
+    img = text(img, (int(w * 0.47), int(h * 0.56)), "PSXS5", int(h * 0.30), FONT_BOLD, anchor="ls",
+               glow=int(h * 0.025))
+    img = text(img, (int(w * 0.475), int(h * 0.70)), "PlayStation X Super 5", int(h * 0.085),
+               FONT_REGULAR, fill=(201, 210, 255, 255), anchor="ls")
+    img = text(img, (int(w * 0.475), int(h * 0.80)), "PlayStation 1 emulation for jailbroken PS5",
+               int(h * 0.05), FONT_REGULAR, fill=(150, 165, 230, 255), anchor="ls")
+    return img.convert("RGB").resize((1600, 520), Image.LANCZOS)
+
+
 if __name__ == "__main__":
+    import shutil
+    import sys
+    media = ROOT / "docs" / "media"
+    media.mkdir(parents=True, exist_ok=True)
+    banner().save(media / "banner.png", optimize=True)
+    if "--banner" in sys.argv:
+        print("wrote", media / "banner.png")
+        sys.exit(0)
     out = ROOT / "sce_sys"
     icon().save(out / "icon0.png", optimize=True)
+    shutil.copyfile(out / "icon0.png", media / "icon.png")
     selection_background().save(out / "background-source.png", optimize=True)
     launch_background().save(out / "launch-background-source.png", optimize=True)
     print("wrote icon0.png, background-source.png, launch-background-source.png in", out)
