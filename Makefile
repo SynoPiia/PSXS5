@@ -13,7 +13,8 @@ PSXS5_CORE := build/core-ps5/libpcsx_rearmed.a
 APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check
 APP_STATIC_ARCHIVES ?= $(PSXS5_CORE)
 APP_RUNTIME_MODULES ?=
-APP_WRAP_SYMBOLS ?= fcntl
+# fcntl: console_curl. The allocator family: ps5_heap.c (the C heap is too small).
+APP_WRAP_SYMBOLS ?= fcntl malloc free calloc realloc reallocf memalign posix_memalign aligned_alloc malloc_usable_size
 APP_SOURCE_DIR ?=
 APP_PARAM ?=
 APP_SCE_SYS ?=

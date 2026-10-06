@@ -780,6 +780,11 @@ int main(void)
     path_join(log_path, sizeof(log_path), paths.logs, "psxs5.log");
     psxs5_log_open(log_path);
     psxs5_log("PSXS5 %s starting, data root %s", PSXS5_VERSION, paths.root);
+#if defined(__PROSPERO__)
+    extern size_t ps5_heap_size_mb(void);
+    psxs5_log("heap: %zu MB of direct memory%s", ps5_heap_size_mb(),
+              ps5_heap_size_mb() ? "" : " (unavailable: using the system heap)");
+#endif
     psxs5_log(sandboxed ? "storage: sandboxed (%s)" : "storage: unlocked%s",
               sandboxed ? sandbox_reason : "");
 
