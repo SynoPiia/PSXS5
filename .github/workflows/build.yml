@@ -1,0 +1,75 @@
+# PSXS5 - cloud build: the PS5 app folder plus a desktop compile/link check.
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Download the result from the run's page: Artifacts > PSXS5-PPSA05001.
+# Unzip it and copy the PPSA05001 folder to /data/homebrew/ on the PS5.
+
+name: Build PSXS5
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ps5:
+    name: PS5 app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.deps/ccache
+    steps:
+      - name: Check out source and the PCSX-ReARMed core
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18 make ninja-build ccache \
+            pkg-config tar unzip wget python3 python3-venv
+
+      - name: Restore downloaded SDK and libraries
+        uses: actions/cache@v4
+        with:
+          path: |
+            .deps/native
+            .deps/pacbrew
+            .deps/lapy
+          key: deps-${{ runner.os }}-${{ hashFiles('tools/setup-*-dependencies.sh', 'tools/build-lapy-helper.py') }}
+
+      - name: Build
+        run: make
+
+      - name: Upload the app folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: PSXS5-PPSA05001
+          path: |
+            dist/
+            !dist/*.zip
+          if-no-files-found: error
+
+  desktop:
+    name: Desktop build (compile and link check)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential libsdl2-dev libcurl4-openssl-dev zlib1g-dev
+      - name: Build
+        run: make desktop
