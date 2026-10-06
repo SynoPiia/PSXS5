@@ -3,11 +3,15 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Lookup order for a game:
- *   1. cover.png / cover.jpg in the game's own folder (your choice wins)
- *   2. <root>/covers/default/<serial>.jpg or covers/3d/<serial>.png
- *   3. download from xlenore/psx-covers into (2), when enabled
- *   4. fallback-cover.png beside the game (picked up by the sync tool)
- *   5. a generated title card
+ *   1. <root>/covers/custom/<id>.png|jpg, picked on the shelf (Details, then Square)
+ *   2. in the game's own folder: cover.png|jpg, or an image named like the
+ *      disc file ("Crash Bandicoot.cue" -> "Crash Bandicoot.png")
+ *   3. in <root>/covers/: an image named like the game's title, the disc
+ *      file or the serial (the way DuckStation finds covers)
+ *   4. <root>/covers/default/<serial>.jpg or covers/3d/<serial>.png
+ *   5. download from xlenore/psx-covers into (4), when enabled
+ *   6. fallback-cover.png beside the game (picked up by the sync tool)
+ *   7. a generated title card
  * One worker thread does the file I/O, downloads and JPEG/PNG decoding; the
  * main thread only uploads finished pixels, at most a few per frame.
  */
@@ -46,6 +50,8 @@ typedef struct
     /* copies, so the worker never touches the Library */
     char title[96];
     char serial[16];
+    char id[64];
+    char disc_name[160];
     char folder[PSXS5_PATH_MAX];
 } Slot;
 
@@ -142,16 +148,60 @@ static uint8_t *load_image(const char *path, int *w, int *h)
     return px ? downscale(px, w, h) : NULL;
 }
 
+uint8_t *covers_decode(const char *path, int *w, int *h)
+{
+    return load_image(path, w, h);
+}
+
+static const char *const IMAGE_EXTS[] = {"png", "jpg", "jpeg"};
+
+bool covers_is_image(const char *name)
+{
+    for (size_t i = 0; i < 3; ++i)
+        if (str_icmp(path_ext(name), IMAGE_EXTS[i]) == 0)
+            return true;
+    return false;
+}
+
+/* <dir>/<name>.png|jpg|jpeg, the first that decodes. */
+static uint8_t *load_named(const char *dir, const char *name, int *w, int *h)
+{
+    if (!dir[0] || !name[0])
+        return NULL;
+    for (size_t i = 0; i < 3; ++i)
+    {
+        char file[200], path[PSXS5_PATH_MAX];
+        snprintf(file, sizeof(file), "%s.%s", name, IMAGE_EXTS[i]);
+        path_join(path, sizeof(path), dir, file);
+        uint8_t *px = path_exists(path) ? load_image(path, w, h) : NULL;
+        if (px)
+            return px;
+    }
+    return NULL;
+}
+
+void covers_custom_dir(char *out, size_t size)
+{
+    path_join(out, size, paths.covers, "custom");
+}
+
 /* Finds or fetches the art for one slot. Runs on the worker thread. */
 static uint8_t *produce(const Slot *job, int *w, int *h, bool *placeholder)
 {
-    static const char *local[] = {"cover.png", "cover.jpg", "cover.jpeg"};
     char path[PSXS5_PATH_MAX];
     *placeholder = false;
-    for (size_t i = 0; i < 3 && job->folder[0]; ++i)
+    covers_custom_dir(path, sizeof(path));
+    const char *names[][2] = {
+        {path, job->id},                        /* picked on the shelf */
+        {job->folder, "cover"},                 /* beside the game */
+        {job->folder, job->disc_name},
+        {paths.covers, job->title},             /* in covers/, by name */
+        {paths.covers, job->disc_name},
+        {paths.covers, job->serial},
+    };
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
-        path_join(path, sizeof(path), job->folder, local[i]);
-        uint8_t *px = path_exists(path) ? load_image(path, w, h) : NULL;
+        uint8_t *px = load_named(names[i][0], names[i][1], w, h);
         if (px)
             return px;
     }
@@ -275,6 +325,8 @@ void covers_start(const Library *lib, const Paths *p, const Settings *settings)
     {
         str_copy(slots[i].title, sizeof(slots[i].title), lib->games[i].title);
         str_copy(slots[i].serial, sizeof(slots[i].serial), lib->games[i].serial);
+        str_copy(slots[i].id, sizeof(slots[i].id), lib->games[i].id);
+        str_copy(slots[i].disc_name, sizeof(slots[i].disc_name), lib->games[i].disc_name);
         str_copy(slots[i].folder, sizeof(slots[i].folder), lib->games[i].folder);
     }
     SDL_UnlockMutex(lock);
@@ -384,6 +436,21 @@ uint32_t covers_color(int index)
 {
     return (slots && index >= 0 && index < slot_count && slots[index].texture) ? slots[index].color
                                                                                : 0;
+}
+
+void covers_reload(int index)
+{
+    if (!slots || index < 0 || index >= slot_count)
+        return;
+    SDL_LockMutex(lock);
+    Slot *s = &slots[index];
+    if (s->state == SLOT_READY || s->state == SLOT_LOADED)
+    {
+        free(s->pixels);
+        s->pixels = NULL;
+        s->state = SLOT_EMPTY; /* the old texture stays on screen until the new one is up */
+    }
+    SDL_UnlockMutex(lock);
 }
 
 int covers_downloading(void)

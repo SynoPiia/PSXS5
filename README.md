@@ -59,6 +59,8 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 - **A shelf for your games.** A 3D cover flow with reflections and a soft click as you browse.
   - Covers are matched by the serial read from each disc, so every region gets its own art.
   - Missing covers download on the console.
+  - Your own art wins: a `cover.png`/`.jpg` in the game's folder, or an image in `/data/PSXS5/covers/` named like the game's title, its disc file or its serial (`Crash Bandicoot.png`, `SCUS-94900.jpg`).
+  - Or pick one by hand: on the shelf press **Triangle** (Details), then **Square**, and choose any image from `covers/` or the game's folder.
 - **Plays every common format.** `.cue`/`.bin`, `.chd`, `.pbp` (including multi-disc), `.iso`, `.img`, `.mdf`, `.ccd` and `.m3u` playlists for multi-disc games.
 - **Sharp on a 4K TV.**
   - Internal resolution: native or 2x (sharper 3D).
@@ -127,7 +129,8 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 /data/PSXS5/
 ├── games/<Game name>/        your games, one folder per game (a cheats.cht here overrides the library)
 ├── bios/                     optional: your BIOS dump (scph*.bin)
-├── covers/                   downloaded covers, by serial
+├── covers/                   your own cover images (named like the game, or picked on the shelf);
+│                             downloads in default/ and 3d/, picks in custom/
 ├── cheats/                   the .cht library
 ├── saves/                    memory cards, one per game
 ├── states/                   save states, 10 slots per game
