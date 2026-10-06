@@ -50,6 +50,8 @@ static enum Screen settings_return = SCREEN_LIBRARY;
 static int menu_cursor, settings_cursor, settings_scroll, cheat_cursor, cheat_scroll;
 static const Game *current_game;
 static char storage_error[256];
+static bool sandboxed;          /* /data folders can't be listed: use library.txt */
+static char sandbox_reason[200];
 static char toast[128];
 static uint64_t toast_until;
 static float fps_measured;
@@ -143,7 +145,20 @@ static void rescan(void)
 {
     const char *roots[] = {paths.games, "/mnt/usb0/PSXS5", "/mnt/usb1/PSXS5",
                            "/mnt/ext0/PSXS5", "/mnt/ext1/PSXS5"};
-    library_scan(&library, roots, sizeof(roots) / sizeof(roots[0]));
+    char index[PSXS5_PATH_MAX];
+    path_join(index, sizeof(index), paths.root, "library.txt");
+    if (sandboxed)
+    {
+        /* Can't list folders: the sync tool's index is the library. */
+        if (!library_load_index(&library, index))
+            library.count = 0;
+    }
+    else
+    {
+        library_scan(&library, roots, sizeof(roots) / sizeof(roots[0]));
+        if (library.count == 0)
+            library_load_index(&library, index);
+    }
     if (shelf.cursor >= library.count)
         coverflow_init(&shelf, library.count ? library.count - 1 : 0);
     restart_covers();
@@ -730,6 +745,10 @@ int main(void)
     plat_default_root(root, sizeof(root));
     config_paths(&paths, root);
 
+    /* Unlock before SDL starts any thread: the HEN changes this process's
+     * credentials, which Porpoise did not survive with threads running. */
+    sandboxed = !plat_prepare_storage(sandbox_reason, sizeof(sandbox_reason));
+
     if (!plat_init())
     {
         char msg[300];
@@ -741,18 +760,28 @@ int main(void)
     if (!text_init())
         plat_notify("PSXS5: interface font missing from assets/fonts");
 
-    if (plat_prepare_storage(storage_error, sizeof(storage_error)))
+    /* Sandboxed or not, files in /data open and save; only listing differs. */
+    const char *dirs[] = {paths.root, paths.games, paths.bios, paths.saves, paths.states,
+                          paths.cheats, paths.covers, paths.logs};
+    for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]); ++i)
+        make_dirs(dirs[i]);
+    char probe[PSXS5_PATH_MAX];
+    path_join(probe, sizeof(probe), paths.root, ".write-test");
+    FILE *pf = fopen(probe, "w");
+    if (pf)
     {
-        const char *dirs[] = {paths.root, paths.games, paths.bios, paths.saves, paths.states,
-                              paths.cheats, paths.covers, paths.logs};
-        for (size_t i = 0; i < sizeof(dirs) / sizeof(dirs[0]); ++i)
-            if (!make_dirs(dirs[i]) && !storage_error[0])
-                snprintf(storage_error, sizeof(storage_error), "Cannot create %s", dirs[i]);
+        fclose(pf);
+        remove(probe);
     }
+    else
+        snprintf(storage_error, sizeof(storage_error),
+                 "%s isn't writable. Is the HEN running? (%s)", paths.root, sandbox_reason);
     char log_path[PSXS5_PATH_MAX];
     path_join(log_path, sizeof(log_path), paths.logs, "psxs5.log");
     psxs5_log_open(log_path);
     psxs5_log("PSXS5 %s starting, data root %s", PSXS5_VERSION, paths.root);
+    psxs5_log(sandboxed ? "storage: sandboxed (%s)" : "storage: unlocked%s",
+              sandboxed ? sandbox_reason : "");
 
     config_load(&settings, paths.config);
     plat_audio_open(UI_RATE);

@@ -11,8 +11,10 @@ bool plat_init(void);
 const char *plat_init_error(void); /* "SDL window failed: <reason>" after plat_init fails */
 void plat_shutdown(void);
 
-/* PS5: requests sandbox elevation so /data can be listed. Desktop: no-op.
- * Returns false and fills `error` when the data root cannot be used. */
+/* PS5: asks the HEN to let PSXS5 list /data. Call before plat_init, while the
+ * process is single-threaded. Returns false (with the reason) when PSXS5 stays
+ * sandboxed: files still open and save, but folders can't be listed, so the
+ * library comes from the index the sync tool writes. Desktop: always true. */
 bool plat_prepare_storage(char *error, size_t size);
 void plat_default_root(char *out, size_t size);
 

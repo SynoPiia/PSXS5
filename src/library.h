@@ -28,6 +28,12 @@ typedef struct
 /* Scans every existing root. Each root holds one game per folder, or loose
  * images. Multi-disc folders without an .m3u get one written for them. */
 void library_scan(Library *lib, const char *const *roots, int root_count);
+
+/* For a sandboxed PSXS5 (folders can't be listed): reads the index written by
+ * tools/psxs5_sync.py, one game per line:
+ *   title <TAB> serial <TAB> discs <TAB> /data/PSXS5/games/.../file.m3u <TAB> disc name
+ * Returns false when the index can't be opened. */
+bool library_load_index(Library *lib, const char *index_path);
 void library_free(Library *lib);
 
 #endif
