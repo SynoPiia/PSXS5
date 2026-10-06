@@ -192,6 +192,94 @@ bool plat_prepare_storage(char *error, size_t size)
 
 /* ---------------------------------------------------------------- input */
 
+#if defined(__PROSPERO__)
+/* The PS5 SDL driver reports DualSense buttons in its own order (see
+ * ps5-payload-dev/SDL src/joystick/ps5), but SDL's controller database maps
+ * the pad with a PC "PS5 Controller" profile that numbers them differently,
+ * so buttons came out wrong (Triangle acted as Circle). Read the raw
+ * joystick in the driver's order instead. The driver has no Create button
+ * (slot 5); PSXS5 turns a touchpad tap into Select. */
+static SDL_Joystick *joys[PSXS5_MAX_PADS];
+static const int ps5_buttons[] = {
+    BTN_CROSS, BTN_CIRCLE, BTN_SQUARE, BTN_TRIANGLE, BTN_MENU /* touchpad */, -1 /* none */,
+    BTN_START /* Options */, BTN_L3, BTN_R3, BTN_L1, BTN_R1, BTN_UP, BTN_DOWN, BTN_LEFT,
+    BTN_RIGHT, BTN_L2, BTN_R2,
+};
+
+static void refresh_controllers(void)
+{
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        if (joys[i] && !SDL_JoystickGetAttached(joys[i]))
+        {
+            SDL_JoystickClose(joys[i]);
+            joys[i] = NULL;
+        }
+    for (int j = 0; j < SDL_NumJoysticks(); ++j)
+    {
+        const char *name = SDL_JoystickNameForIndex(j);
+        if (name && strstr(name, "Remote"))
+            continue; /* "PS5 Remote Control": not a gamepad */
+        SDL_JoystickID id = SDL_JoystickGetDeviceInstanceID(j);
+        bool open = false;
+        for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+            open |= joys[i] && SDL_JoystickInstanceID(joys[i]) == id;
+        for (int i = 0; i < PSXS5_MAX_PADS && !open; ++i)
+            if (!joys[i])
+            {
+                joys[i] = SDL_JoystickOpen(j);
+                if (joys[i])
+                    psxs5_log("pad %d: %s (%d buttons, %d axes)", i + 1, name ? name : "?",
+                              SDL_JoystickNumButtons(joys[i]), SDL_JoystickNumAxes(joys[i]));
+                open = true;
+            }
+    }
+}
+
+void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
+{
+    SDL_Event event;
+    bool devices_changed = false;
+    while (SDL_PollEvent(&event))
+        if (event.type == SDL_JOYDEVICEADDED || event.type == SDL_JOYDEVICEREMOVED)
+            devices_changed = true;
+    (void)quit;
+    static bool first = true;
+    if (devices_changed || first)
+    {
+        refresh_controllers();
+        first = false;
+    }
+    memset(pads, 0, sizeof(PadState) * PSXS5_MAX_PADS);
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
+        SDL_Joystick *j = joys[i];
+        if (!j)
+            continue;
+        PadState *p = &pads[i];
+        p->connected = true;
+        int count = SDL_JoystickNumButtons(j);
+        for (int b = 0; b < count && b < (int)(sizeof(ps5_buttons) / sizeof(ps5_buttons[0])); ++b)
+            if (ps5_buttons[b] >= 0 && SDL_JoystickGetButton(j, b))
+                p->buttons |= BIT(ps5_buttons[b]);
+        p->lx = SDL_JoystickGetAxis(j, 0);
+        p->ly = SDL_JoystickGetAxis(j, 1);
+        p->rx = SDL_JoystickGetAxis(j, 2);
+        p->ry = SDL_JoystickGetAxis(j, 3);
+    }
+}
+
+void plat_rumble(int port, uint16_t strong, uint16_t weak)
+{
+    if (port < 0 || port >= PSXS5_MAX_PADS || !joys[port])
+        return;
+    if (rumble_strong[port] == strong && rumble_weak[port] == weak)
+        return;
+    rumble_strong[port] = strong;
+    rumble_weak[port] = weak;
+    SDL_JoystickRumble(joys[port], strong, weak, strong || weak ? 2000 : 0);
+}
+#else
+
 static void refresh_controllers(void)
 {
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
@@ -328,6 +416,7 @@ void plat_rumble(int port, uint16_t strong, uint16_t weak)
     rumble_weak[port] = weak;
     SDL_GameControllerRumble(controllers[port], strong, weak, strong || weak ? 2000 : 0);
 }
+#endif
 
 /* ---------------------------------------------------------------- audio */
 
