@@ -274,6 +274,17 @@ if [[ ${APP_VULKAN:-0} == 1 ]]; then
             *) linker_options+=("$flag") ;;
         esac
     done
+    # The recipe's version script makes every bound name local: list only the
+    # bindings kept above.
+    {
+        printf '{\n    local:\n'
+        for flag in "${linker_options[@]}"; do
+            [[ $flag == --defsym=* ]] || continue
+            flag=${flag#--defsym=}
+            printf '        %s;\n' "${flag%%=*}"
+        done
+        printf '};\n'
+    } > "$root/build/radv-platform-local.map"
     # RADV's archive carries zlib (Mesa's meson subproject), linked whole, so
     # PacBrew's libz would define everything twice: RADV's serves libcurl too.
     kept=()
