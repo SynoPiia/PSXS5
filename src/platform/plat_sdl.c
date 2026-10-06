@@ -17,6 +17,8 @@
 #include "blit.h"
 #include "ps5_unlock.h"
 #include "ps5_video.h"
+#include "vk/vk_present.h"
+#include <unistd.h>
 #include <sys/mman.h>
 int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
 int sceSystemServiceHideSplashScreen(void);
@@ -66,6 +68,7 @@ static bool init_failed(const char *stage)
 
 #if defined(__PROSPERO__)
 static SDL_Surface *canvas; /* 1920x1080 RGBA in ordinary memory; shown by ps5_video */
+static bool use_vulkan;    /* v2: shown by vk_present instead */
 
 /* SDL's PS5 video driver can't provide a window surface or a renderer, so on
  * PS5 SDL is started without it: SDL draws (software renderer into `canvas`),
@@ -73,7 +76,15 @@ static SDL_Surface *canvas; /* 1920x1080 RGBA in ordinary memory; shown by ps5_v
 static bool init_ps5_screen(void)
 {
     char error[160];
+#if defined(PSXS5_VULKAN)
+    /* v2: the screen through Vulkan; the old VideoOut path stays as the
+     * fallback (and is forced by creating /data/PSXS5/no_vulkan). */
+    use_vulkan = access("/data/PSXS5/no_vulkan", F_OK) != 0 &&
+                 vkp_open(PS5_SCREEN_W, PS5_SCREEN_H, error, sizeof(error));
+    if (!use_vulkan && !ps5_video_open(error, sizeof(error)))
+#else
     if (!ps5_video_open(error, sizeof(error)))
+#endif
     {
         snprintf(init_error, sizeof(init_error), "screen: %s", error);
         return false;
@@ -994,7 +1005,10 @@ void plat_end_frame(void)
     static uint64_t frame_start, draw_us, present_us;
     static int frames;
     uint64_t drawn = plat_ticks_us();
-    ps5_video_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+    if (use_vulkan)
+        vkp_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+    else
+        ps5_video_present(canvas->pixels, (size_t)canvas->pitch);
     uint64_t shown = plat_ticks_us();
     if (frame_start)
     {
