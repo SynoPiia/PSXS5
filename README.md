@@ -206,7 +206,7 @@ The PS5 app is built by GitHub Actions on every push (*Actions* â†’ latest run â
 
 ```bash
 sudo apt install clang-18 lld-18 llvm-18 make ninja-build ccache pkg-config python3 python3-venv tar unzip wget
-git clone --recursive https://github.com/SnivyX/PSXS5.git
+git clone --recursive https://github.com/SynoPiia/PSXS5.git
 cd PSXS5
 make            # -> dist/PPSA97510/
 make desktop    # optional PC test build (needs libsdl2-dev libcurl4-openssl-dev zlib1g-dev)
