@@ -14,6 +14,9 @@
 #include "i18n.h"
 #include "platform/platform.h"
 #include "platform/ps5_crash.h"
+#include "play.h"
+#include "remote.h"
+#include "update.h"
 #include "ra/achievements.h"
 #include "stats.h"
 #include "ui/coverflow.h"
@@ -34,19 +37,42 @@ App app = {.unlock_setting = true, .dt = 1.0f / 60.0f};
 
 static char toast[160];
 static uint64_t toast_until;
+/* messages that arrive while one shows wait their turn */
+static char toast_queue[4][160];
+static int toast_queued;
 static int covers_style_loaded = -1;
 static bool covers_download_loaded;
 
+static void show_next_toast(const char *text)
+{
+    str_copy(toast, sizeof(toast), text);
+    toast_until = plat_ticks_us() + 2500000;
+}
+
 void app_toast(const char *message)
 {
-    str_copy(toast, sizeof(toast), tr(message));
-    toast_until = plat_ticks_us() + 2500000;
     psxs5_log("%s", message);
+    const char *text = tr(message);
+    if (toast[0] && plat_ticks_us() < toast_until)
+    {
+        if (!strcmp(toast, text))
+            return;
+        if (toast_queued < 4)
+            str_copy(toast_queue[toast_queued++], sizeof(toast_queue[0]), text);
+        return;
+    }
+    show_next_toast(text);
 }
 
 void app_draw_toast(void)
 {
     uint64_t now = plat_ticks_us();
+    if (toast_queued && (!toast[0] || now > toast_until))
+    {
+        show_next_toast(toast_queue[0]);
+        memmove(toast_queue[0], toast_queue[1], sizeof(toast_queue[0]) * 3);
+        --toast_queued;
+    }
     if (!toast[0] || now > toast_until)
         return;
     /* slide up in the first 150 ms, fade out in the last 300 ms */
@@ -239,10 +265,37 @@ void app_draw_game(uint8_t dim)
     const void *pixels = host_frame(&w, &h, &pitch, &fmt, &fresh);
     if (pixels && fresh)
         plat_upload_game(pixels, w, h, pitch, fmt, app.settings.upscale, app.settings.upscale_filter);
-    plat_draw_game(&app.settings, host_aspect(), dim);
+    Settings view = app.settings;
+    if (play_widescreen_active())
+        view.aspect = ASPECT_16_9;
+
+    /* around the picture: black, a soft glow, or a TV */
+    int gx, gy, gw, gh;
+    plat_game_rect(&gx, &gy, &gw, &gh);
+    if (view.border && gw > 0 && gw < plat_width() - 8)
+    {
+        float k = dim / 255.0f;
+        if (view.border == 1)
+        {
+            shelf_backdrop();
+            draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, 0.45f + 0.55f * (1 - k)));
+        }
+        else
+        {
+            /* a 90s TV: dark room, plastic body, recessed screen, a power light */
+            draw_rect(0, 0, plat_width(), plat_height(), argb_lerp(0xff000000u, 0xff0c0d14u, k));
+            draw_rrect(gx - 74, gy - 58, gw + 148, gh + 130, 56, argb_lerp(0xff000000u, 0xff26262du, k));
+            draw_rrect(gx - 34, gy - 58, gw + 68, 8, 4, argb_lerp(0xff000000u, 0xff36363fu, k));
+            draw_rrect(gx - 26, gy - 24, gw + 52, gh + 48, 34, argb_lerp(0xff000000u, 0xff0e0e11u, k));
+            draw_circle(gx + gw + 30, gy + gh + 44, 7, argb_lerp(0xff000000u, 0xff3cd070u, k));
+            text_draw(gx + gw * 0.5f, gy + gh + 32, 22, FONT_BOLD, argb_lerp(0xff000000u, 0xff5a5a66u, k),
+                      ALIGN_CENTER, PSXS5_NAME);
+        }
+    }
+    plat_draw_game(&view, host_aspect(), dim);
 }
 
-void app_start_game(int index)
+void app_start_game(int index, bool resume)
 {
     if (index < 0 || index >= app.library.count)
         return;
@@ -250,6 +303,8 @@ void app_start_game(int index)
     char error[160], own[PSXS5_PATH_MAX];
     app_game_config_path(own, sizeof(own), g);
     app.game_has_own = config_load_game(&app.settings, &app.global, own);
+    bool translated = play_prepare_patch(g);
+    play_rewind_reset();
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
     if (!host_load(g->path, &app.paths, &app.settings, error, sizeof(error)))
@@ -286,11 +341,21 @@ void app_start_game(int index)
             app_toast(msg);
         }
     }
+    if (play_widescreen())
+        app_toast("Widescreen on");
+    else if (app.settings.widescreen && !ra_hardcore())
+        app_toast("This game has no widescreen code: playing in 4:3");
+    if (translated)
+        app_toast("Translation patch applied");
+    if (resume && play_load_resume())
+        app_toast("Continuing where you left off");
     app.screen = SCREEN_GAME;
 }
 
 void app_stop_game(void)
 {
+    play_save_resume(false);
+    play_rewind_reset();
     int unlocked, total;
     GameStats *st = app.game ? stats_get(app.game->id) : NULL;
     if (st && ra_game_progress(&unlocked, &total))
@@ -349,6 +414,11 @@ static void game_screen(PadState *pads)
     bool touch = (pads[0].buttons | pads[1].buttons) & BIT(BTN_MENU);
     uint64_t t_now = plat_ticks_us();
     bool open_menu = combo_hit;
+    /* touchpad held + R2: fast forward; + L2: rewind */
+    uint32_t all = pads[0].buttons | pads[1].buttons;
+    bool fast = touch && (all & BIT(BTN_R2)), back = touch && (all & BIT(BTN_L2));
+    if (fast || back)
+        touch_used = true; /* a combo, not Select or the menu */
     if (touch)
     {
         if (!touch_since)
@@ -374,6 +444,8 @@ static void game_screen(PadState *pads)
     }
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
     {
+        if (fast || back)
+            pads[i].buttons &= ~(BIT(BTN_L2) | BIT(BTN_R2));
         pads[i].buttons = map_buttons(pads[i].buttons & ~BIT(BTN_MENU));
         if (i == 0 && select_frames > 0)
         {
@@ -407,6 +479,31 @@ static void game_screen(PadState *pads)
         runs = 2;
     else if (queued > per_frame * 5)
         runs = 0;
+    static bool rewind_hint;
+    if (back)
+    {
+        /* step back two recorded moments a second... per refresh: smooth enough */
+        static int pace;
+        if (++pace >= 3)
+        {
+            pace = 0;
+            if (play_rewind_step())
+                host_run_frame(); /* draws the restored moment */
+            else if (!app.settings.rewind && !rewind_hint)
+            {
+                app_toast("Turn on Rewind in Settings > System");
+                rewind_hint = true;
+            }
+        }
+        plat_audio_clear();
+        runs = 0;
+    }
+    else if (fast && !ra_hardcore())
+    {
+        runs = 4;
+        if (queued > per_frame * 3)
+            plat_audio_clear(); /* keep up instead of queueing sound */
+    }
     static uint64_t emu_us;
     static int emu_frames;
     uint64_t emu_start = plat_ticks_us();
@@ -414,6 +511,15 @@ static void game_screen(PadState *pads)
     {
         host_run_frame();
         ra_frame();
+        play_rewind_record();
+    }
+    /* quick resume: a background save every three minutes */
+    static float since_resume;
+    since_resume += app.dt;
+    if (since_resume > 180.0f)
+    {
+        since_resume = 0;
+        play_save_resume(true);
     }
     emu_us += plat_ticks_us() - emu_start;
     emu_frames += runs;
@@ -443,6 +549,12 @@ static void game_screen(PadState *pads)
         float w = text_width(26, FONT_BOLD, f) + 40;
         draw_rrect(24, 24, w, 52, 26, 0xb0000000u);
         text_draw(44, 36, 26, FONT_BOLD, TH_GOOD, ALIGN_LEFT, f);
+    }
+    if (fast || back)
+    {
+        int icon = back ? ICON_HISTORY : ICON_PLAYER_TRACK_NEXT;
+        draw_rrect(plat_width() - 110, 30, 80, 60, 30, 0xb0000000u);
+        icon_draw(icon, plat_width() - 92, 38, 44, TH_TEXT);
     }
     app_draw_toast();
 }
@@ -541,6 +653,9 @@ int main(void)
     sfx_configure(app.global.ui_sound, (app.global.ui_volume + 1) * 25);
     if (!app.storage_error[0])
         ra_init(&app.paths);
+    remote_update(app.global.remote && !app.storage_error[0]);
+    if (app.global.update_check && !app.storage_error[0])
+        update_check();
     shelf_init(app.global.last_game);
     if (!app.storage_error[0])
         app_rescan();
@@ -563,7 +678,9 @@ int main(void)
         /* the shelf and settings paint a full-screen backdrop: no clear needed */
         bool backdrop = app.screen == SCREEN_LIBRARY || (app.screen == SCREEN_SETTINGS && !app.game);
         plat_begin_frame(backdrop ? 0 : 0xff000000u);
-        static const char *const screen_names[] = {"library", "game", "menu", "settings", "cheats"};
+        static const char *const screen_names[] = {"library", "game",         "menu",
+                                                   "settings", "cheats", "achievements",
+                                                   "memory cards"};
         ps5_crash_step(screen_names[app.screen]);
         switch (app.screen)
         {
@@ -572,9 +689,12 @@ int main(void)
         case SCREEN_MENU: menu_screen(pressed); break;
         case SCREEN_SETTINGS: settings_screen(pressed); break;
         case SCREEN_CHEATS: cheats_screen(pressed); break;
+        case SCREEN_ACHIEVEMENTS: achievements_screen(pressed); break;
+        case SCREEN_MEMCARDS: memcards_screen(pressed); break;
         default: break;
         }
         count_play_time();
+        remote_frame();
         if (app.screen != SCREEN_GAME)
             ra_idle();
         draw_achievement();

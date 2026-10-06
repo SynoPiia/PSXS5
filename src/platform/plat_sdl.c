@@ -872,6 +872,16 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
     game_h = height * k;
 }
 
+static int game_rect[4];
+
+void plat_game_rect(int *x, int *y, int *w, int *h)
+{
+    *x = game_rect[0];
+    *y = game_rect[1];
+    *w = game_rect[2];
+    *h = game_rect[3];
+}
+
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 {
 #if defined(__PROSPERO__)
@@ -919,6 +929,18 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             dw = out_w;
     }
 
+    if (settings->border == 2)
+    {
+        /* TV frame: leave room for the TV around the picture */
+        dw = dw * 86 / 100;
+        dh = dh * 86 / 100;
+    }
+    game_rect[0] = (out_w - dw) / 2;
+    game_rect[1] = (out_h - dh) / 2;
+    game_rect[2] = dw;
+    game_rect[3] = dh;
+    static const uint8_t scan_strength[] = {0, 110, 200};
+    uint8_t scan = scan_strength[settings->crt % 3];
 #if defined(__PROSPERO__)
     if (game_image)
     {
@@ -926,7 +948,8 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
         SDL_RenderFlush(renderer);
         BlitJob job = {game_image, game_image_w, game_image_h, game_image_pitch,
                        (uint32_t *)canvas->pixels, (size_t)canvas->pitch / 4,
-                       (out_w - dw) / 2, (out_h - dh) / 2, dw, dh, settings->smooth, dim};
+                       (out_w - dw) / 2, (out_h - dh) / 2, dw, dh, settings->smooth, dim,
+                       scan, lines};
         blit_scaled(&job);
         return;
     }
@@ -940,6 +963,18 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     SDL_Rect src = {0, 0, game_w, game_h};
     SDL_Rect dst = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
     SDL_RenderCopy(renderer, game_texture, &src, &dst);
+    if (scan && lines > 0)
+    {
+        /* desktop: dark bands between the game's lines */
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, scan / 2);
+        float step = (float)dh / lines;
+        for (int l = 0; l < lines; ++l)
+        {
+            SDL_Rect r = {dst.x, dst.y + (int)((l + 0.62f) * step), dw, (int)(step * 0.38f) + 1};
+            SDL_RenderFillRect(renderer, &r);
+        }
+    }
 }
 
 void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)

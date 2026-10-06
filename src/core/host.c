@@ -37,6 +37,11 @@ static struct retro_disk_control_ext_callback disk;
 static bool disk_available;
 static bool loaded;
 
+static char patches_dir[PSXS5_PATH_MAX];
+static bool multitap;
+
+void psxs5_set_patches_dir(const char *dir); /* core: tools/patches/pcsx_rearmed-patchesdir.patch */
+
 static struct retro_memory_descriptor memory_descriptors[32];
 static struct retro_memory_map memory_map;
 
@@ -108,6 +113,10 @@ static void apply_settings_to_options(const Settings *s)
     /* 2x internal resolution: the enhanced GPU renders the 3D scene at double size. */
     set_option("pcsx_rearmed_neon_enhancement_enable", s->internal_res == 2 ? "enabled" : "disabled");
     set_option("pcsx_rearmed_neon_enhancement_no_main", "disabled");
+    /* players 3 and 4 through a multitap in port 1 */
+    set_option("pcsx_rearmed_multitap", s->multitap ? "port 1" : "disabled");
+    /* the widescreen codes need the picture's sides drawn */
+    set_option("pcsx_rearmed_show_overscan", s->widescreen ? "hack" : "disabled");
 }
 
 /* ---------------------------------------------------------------- callbacks */
@@ -307,6 +316,7 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     retro_set_input_state(input_state_cb);
     STEP("retro_init");
     retro_init();
+    psxs5_set_patches_dir(patches_dir);
 
     STEP("retro_load_game");
     struct retro_game_info info = {game_path, NULL, 0, NULL};
@@ -321,8 +331,9 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
     unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
                                        : RETRO_DEVICE_JOYPAD;
-    retro_set_controller_port_device(0, device);
-    retro_set_controller_port_device(1, device);
+    multitap = settings->multitap;
+    for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
+        retro_set_controller_port_device(port, device);
     loaded = true;
     STEP("running");
 #undef STEP
@@ -455,6 +466,60 @@ bool host_save_state(const char *path)
     }
     free(buffer);
     return ok;
+}
+
+void host_set_patches_dir(const char *dir)
+{
+    str_copy(patches_dir, sizeof(patches_dir), dir ? dir : "");
+}
+
+size_t host_state_size(void)
+{
+    return loaded ? retro_serialize_size() : 0;
+}
+
+bool host_serialize(void *buffer, size_t size)
+{
+    return loaded && retro_serialize(buffer, size);
+}
+
+bool host_unserialize(const void *buffer, size_t size)
+{
+    if (!loaded || !retro_unserialize(buffer, size))
+        return false;
+    plat_audio_clear();
+    return true;
+}
+
+bool host_capture(uint8_t *rgba, int w, int h)
+{
+    if (!loaded || !frame_data || frame_w == 0 || frame_h == 0)
+        return false;
+    for (int y = 0; y < h; ++y)
+    {
+        unsigned sy = (unsigned)((y * 2 + 1) * frame_h / (2 * (unsigned)h));
+        const uint8_t *row = (const uint8_t *)frame_data + sy * frame_pitch;
+        for (int x = 0; x < w; ++x)
+        {
+            unsigned sx = (unsigned)((x * 2 + 1) * frame_w / (2 * (unsigned)w));
+            uint8_t *o = &rgba[((size_t)y * w + x) * 4];
+            if (pixel_format == RETRO_PIXEL_FORMAT_XRGB8888)
+            {
+                uint32_t c = ((const uint32_t *)row)[sx];
+                o[0] = (c >> 16) & 0xff, o[1] = (c >> 8) & 0xff, o[2] = c & 0xff;
+            }
+            else
+            {
+                uint16_t c = ((const uint16_t *)row)[sx];
+                if (pixel_format == RETRO_PIXEL_FORMAT_RGB565)
+                    o[0] = (c >> 11) << 3, o[1] = ((c >> 5) & 63) << 2, o[2] = (c & 31) << 3;
+                else
+                    o[0] = ((c >> 10) & 31) << 3, o[1] = ((c >> 5) & 31) << 3, o[2] = (c & 31) << 3;
+            }
+            o[3] = 255;
+        }
+    }
+    return true;
 }
 
 bool host_load_state(const char *path)

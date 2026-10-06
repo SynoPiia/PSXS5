@@ -48,9 +48,18 @@ static inline uint32_t to_canvas(uint32_t c, uint32_t dim)
 static void run_slice(const BlitJob *j, int slice)
 {
     const int y_begin = j->dst_h * slice / slices, y_end = j->dst_h * (slice + 1) / slices;
-    const uint32_t dim = j->dim;
     for (int y = y_begin; y < y_end; ++y)
     {
+        uint32_t dim = j->dim;
+        if (j->scanlines && j->lines > 0)
+        {
+            /* where this row falls inside its game line: bright in the middle,
+             * darker towards the gap */
+            int64_t pos = ((int64_t)y * 2 + 1) * j->lines * 128 / j->dst_h; /* 256 per line */
+            int phase = (int)(pos & 255) - 128;                               /* -128..127 */
+            uint32_t edge = (uint32_t)(phase * phase) >> 6;                    /* 0..256 */
+            dim = dim * (256 - ((edge * j->scanlines) >> 8)) >> 8;
+        }
         uint32_t *out = j->dst + (size_t)(j->dst_y + y) * j->dst_pitch + j->dst_x;
         /* source row position in 16.16, sampling pixel centres */
         int64_t sy = (((int64_t)y * 2 + 1) * j->src_h << 16) / (2 * j->dst_h) - 32768;

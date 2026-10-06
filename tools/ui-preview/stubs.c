@@ -96,3 +96,48 @@ bool ra_next_message(char *title, size_t title_size, char *detail, size_t detail
     strncpy(detail, "Collect 100 Wumpa fruit in one level  (10 points)", detail_size - 1);
     return true;
 }
+
+int ra_list(RaAchievement *out, int max)
+{
+    static const char *const names[][2] = {
+        {"Wumpa Collector", "Collect 100 Wumpa fruit in one level"},
+        {"Box Breaker", "Break every box in N. Sanity Beach"},
+        {"Bonus Round", "Reach a bonus round"},
+        {"Gem Hunter", "Collect your first clear gem"},
+        {"No Mask Needed", "Finish a level without an Aku Aku mask"},
+        {"Boss Fight", "Defeat Papu Papu"},
+        {"Island Hopper", "Reach the second island"},
+        {"Perfect Run", "Finish a level without dying"},
+    };
+    int n = 0;
+    for (int i = 0; i < 8 && n < max; ++i, ++n)
+    {
+        RaAchievement *r = &out[n];
+        memset(r, 0, sizeof(*r));
+        strncpy(r->title, names[i][0], sizeof(r->title) - 1);
+        strncpy(r->description, names[i][1], sizeof(r->description) - 1);
+        r->points = (unsigned)(5 + i * 5);
+        r->unlocked = i < 3;
+        if (i == 3)
+            strcpy(r->progress, "1/3");
+    }
+    return n;
+}
+
+void host_set_patches_dir(const char *dir) { (void)dir; }
+size_t host_state_size(void) { return loaded ? 64 : 0; }
+bool host_serialize(void *buffer, size_t size) { memset(buffer, 0, size); return loaded; }
+bool host_unserialize(const void *buffer, size_t size) { (void)buffer; (void)size; return loaded; }
+bool host_capture(uint8_t *rgba, int w, int h)
+{
+    if (!loaded)
+        return false;
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x)
+        {
+            uint32_t c = frame[(y * 240 / h) * 320 + x * 320 / w];
+            uint8_t *o = &rgba[(y * w + x) * 4];
+            o[0] = (c >> 16) & 0xff, o[1] = (c >> 8) & 0xff, o[2] = c & 0xff, o[3] = 255;
+        }
+    return true;
+}

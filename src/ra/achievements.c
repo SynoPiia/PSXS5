@@ -496,3 +496,32 @@ bool ra_game_progress(int *unlocked, int *total)
     *total = (int)s.num_core_achievements;
     return true;
 }
+
+int ra_list(RaAchievement *out, int max)
+{
+    if (!client || !rc_client_get_game_info(client))
+        return 0;
+    rc_client_achievement_list_t *list = rc_client_create_achievement_list(
+        client, RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE, RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_LOCK_STATE);
+    if (!list)
+        return 0;
+    int n = 0;
+    for (uint32_t b = 0; b < list->num_buckets; ++b)
+        for (uint32_t i = 0; i < list->buckets[b].num_achievements && n < max; ++i)
+        {
+            const rc_client_achievement_t *a = list->buckets[b].achievements[i];
+            RaAchievement *r = &out[n++];
+            str_copy(r->title, sizeof(r->title), a->title ? a->title : "");
+            str_copy(r->description, sizeof(r->description), a->description ? a->description : "");
+            str_copy(r->progress, sizeof(r->progress), a->measured_progress);
+            r->points = a->points;
+            r->unlocked = a->unlocked != 0;
+            r->id = a->id;
+            r->badge_url[0] = '\0';
+            rc_client_achievement_get_image_url(a, a->unlocked ? RC_CLIENT_ACHIEVEMENT_STATE_UNLOCKED
+                                                               : RC_CLIENT_ACHIEVEMENT_STATE_ACTIVE,
+                                                r->badge_url, sizeof(r->badge_url));
+        }
+    rc_client_destroy_achievement_list(list);
+    return n;
+}

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PSXS5 settings</title>
+<style>
+  :root { --bg:#0f1330; --card:#151a3d; --row:#1c2250; --sel:#2a3370; --focus:#8fb0ff;
+          --text:#e8ebff; --dim:#8f97c8; --on:#5b7cff; --off:#3a4280; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position:sticky; top:0; background:var(--bg); padding:16px 16px 8px; z-index:2; }
+  h1 { margin:0; font-size:22px; font-weight:600; }
+  #game { color:var(--dim); font-size:14px; margin-top:2px; }
+  nav { display:flex; gap:6px; overflow-x:auto; padding:12px 0 4px; scrollbar-width:none; }
+  nav button { flex:none; border:0; border-radius:999px; padding:8px 14px; background:transparent;
+               color:var(--dim); font:inherit; }
+  nav button.on { background:var(--text); color:var(--bg); }
+  main { padding:0 16px 32px; max-width:720px; margin:0 auto; }
+  .group { color:var(--dim); font-size:13px; font-weight:600; margin:18px 4px 6px; }
+  .card { background:var(--card); border-radius:16px; padding:6px; }
+  .row { padding:12px; border-radius:12px; }
+  .row + .row { border-top:1px solid #222a5c; border-radius:0 0 12px 12px; }
+  .name { font-weight:500; }
+  .help { color:var(--dim); font-size:13px; margin-top:2px; }
+  .choices { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .choices button { border:0; border-radius:999px; padding:7px 12px; background:var(--row);
+                    color:var(--text); font:inherit; font-size:14px; }
+  .choices button.on { background:var(--on); }
+  .toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .switch { flex:none; width:52px; height:30px; border-radius:15px; background:var(--off);
+            position:relative; border:0; transition:background .15s; }
+  .switch::after { content:""; position:absolute; top:4px; left:4px; width:22px; height:22px;
+                   border-radius:50%; background:#fff; transition:left .15s; }
+  .switch.on { background:var(--on); }
+  .switch.on::after { left:26px; }
+  .info { display:flex; justify-content:space-between; gap:12px; }
+  .value { color:var(--dim); text-align:right; }
+  #status { color:var(--dim); font-size:13px; text-align:center; margin-top:24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PSXS5</h1>
+  <div id="game"></div>
+  <nav id="tabs"></nav>
+</header>
+<main id="rows"></main>
+<div id="status">Connecting to your PS5…</div>
+<script>
+let data = null, tab = 0, busy = false;
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+async function load() {
+  if (busy) return;
+  try {
+    const r = await fetch('/api/settings', {cache: 'no-store'});
+    data = await r.json();
+    render();
+    document.getElementById('status').textContent = '';
+  } catch (e) {
+    document.getElementById('status').textContent = 'PSXS5 isn’t answering. Is it still open?';
+  }
+}
+
+async function set(key, value) {
+  busy = true;
+  try { await fetch('/api/set?key=' + encodeURIComponent(key) + '&value=' + value, {method: 'POST'}); }
+  finally { busy = false; setTimeout(load, 250); }
+}
+
+function render() {
+  if (!data || !data.tabs) return;
+  document.getElementById('game').textContent = data.game || '';
+  const tabs = document.getElementById('tabs');
+  tabs.replaceChildren();
+  data.tabs.forEach((t, i) => {
+    const b = el('button', i === tab ? 'on' : '', t.name);
+    b.onclick = () => { tab = i; render(); };
+    tabs.appendChild(b);
+  });
+  const rows = document.getElementById('rows');
+  rows.replaceChildren();
+  let card = null;
+  for (const r of data.tabs[tab].rows) {
+    if (r.group || !card) {
+      if (r.group) rows.appendChild(el('div', 'group', r.group));
+      card = el('div', 'card');
+      rows.appendChild(card);
+    }
+    const row = el('div', 'row');
+    if (r.kind === 'toggle') {
+      const line = el('div', 'toggle');
+      const text = el('div');
+      text.appendChild(el('div', 'name', r.name));
+      if (r.help) text.appendChild(el('div', 'help', r.help));
+      const sw = el('button', 'switch' + (r.value ? ' on' : ''));
+      sw.setAttribute('aria-label', r.name);
+      sw.onclick = () => { r.value = r.value ? 0 : 1; render(); set(r.key, r.value); };
+      line.append(text, sw);
+      row.appendChild(line);
+    } else if (r.kind === 'choice') {
+      row.appendChild(el('div', 'name', r.name));
+      if (r.help) row.appendChild(el('div', 'help', r.help));
+      const box = el('div', 'choices');
+      r.labels.forEach((label, v) => {
+        const b = el('button', v === r.value ? 'on' : '', label);
+        b.onclick = () => { r.value = v; render(); set(r.key, v); };
+        box.appendChild(b);
+      });
+      row.appendChild(box);
+    } else {
+      const line = el('div', 'info');
+      line.append(el('div', 'name', r.name), el('div', 'value', r.text || ''));
+      row.appendChild(line);
+    }
+    card.appendChild(row);
+  }
+}
+
+load();
+setInterval(load, 2000);
+</script>
+</body>
+</html>

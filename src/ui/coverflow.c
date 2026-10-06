@@ -12,10 +12,12 @@
 #include "../app.h"
 #include "../config.h"
 #include "../covers.h"
+#include "../play.h"
 #include "../i18n.h"
 #include "../platform/platform.h"
 #include "../ra/achievements.h"
 #include "../stats.h"
+#include "../update.h"
 #include "draw.h"
 #include "icons.h"
 #include "sfx.h"
@@ -49,6 +51,12 @@ static struct
     float tint[3];        /* animated background colour */
     float title_fade;     /* text fades in after a move */
     int last_cursor_game;
+    /* "Continue or start over" when a game has a quick-resume save */
+    bool dialog, resume;
+    int dialog_choice;
+    float dialog_t;
+    long resume_age;
+    PlatTexture *resume_thumb;
 } S;
 
 static const char *const CATEGORY_NAMES[CAT_COUNT] = {
@@ -366,6 +374,17 @@ static void draw_header(void)
     float rx = plat_width() - TH_MARGIN;
     text_draw(rx, 53, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, clock_text);
     rx -= text_width(24, FONT_REGULAR, clock_text) + 32;
+    if (update_state() == UPDATE_AVAILABLE || update_state() == UPDATE_INSTALLED)
+    {
+        char up[64];
+        snprintf(up, sizeof(up), tr(update_state() == UPDATE_INSTALLED ? "Restart for %s" : "Update %s"),
+                 update_version());
+        float uw = text_width(20, FONT_BOLD, up) + 64;
+        draw_rrect(rx - uw, 44, uw, 46, 23, 0xff2a2410u);
+        icon_draw(ICON_DOWNLOAD, rx - uw + 14, 52, 30, TH_GOLD);
+        text_draw(rx - uw + 50, 56, 20, FONT_BOLD, TH_GOLD, ALIGN_LEFT, up);
+        rx -= uw + 24;
+    }
     if (ra_user()[0])
     {
         char who[96];
@@ -474,6 +493,27 @@ void shelf_screen(uint32_t pressed)
     }
 
     /* ------------------------------------------------ input */
+    if (S.dialog)
+    {
+        if (pressed & (BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_UP) | BIT(BTN_DOWN)))
+        {
+            S.dialog_choice ^= 1;
+            sfx_play(SFX_CLICK);
+        }
+        if (pressed & BIT(BTN_CROSS))
+        {
+            S.dialog = false;
+            S.resume = S.dialog_choice == 0;
+            S.launch_t = 0.0001f;
+            sfx_play(SFX_SELECT);
+        }
+        if (pressed & BIT(BTN_CIRCLE))
+        {
+            S.dialog = false;
+            sfx_play(SFX_BACK);
+        }
+        pressed = 0;
+    }
     if (S.launch_t <= 0.0f)
     {
         int before = S.cursor;
@@ -532,8 +572,26 @@ void shelf_screen(uint32_t pressed)
         }
         if ((pressed & BIT(BTN_CROSS)) && game >= 0)
         {
-            S.launch_t = 0.0001f;
+            const Game *g = &app.library.games[game];
             S.details = false;
+            if (app.global.quick_resume && !ra_hardcore() && play_has_resume(g, &S.resume_age))
+            {
+                /* offer to continue */
+                char path[PSXS5_PATH_MAX];
+                static uint8_t rgba[THUMB_W * THUMB_H * 4];
+                play_resume_path(g, path, sizeof(path));
+                plat_texture_free(S.resume_thumb);
+                S.resume_thumb = play_load_thumb(path, rgba)
+                                     ? plat_texture_create(rgba, THUMB_W, THUMB_H, true)
+                                     : NULL;
+                S.dialog = true;
+                S.dialog_choice = 0;
+            }
+            else
+            {
+                S.resume = false;
+                S.launch_t = 0.0001f;
+            }
             sfx_play(SFX_SELECT);
         }
         if (pressed & BIT(BTN_SQUARE))
@@ -559,7 +617,7 @@ void shelf_screen(uint32_t pressed)
         {
             S.launch_t = 0.0f;
             config_save(&app.global, app.paths.config);
-            app_start_game(game);
+            app_start_game(game, S.resume);
         }
     }
     covers_update_view(S.view, S.view_count, S.cursor);
@@ -624,6 +682,52 @@ void shelf_screen(uint32_t pressed)
     snprintf(right, sizeof(right), "%s   \xc2\xb7   %s: %s", tr("L1 / R1  Category"), tr("OPTIONS  Sort"),
              shelf_sort_name(app.global.sort_mode));
     app_draw_hints(glyphs, labels, S.view_count ? 4 : 1, S.view_count ? right : NULL);
+
+    /* the continue dialog */
+    S.dialog_t = fminf(fmaxf(S.dialog_t + (S.dialog ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);
+    if (S.dialog_t > 0.0f && game >= 0)
+    {
+        float t = S.dialog_t, e = 1.0f - (1.0f - t) * (1.0f - t);
+        draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xc0000000u, t));
+        const float w = 1000, h = 420, x = CENTER_X - w * 0.5f, y = 330 + (1.0f - e) * 40;
+        draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xff151a3du, t));
+        text_draw_fit(x + 40, y + 30, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80,
+                      app.library.games[game].title);
+        const char *labels[2] = {tr("Continue"), tr("Start over")};
+        char age[64], ago[48];
+        long a = S.resume_age;
+        if (a < 120)
+            str_copy(ago, sizeof(ago), "");
+        else if (a < 3600)
+            snprintf(ago, sizeof(ago), tr("%ld min ago"), a / 60);
+        else if (a < 86400)
+            snprintf(ago, sizeof(ago), tr("%ld h ago"), a / 3600);
+        else
+            snprintf(ago, sizeof(ago), tr("%ld days ago"), a / 86400);
+        if (ago[0])
+            snprintf(age, sizeof(age), tr("Saved %s"), ago);
+        else
+            str_copy(age, sizeof(age), tr("Saved just now"));
+        for (int i = 0; i < 2; ++i)
+        {
+            float bx = x + 40 + i * (w - 80) * 0.5f, bw = (w - 80) * 0.5f - 12, by = y + 100, bh = 280;
+            bool on = i == S.dialog_choice;
+            draw_rrect(bx, by, bw, bh, TH_RADIUS_SMALL, argb_alpha(on ? TH_ROW_SELECTED : 0xff1c2250u, t));
+            if (on)
+                draw_rrect_outline(bx, by, bw, bh, TH_RADIUS_SMALL, 3, argb_alpha(TH_FOCUS, t));
+            if (i == 0 && S.resume_thumb)
+                plat_draw_texture(S.resume_thumb, bx + (bw - 256) * 0.5f, by + 24, 256, 192,
+                                  argb_alpha(0xffffffffu, t), false);
+            else
+                icon_draw(i == 0 ? ICON_PLAYER_PLAY : ICON_REFRESH, bx + bw * 0.5f - 48, by + 70, 96,
+                          argb_alpha(TH_FOCUS, t));
+            text_draw(bx + bw * 0.5f, by + 226, 28, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_CENTER,
+                      labels[i]);
+            if (i == 0)
+                text_draw(bx + bw * 0.5f, by + bh + 14, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t),
+                          ALIGN_CENTER, age);
+        }
+    }
 
     if (S.launch_t > 0.0f)
         draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, launch));

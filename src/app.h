@@ -16,6 +16,8 @@ enum Screen
     SCREEN_MENU,
     SCREEN_SETTINGS,
     SCREEN_CHEATS,
+    SCREEN_ACHIEVEMENTS,
+    SCREEN_MEMCARDS,
     SCREEN_COUNT
 };
 
@@ -49,7 +51,8 @@ void app_state_path(char *out, size_t size, int slot);
 void app_describe_bios(char *out, size_t size);
 void app_rescan(void);
 void app_restart_covers(void);
-void app_start_game(int index);
+/* resume: continue from the quick-resume save */
+void app_start_game(int index, bool resume);
 void app_stop_game(void);
 /* Path of a game's own settings file. */
 void app_game_config_path(char *out, size_t size, const Game *g);
@@ -62,6 +65,10 @@ void shelf_screen(uint32_t pressed);
 void settings_screen(uint32_t pressed);
 void menu_screen(uint32_t pressed);
 void cheats_screen(uint32_t pressed);
+void achievements_screen(uint32_t pressed);
+void achievements_open(void);
+void memcards_screen(uint32_t pressed);
+void memcards_open(enum Screen back_to);
 void menu_open(void);
 void settings_opened(void);
 void shelf_init(int last_game);

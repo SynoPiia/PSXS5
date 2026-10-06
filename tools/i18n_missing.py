@@ -27,6 +27,10 @@ def main() -> None:
             for s in re.findall(STRING, text):
                 if re.match(r"^[A-Z][a-z]", s) and "/" not in s and "%s:" not in s and "\\" not in s:
                     used.add(s)
+    all_keys = re.findall(r"\{\{" + STRING, i18n)
+    dupes = sorted({k for k in all_keys if all_keys.count(k) > 1})
+    for d in dupes:
+        print("duplicate row:", d)
     missing = sorted(u for u in used if u not in keys and u not in IGNORE)
     for m in missing:
         print(m)

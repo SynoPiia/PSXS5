@@ -44,6 +44,8 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
                       int upscale, int filter);
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim);
 void plat_fill_rect(int x, int y, int w, int h, uint32_t argb);
+/* Where plat_draw_game last put the picture (for borders around it). */
+void plat_game_rect(int *x, int *y, int *w, int *h);
 void plat_end_frame(void);
 
 /* Textures and textured triangle meshes: the UI (covers in perspective,

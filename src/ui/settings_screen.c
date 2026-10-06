@@ -10,6 +10,9 @@
 #include "../platform/platform.h"
 #include "../platform/xbr.h"
 #include "../ra/achievements.h"
+#include "../remote.h"
+#include "../update.h"
+#include "../../third_party/qrcodegen/qrcodegen.h"
 #include "coverflow.h"
 #include "draw.h"
 #include "icons.h"
@@ -56,6 +59,10 @@ enum Special
     SP_REMAP,
     SP_RESCAN,
     SP_SOUND,
+    SP_MEMCARDS,
+    SP_REMOTE,
+    SP_UPDATE,
+    SP_HOTKEYS,
 };
 
 typedef struct
@@ -89,6 +96,9 @@ static const char *const SOUND_STYLES[] = {"Soft", "Wood", "Pop", "Chime", "Clas
 static const char *const VOLUMES[] = {"25%", "50%", "75%", "100%"};
 static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off"};
 static const char *const BACKGROUNDS[] = {"Dark", "Cover colour"};
+static const char *const CRT_LEVELS[] = {"Off", "Light", "Strong"};
+static const char *const BORDERS[] = {"Black", "Soft glow", "TV frame"};
+static const char *const PLAYERS[] = {"1 or 2", "Up to 4 (multitap)"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
 static const Row DISPLAY[] = {
@@ -98,10 +108,16 @@ static const Row DISPLAY[] = {
      SP_NONE, false, INT_FIELD(upscale), UPSCALE, 4, 1},
     {NULL, "Aspect ratio", "The shape of the picture. Pair 16:9 with a widescreen cheat.", K_CHOICE,
      APPLY_NOW, SP_NONE, false, INT_FIELD(aspect), ASPECTS, 6, 0},
+    {NULL, "Widescreen", "Turns on the game's widescreen code from the cheat library and shows 16:9. Games without one stay 4:3.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(widescreen), OFF_ON, 2, 0},
     {"Screen fit", "Integer scaling", "Whole-number scale factors only: even pixels, black borders.",
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(integer_scale), OFF_ON, 2, 0},
     {NULL, "Smooth final scaling", "Softens the last step up to your TV's resolution.", K_TOGGLE,
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(smooth), OFF_ON, 2, 0},
+    {"Look", "CRT scanlines", "Dark lines between the picture's lines, like an old TV.", K_CHOICE, APPLY_NOW,
+     SP_NONE, false, INT_FIELD(crt), CRT_LEVELS, 3, 0},
+    {NULL, "Border", "What surrounds a 4:3 picture: black, a soft glow, or a TV.", K_CHOICE, APPLY_NOW,
+     SP_NONE, false, INT_FIELD(border), BORDERS, 3, 0},
     {"Overlay", "Show FPS", "Frames per second in the corner while you play.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(show_fps), OFF_ON, 2, 0},
 };
@@ -122,7 +138,11 @@ static const Row CONTROLS[] = {
      false, BOOL_FIELD(rumble), OFF_ON, 2, 0},
     {NULL, "Vibration strength", "How strong the rumble feels.", K_CHOICE, APPLY_NOW, SP_NONE, false,
      INT_FIELD(rumble_strength), VOLUMES, 4, 0},
-    {"Buttons", "Button mapping", "Choose what each button of your controller presses.", K_ACTION,
+    {NULL, "Players", "Up to 4 with a multitap, for games that support it: each PS5 controller is a player.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(multitap), PLAYERS, 2, 0},
+    {"Buttons", "Fast forward and rewind", "Hold the touchpad and press R2 to fast forward, or L2 to rewind (turn Rewind on in System).",
+     K_INFO, APPLY_NOW, SP_HOTKEYS, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Button mapping", "Choose what each button of your controller presses.", K_ACTION,
      APPLY_NOW, SP_REMAP, false, NO_FIELD, NULL, 0, 0},
 };
 
@@ -149,7 +169,9 @@ static const Row LIBRARY[] = {
      K_CHOICE, APPLY_NOW, SP_NONE, true, INT_FIELD(background), BACKGROUNDS, 2, 0},
     {NULL, "Sort by", "The order of games on the shelf (OPTIONS on the shelf changes it too).", K_CHOICE,
      APPLY_NOW, SP_NONE, true, INT_FIELD(sort_mode), SORTS, 4, 0},
-    {"Games", "Rescan library", "Looks for games added to /data/PSXS5/games or a USB drive.", K_ACTION,
+    {"Games", "Memory cards", "Every game's memory card: see the saves, export a card, import one.", K_ACTION,
+     APPLY_NOW, SP_MEMCARDS, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Rescan library", "Looks for games added to /data/PSXS5/games or a USB drive.", K_ACTION,
      APPLY_NOW, SP_RESCAN, true, NO_FIELD, NULL, 0, 0},
 };
 
@@ -160,6 +182,12 @@ static const Row SYSTEM[] = {
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},
     {NULL, "Fast CD loading", "Shorter loading screens. Rarely, a game glitches.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(cd_fast), OFF_ON, 2, 0},
+    {"Playing", "Quick resume", "Saves when you leave a game, so the shelf can offer Continue.", K_TOGGLE,
+     APPLY_NOW, SP_NONE, true, BOOL_FIELD(quick_resume), OFF_ON, 2, 0},
+    {NULL, "Rewind", "Keeps the last 8 seconds so you can go back (touchpad + L2). Uses about 200 MB of memory.",
+     K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(rewind), OFF_ON, 2, 0},
+    {"Phone", "Settings from your phone", "Change settings from a phone on the same network: scan the code.",
+     K_TOGGLE, APPLY_NOW, SP_REMOTE, true, BOOL_FIELD(remote), OFF_ON, 2, 0},
     {"Console", "Language", "The language of PSXS5's menus.", K_CHOICE, APPLY_NOW, SP_LANGUAGE, true,
      INT_FIELD(language), NULL, LANG_COUNT, 0},
     {NULL, "Unlock /data with etaHEN", "PSXS5 asks etaHEN for access to your games. Turn off if closing PSXS5 crashes the console.",
@@ -175,6 +203,10 @@ static const Row ABOUT[] = {
      true, NO_FIELD, NULL, 0, 0},
     {NULL, "Data folder", "Saves, states, covers and settings live here.", K_INFO, APPLY_NOW, SP_DATA,
      true, NO_FIELD, NULL, 0, 0},
+    {"Updates", "Check for updates", "Looks for a newer PSXS5 on GitHub and installs it.", K_ACTION, APPLY_NOW,
+     SP_UPDATE, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Check when PSXS5 starts", "Tells you on the shelf when a new version is out.", K_TOGGLE, APPLY_NOW,
+     SP_NONE, true, BOOL_FIELD(update_check), OFF_ON, 2, 0},
 };
 
 typedef struct
@@ -301,6 +333,8 @@ static void write_value(const Row *r, int v)
     }
     if (r->special == SP_LANGUAGE)
         i18n_set(app.global.language);
+    if (r->special == SP_REMOTE)
+        remote_update(app.global.remote);
     if (r->special == SP_SOUND)
         sfx_configure(app.global.ui_sound, (app.global.ui_volume + 1) * 25);
     if (app.game)
@@ -322,6 +356,18 @@ static const char *value_label(const Row *r, char *buf, size_t size)
     case SP_BIOS: app_describe_bios(buf, size); return buf;
     case SP_GAMES: snprintf(buf, size, "%d", app.library.count); return buf;
     case SP_DATA: return app.paths.root;
+    case SP_HOTKEYS: return tr("Touchpad + R2 / L2");
+    case SP_UPDATE:
+        switch (update_state())
+        {
+        case UPDATE_CHECKING: return tr("Checking...");
+        case UPDATE_NONE: return tr("Up to date");
+        case UPDATE_AVAILABLE: snprintf(buf, size, tr("%s available: install"), update_version()); return buf;
+        case UPDATE_INSTALLING: return tr("Installing...");
+        case UPDATE_INSTALLED: return tr("Installed: restart PSXS5");
+        case UPDATE_FAILED: return update_message();
+        default: return PSXS5_VERSION;
+        }
     default: break;
     }
     if (!r->labels || v < 0 || v >= r->count)
@@ -641,6 +687,46 @@ static void draw_project_qr(float x, float y, float size)
     plat_draw_texture(qr, x, y, side, side, 0xffffffffu, false);
 }
 
+/* Any text as a QR code (the phone page's address), made on the console. */
+static void draw_url_qr(const char *text, float x, float y, float size)
+{
+    static char made_for[128];
+    static PlatTexture *tex;
+    static int modules;
+    if (strcmp(made_for, text) != 0)
+    {
+        str_copy(made_for, sizeof(made_for), text);
+        plat_texture_free(tex);
+        tex = NULL;
+        static uint8_t qr[qrcodegen_BUFFER_LEN_MAX], temp[qrcodegen_BUFFER_LEN_MAX];
+        if (qrcodegen_encodeText(text, temp, qr, qrcodegen_Ecc_MEDIUM, qrcodegen_VERSION_MIN,
+                                 qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true))
+        {
+            int n = qrcodegen_getSize(qr), side = n + 4;
+            uint8_t *px = malloc((size_t)side * side * 4);
+            if (px)
+            {
+                for (int j = 0; j < side; ++j)
+                    for (int i = 0; i < side; ++i)
+                    {
+                        bool dark = qrcodegen_getModule(qr, i - 2, j - 2);
+                        uint8_t *p = &px[(j * side + i) * 4];
+                        p[0] = dark ? 15 : 255, p[1] = dark ? 19 : 255, p[2] = dark ? 48 : 255, p[3] = 255;
+                    }
+                tex = plat_texture_create(px, side, side, false);
+                modules = side;
+                free(px);
+            }
+        }
+    }
+    if (!tex)
+        return;
+    int scale = (int)(size / modules);
+    float side = (float)(scale * modules), pad = 14;
+    draw_rrect(x - pad, y - pad, side + 2 * pad, side + 2 * pad, TH_RADIUS_SMALL, 0xffffffffu);
+    plat_draw_texture(tex, x, y, side, side, 0xffffffffu, false);
+}
+
 static void draw_help(const Row *r)
 {
     const float x = 1380, w = 476, top = 170;
@@ -660,7 +746,21 @@ static void draw_help(const Row *r)
     y += draw_wrapped(x + 32, y, w - 64, 24, TH_TEXT_SOFT, tr(r->help)) + 20;
     static const char *const notes[] = {"Applies right away", "From the next game you start",
                                         "After PSXS5 restarts"};
-    if (tab()->rows == ABOUT)
+    if (r->special == SP_REMOTE)
+    {
+        const char *url = remote_address();
+        if (app.global.remote && url[0])
+        {
+            float qs = 264, qx = x + (w - qs) * 0.5f, qy = top + 330;
+            draw_url_qr(url, qx, qy, qs);
+            text_draw(x + w * 0.5f, qy + qs + 30, 22, FONT_BOLD, TH_TEXT, ALIGN_CENTER,
+                      tr("Scan with your phone"));
+            text_draw(x + w * 0.5f, qy + qs + 64, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER, url);
+        }
+        else if (app.global.remote)
+            text_draw(x + 32, top + 360, 22, FONT_REGULAR, TH_DANGER, ALIGN_LEFT, tr("No network connection"));
+    }
+    else if (tab()->rows == ABOUT)
     {
         /* About: the GitHub page, for a phone */
         float qs = 264, qx = x + (w - qs) * 0.5f, qy = top + 430;
@@ -817,6 +917,9 @@ static void draw_rows(void)
         }
         case K_ACTION:
             icon_draw(ICON_CHEVRON_RIGHT, right - 36, ry + 21, 34, TH_TEXT_SOFT);
+            if (r->special == SP_UPDATE)
+                text_draw_fit(right - 50, ry + 24, 22, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, w - 520,
+                              value_label(r, buf, sizeof(buf)));
             break;
         case K_INFO:
             text_draw_fit(right, ry + 24, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, w - 420,
@@ -836,6 +939,17 @@ static void activate(const Row *r)
         S.remap_cursor = 0;
         S.remap_y = 0;
         sfx_play(SFX_SELECT);
+        return;
+    case SP_MEMCARDS:
+        sfx_play(SFX_SELECT);
+        memcards_open(SCREEN_SETTINGS);
+        return;
+    case SP_UPDATE:
+        sfx_play(SFX_SELECT);
+        if (update_state() == UPDATE_AVAILABLE)
+            update_install();
+        else
+            update_check();
         return;
     case SP_RESCAN:
         if (app.game)
@@ -974,4 +1088,107 @@ void settings_screen(uint32_t pressed)
         app_draw_hints(glyphs, labels, 3, "L1 / R1  Tabs");
     }
     app_draw_toast();
+}
+
+/* ---------------------------------------------------------------- the phone page */
+
+static size_t json_text(char *out, size_t size, size_t at, const char *s)
+{
+    if (at + 2 >= size)
+        return at;
+    out[at++] = '"';
+    for (; *s && at + 8 < size; ++s)
+    {
+        unsigned char c = (unsigned char)*s;
+        if (c == '"' || c == '\\')
+        {
+            out[at++] = '\\';
+            out[at++] = (char)c;
+        }
+        else if (c < 0x20)
+            at += (size_t)snprintf(out + at, size - at, "\\u%04x", c);
+        else
+            out[at++] = (char)c;
+    }
+    out[at++] = '"';
+    out[at] = '\0';
+    return at;
+}
+
+#define PUT(...) (at += (size_t)snprintf(out + at, at < size ? size - at : 0, __VA_ARGS__))
+
+/* Every tab and setting the phone page shows, with values, in the menus' language. */
+int settings_json(char *out, size_t size)
+{
+    size_t at = 0;
+    out[0] = '\0';
+    PUT("{\"game\":");
+    at = json_text(out, size, at, app.game ? app.game->title : tr("Applies to every game"));
+    PUT(",\"tabs\":[");
+    for (int t = 0; t < TAB_COUNT && at < size; ++t)
+    {
+        PUT("%s{\"name\":", t ? "," : "");
+        at = json_text(out, size, at, tr(TABS[t].name));
+        PUT(",\"rows\":[");
+        bool first = true;
+        for (int i = 0; i < TABS[t].count && at < size; ++i)
+        {
+            const Row *r = &TABS[t].rows[i];
+            if (r->kind == K_ACTION)
+                continue; /* menus and pages stay on the console */
+            PUT("%s{\"key\":\"%d.%d\",\"name\":", first ? "" : ",", t, i);
+            first = false;
+            at = json_text(out, size, at, tr(r->name));
+            if (r->group)
+            {
+                PUT(",\"group\":");
+                at = json_text(out, size, at, tr(r->group));
+            }
+            PUT(",\"help\":");
+            at = json_text(out, size, at, tr(r->help));
+            if (r->kind == K_INFO)
+            {
+                char buf[PSXS5_PATH_MAX + 64];
+                PUT(",\"kind\":\"info\",\"text\":");
+                at = json_text(out, size, at, value_label(r, buf, sizeof(buf)));
+            }
+            else
+            {
+                PUT(",\"kind\":\"%s\",\"value\":%d,\"labels\":[", r->kind == K_TOGGLE ? "toggle" : "choice",
+                    read_value(r));
+                int count = r->kind == K_TOGGLE ? 2 : r->count;
+                for (int v = 0; v < count && at < size; ++v)
+                {
+                    PUT("%s", v ? "," : "");
+                    at = json_text(out, size, at, r->special == SP_LANGUAGE ? i18n_name(v) : tr(r->labels[v]));
+                }
+                PUT("]");
+            }
+            PUT("}");
+        }
+        PUT("]}");
+    }
+    PUT("]}");
+    return (int)(at < size ? at : size - 1);
+}
+
+/* A change from the phone: "tab.row" and the new value. Returns the setting's
+ * name, or NULL when the key is unknown. */
+const char *settings_set_by_key(const char *key, int value)
+{
+    int t = -1, i = -1;
+    if (sscanf(key, "%d.%d", &t, &i) != 2 || t < 0 || t >= TAB_COUNT || i < 0 || i >= TABS[t].count)
+        return NULL;
+    const Row *r = &TABS[t].rows[i];
+    if (r->kind != K_CHOICE && r->kind != K_TOGGLE)
+        return NULL;
+    int count = r->kind == K_TOGGLE ? 2 : r->count;
+    if (value < 0 || value >= count)
+        return NULL;
+    /* the phone edits what the console's settings would: this game's own when it has them */
+    bool scope = S.game_scope;
+    S.game_scope = app.game && app.game_has_own;
+    write_value(r, value);
+    S.game_scope = scope;
+    return r->name;
 }

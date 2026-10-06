@@ -6,6 +6,8 @@
 #include "../core/host.h"
 #include "../covers.h"
 #include "../i18n.h"
+#include "../net.h"
+#include "../play.h"
 #include "../platform/platform.h"
 #include "../ra/achievements.h"
 #include "coverflow.h"
@@ -14,6 +16,10 @@
 #include "sfx.h"
 #include "text.h"
 #include "theme.h"
+
+#include "stb_image.h"
+
+#include <SDL2/SDL.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -28,11 +34,40 @@ enum Item
     MI_LOAD,
     MI_DISC,
     MI_CHEATS,
+    MI_ACHIEVEMENTS,
     MI_SETTINGS,
     MI_RESET,
     MI_QUIT,
     MI_COUNT
 };
+
+/* slot thumbnails, loaded when the menu opens */
+static PlatTexture *thumbs[10];
+static bool thumbs_loaded[10];
+
+static void forget_thumbs(void)
+{
+    for (int s = 0; s < 10; ++s)
+    {
+        plat_texture_free(thumbs[s]);
+        thumbs[s] = NULL;
+        thumbs_loaded[s] = false;
+    }
+}
+
+static PlatTexture *slot_thumb(int slot)
+{
+    if (!thumbs_loaded[slot])
+    {
+        thumbs_loaded[slot] = true;
+        static uint8_t rgba[THUMB_W * THUMB_H * 4];
+        char path[PSXS5_PATH_MAX];
+        app_state_path(path, sizeof(path), slot);
+        if (play_load_thumb(path, rgba))
+            thumbs[slot] = plat_texture_create(rgba, THUMB_W, THUMB_H, true);
+    }
+    return thumbs[slot];
+}
 
 static struct
 {
@@ -49,12 +84,17 @@ void menu_open(void)
     M.open_t = 0;
     M.sel_y = 0;
     M.disc_choice = host_disc_index();
+    forget_thumbs();
+    play_save_resume(true); /* the menu is a good moment: nothing is moving */
     app.screen = SCREEN_MENU;
     sfx_play(SFX_SELECT);
 }
 
 static bool item_shown(int i)
 {
+    int unlocked, total;
+    if (i == MI_ACHIEVEMENTS)
+        return ra_game_progress(&unlocked, &total);
     return i != MI_DISC || host_disc_count() > 1;
 }
 
@@ -101,15 +141,30 @@ static void draw_slots(float x, float y, float w, bool active)
         slot_age(s, age, sizeof(age));
         bool on = s == slot;
         draw_rrect(cx, y, cw, ch, TH_RADIUS_SMALL, on ? 0xff24305cu : age[0] ? 0xff1a2147u : 0xff141938u);
+        PlatTexture *thumb = age[0] ? slot_thumb(s) : NULL;
+        if (thumb)
+        {
+            /* the picture, with the name and age on a dark strip */
+            plat_draw_texture(thumb, cx + 4, y + 4, cw - 8, ch - 8, 0xffffffffu, false);
+            draw_rect(cx + 4, y + ch - 52, cw - 8, 48, 0xc0000000u);
+        }
         if (on)
             draw_rrect_outline(cx, y, cw, ch, TH_RADIUS_SMALL, 3, active ? TH_FOCUS : 0xff4a5590u);
         char name[32];
         snprintf(name, sizeof(name), tr("Slot %d"), s);
-        text_draw(cx + 16, y + 14, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
-        text_draw_fit(cx + 16, y + ch - 40, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, cw - 24,
-                      age[0] ? age : tr("Empty"));
-        icon_draw(age[0] ? ICON_DEVICE_FLOPPY : ICON_X, cx + cw - 44, y + 12, 28,
-                  age[0] ? TH_FOCUS : 0xff3a4280u);
+        if (thumb)
+        {
+            text_draw(cx + 14, y + ch - 46, 18, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
+            text_draw_fit(cx + 14, y + ch - 24, 16, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_LEFT, cw - 24, age);
+        }
+        else
+        {
+            text_draw(cx + 16, y + 14, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
+            text_draw_fit(cx + 16, y + ch - 40, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, cw - 24,
+                          age[0] ? age : tr("Empty"));
+            icon_draw(age[0] ? ICON_DEVICE_FLOPPY : ICON_X, cx + cw - 44, y + 12, 28,
+                      age[0] ? TH_FOCUS : 0xff3a4280u);
+        }
     }
     plat_set_clip(0, 0, 0, 0);
 }
@@ -160,6 +215,7 @@ void menu_screen(uint32_t pressed)
             make_dirs(app.paths.states);
             if (host_save_state(st))
             {
+                play_save_thumb(st);
                 snprintf(msg, sizeof(msg), tr("Saved to slot %d"), app.settings.state_slot);
                 app.screen = SCREEN_GAME;
             }
@@ -202,6 +258,10 @@ void menu_screen(uint32_t pressed)
             M.cheat_y = 0;
             app.screen = SCREEN_CHEATS;
             sfx_play(SFX_SELECT);
+            return;
+        case MI_ACHIEVEMENTS:
+            sfx_play(SFX_SELECT);
+            achievements_open();
             return;
         case MI_SETTINGS:
             sfx_play(SFX_SELECT);
@@ -268,7 +328,8 @@ void menu_screen(uint32_t pressed)
     } ITEMS[MI_COUNT] = {
         {"Resume", ICON_PLAYER_PLAY},    {"Save state", ICON_DEVICE_FLOPPY},
         {"Load state", ICON_HISTORY},    {"Disc", ICON_DISC},
-        {"Cheats", ICON_CODE},           {"Settings", ICON_ADJUSTMENTS},
+        {"Cheats", ICON_CODE},           {"Achievements", ICON_TROPHY},
+        {"Settings", ICON_ADJUSTMENTS},
         {"Reset", ICON_REFRESH},         {"Quit to shelf", ICON_DOOR_EXIT},
     };
     const float row_h = 72, top = 270, x = px + 32, w = pw - 64;
@@ -313,6 +374,12 @@ void menu_screen(uint32_t pressed)
         }
         else if (i == MI_LOAD && ra_hardcore())
             str_copy(value, sizeof(value), tr("hardcore"));
+        else if (i == MI_ACHIEVEMENTS)
+        {
+            int unlocked, total;
+            if (ra_game_progress(&unlocked, &total))
+                snprintf(value, sizeof(value), "%d / %d", unlocked, total);
+        }
         if (value[0])
             text_draw(x + w - 24, y + 19, 24, FONT_REGULAR, TH_TEXT_DIM, ALIGN_RIGHT, value);
         y += row_h;
@@ -421,5 +488,186 @@ void cheats_screen(uint32_t pressed)
     static const int glyphs[] = {GLYPH_CROSS, GLYPH_SQUARE, GLYPH_CIRCLE};
     static const char *const labels[] = {"Toggle", "All off", "Back"};
     app_draw_hints(glyphs, labels, 3, cl->count ? "L1 / R1  Page" : NULL);
+    app_draw_toast();
+}
+
+/* ---------------------------------------------------------------- achievements */
+
+#define MAX_ACH 400
+
+static struct
+{
+    RaAchievement list[MAX_ACH];
+    int count, cursor;
+    float scroll, sel_y;
+    PlatTexture *badge[MAX_ACH];
+    SDL_atomic_t badge_ready[MAX_ACH]; /* 1 = file on disk, 2 = no picture */
+    SDL_Thread *fetcher;
+    SDL_atomic_t stop;
+} A;
+
+static void badge_path(int i, char *out, size_t size)
+{
+    char file[48];
+    snprintf(file, sizeof(file), "cache/badges/%u_%d.png", A.list[i].id, A.list[i].unlocked ? 1 : 0);
+    path_join(out, size, app.paths.root, file);
+}
+
+/* downloads missing badge pictures, nearest first, off the main thread */
+static int fetch_badges(void *unused)
+{
+    (void)unused;
+    char dir[PSXS5_PATH_MAX];
+    path_join(dir, sizeof(dir), app.paths.root, "cache/badges");
+    make_dirs(dir);
+    for (int i = 0; i < A.count && !SDL_AtomicGet(&A.stop); ++i)
+    {
+        char path[PSXS5_PATH_MAX];
+        badge_path(i, path, sizeof(path));
+        bool ok = path_exists(path) ||
+                  (A.list[i].badge_url[0] && net_download(A.list[i].badge_url, path) == NET_OK);
+        SDL_AtomicSet(&A.badge_ready[i], ok ? 1 : 2);
+    }
+    return 0;
+}
+
+static void stop_fetcher(void)
+{
+    if (A.fetcher)
+    {
+        SDL_AtomicSet(&A.stop, 1);
+        SDL_WaitThread(A.fetcher, NULL);
+        A.fetcher = NULL;
+    }
+    for (int i = 0; i < MAX_ACH; ++i)
+    {
+        plat_texture_free(A.badge[i]);
+        A.badge[i] = NULL;
+        SDL_AtomicSet(&A.badge_ready[i], 0);
+    }
+}
+
+void achievements_open(void)
+{
+    stop_fetcher();
+    A.count = ra_list(A.list, MAX_ACH);
+    A.cursor = 0;
+    A.scroll = 0;
+    A.sel_y = 0;
+    SDL_AtomicSet(&A.stop, 0);
+    A.fetcher = A.count ? SDL_CreateThread(fetch_badges, "badges", NULL) : NULL;
+    app.screen = SCREEN_ACHIEVEMENTS;
+}
+
+void achievements_screen(uint32_t pressed)
+{
+    const int rows = 8;
+    const float row_h = 92, top = 190, x = 260, w = plat_width() - 520.0f;
+    if (A.count)
+    {
+        int before = A.cursor;
+        if (pressed & BIT(BTN_UP))
+            A.cursor = (A.cursor + A.count - 1) % A.count;
+        if (pressed & BIT(BTN_DOWN))
+            A.cursor = (A.cursor + 1) % A.count;
+        if (pressed & BIT(BTN_L1))
+            A.cursor = A.cursor > rows ? A.cursor - rows : 0;
+        if (pressed & BIT(BTN_R1))
+            A.cursor = A.cursor + rows < A.count ? A.cursor + rows : A.count - 1;
+        if (A.cursor != before)
+            sfx_play(SFX_CLICK);
+    }
+    if (pressed & BIT(BTN_CIRCLE))
+    {
+        stop_fetcher();
+        sfx_play(SFX_BACK);
+        app.screen = SCREEN_MENU;
+        return;
+    }
+
+    app_draw_game(40);
+    draw_rect(0, 0, plat_width(), plat_height(), 0x900a0d24u);
+    text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, tr("Achievements"));
+    int unlocked = 0, points = 0, total_points = 0;
+    for (int i = 0; i < A.count; ++i)
+    {
+        unlocked += A.list[i].unlocked;
+        total_points += (int)A.list[i].points;
+        points += A.list[i].unlocked ? (int)A.list[i].points : 0;
+    }
+    char sub[160];
+    snprintf(sub, sizeof(sub), tr("%d of %d unlocked  \xc2\xb7  %d of %d points"), unlocked, A.count, points,
+             total_points);
+    text_draw(TH_MARGIN + 2, 100, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, sub);
+    if (A.count)
+    {
+        float bw = 420, bx = plat_width() - TH_MARGIN - bw;
+        draw_rrect(bx, 62, bw, 10, 5, 0xff1c2250u);
+        draw_rrect(bx, 62, bw * unlocked / A.count, 10, 5, TH_GOLD);
+    }
+
+    float want = A.scroll;
+    if (A.cursor < want)
+        want = (float)A.cursor;
+    if (A.cursor >= want + rows)
+        want = (float)(A.cursor - rows + 1);
+    anim_approach(&A.scroll, want, app.dt, TH_SNAP);
+    draw_rrect(x - 16, top - 16, w + 32, rows * row_h + 24, TH_RADIUS, TH_CARD);
+    plat_set_clip((int)x - 8, (int)top - 8, (int)w + 16, (int)(rows * row_h) + 8);
+    if (A.count)
+    {
+        float target = top + (A.cursor - A.scroll) * row_h;
+        if (A.sel_y == 0)
+            A.sel_y = target;
+        anim_approach(&A.sel_y, target, app.dt, TH_SNAP * 1.5f);
+        draw_rrect(x, A.sel_y, w, row_h - 8, TH_RADIUS_SMALL, TH_ROW_SELECTED);
+        draw_rrect_outline(x, A.sel_y, w, row_h - 8, TH_RADIUS_SMALL, 3, TH_FOCUS);
+    }
+    int first = (int)floorf(A.scroll);
+    for (int i = first; i < A.count && i <= first + rows; ++i)
+    {
+        const RaAchievement *a = &A.list[i];
+        float y = top + (i - A.scroll) * row_h;
+        /* the badge, once downloaded; a trophy or a lock until then */
+        if (!A.badge[i] && SDL_AtomicGet(&A.badge_ready[i]) == 1)
+        {
+            char path[PSXS5_PATH_MAX];
+            badge_path(i, path, sizeof(path));
+            int bw, bh, comp;
+            unsigned char *px = stbi_load(path, &bw, &bh, &comp, 4);
+            if (px)
+            {
+                A.badge[i] = plat_texture_create(px, bw, bh, true);
+                stbi_image_free(px);
+            }
+            else
+                SDL_AtomicSet(&A.badge_ready[i], 2);
+        }
+        if (A.badge[i])
+            plat_draw_texture(A.badge[i], x + 14, y + 10, 64, 64, a->unlocked ? 0xffffffffu : 0xff707070u, false);
+        else
+        {
+            draw_rrect(x + 14, y + 10, 64, 64, 10, a->unlocked ? 0xff2a2410u : 0xff1c2250u);
+            icon_draw(a->unlocked ? ICON_TROPHY : ICON_LOCK, x + 26, y + 22, 40,
+                      a->unlocked ? TH_GOLD : TH_TEXT_DIM);
+        }
+        text_draw_fit(x + 100, y + 12, 26, FONT_BOLD, a->unlocked ? TH_TEXT : TH_TEXT_SOFT, ALIGN_LEFT,
+                      w - 300, a->title);
+        text_draw_fit(x + 100, y + 48, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, w - 300, a->description);
+        char pts[32];
+        snprintf(pts, sizeof(pts), tr("%u points"), a->points);
+        text_draw(x + w - 24, y + 14, 22, FONT_REGULAR, a->unlocked ? TH_GOLD : TH_TEXT_DIM, ALIGN_RIGHT, pts);
+        if (a->unlocked)
+            icon_draw(ICON_CIRCLE_CHECK, x + w - 54, y + 46, 30, TH_GOOD);
+        else if (a->progress[0])
+            text_draw(x + w - 24, y + 48, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, a->progress);
+    }
+    plat_set_clip(0, 0, 0, 0);
+    if (!A.count)
+        text_draw(plat_width() * 0.5f, top + 200, 28, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
+                  tr("No achievements loaded for this game"));
+    static const int glyphs[] = {GLYPH_CIRCLE};
+    static const char *const labels[] = {"Back"};
+    app_draw_hints(glyphs, labels, 1, A.count ? "L1 / R1  Page" : NULL);
     app_draw_toast();
 }

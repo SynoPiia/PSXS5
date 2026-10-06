@@ -24,6 +24,8 @@ void config_defaults(Settings *s)
     s->ui_sound = 0;  /* Soft */
     s->ui_volume = 1; /* 50 % */
     s->rumble = true;
+    s->quick_resume = true;
+    s->update_check = true;
     s->rumble_strength = 3;
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
@@ -97,6 +99,22 @@ static bool config_apply(Settings *s, const char *path)
             s->rumble_strength = atoi(value) % 4;
         else if (strcmp(key, "sort_mode") == 0)
             s->sort_mode = atoi(value) % 8;
+        else if (strcmp(key, "widescreen") == 0)
+            s->widescreen = as_bool(value);
+        else if (strcmp(key, "multitap") == 0)
+            s->multitap = as_bool(value);
+        else if (strcmp(key, "rewind") == 0)
+            s->rewind = as_bool(value);
+        else if (strcmp(key, "quick_resume") == 0)
+            s->quick_resume = as_bool(value);
+        else if (strcmp(key, "crt") == 0)
+            s->crt = atoi(value) % 3;
+        else if (strcmp(key, "border") == 0)
+            s->border = atoi(value) % 3;
+        else if (strcmp(key, "remote") == 0)
+            s->remote = as_bool(value);
+        else if (strcmp(key, "update_check") == 0)
+            s->update_check = as_bool(value);
         else if (strcmp(key, "background") == 0)
             s->background = atoi(value) % 2;
         else if (strcmp(key, "shelf_category") == 0)
@@ -138,6 +156,9 @@ bool config_load_game(Settings *out, const Settings *global, const char *path)
     out->sort_mode = global->sort_mode;
     out->shelf_category = global->shelf_category;
     out->background = global->background;
+    out->remote = global->remote;
+    out->update_check = global->update_check;
+    out->quick_resume = global->quick_resume;
     return true;
 }
 
@@ -160,6 +181,9 @@ bool config_save(const Settings *s, const char *path)
             s->cover_download, s->ui_sound, s->ui_volume, s->integer_scale, s->internal_res, s->upscale,
             s->upscale_filter, s->stick_dpad, s->language, s->rumble, s->rumble_strength,
             s->sort_mode, s->shelf_category, s->background);
+    fprintf(f, "widescreen=%d\nmultitap=%d\nrewind=%d\nquick_resume=%d\ncrt=%d\nborder=%d\nremote=%d\nupdate_check=%d\n",
+            s->widescreen, s->multitap, s->rewind, s->quick_resume, s->crt, s->border, s->remote,
+            s->update_check);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

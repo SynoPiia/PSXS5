@@ -19,6 +19,8 @@ typedef struct
     int dst_x, dst_y, dst_w, dst_h;
     bool smooth;         /* bilinear, else nearest */
     uint8_t dim;         /* 255 = full brightness */
+    uint8_t scanlines;   /* CRT look: how dark the gaps between lines get (0 = off) */
+    int lines;           /* the game's own line count, for the scanlines */
 } BlitJob;
 
 void blit_init(void);
