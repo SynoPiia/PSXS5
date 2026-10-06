@@ -50,6 +50,9 @@ jobs:
       - name: Build
         run: make
 
+      - name: Check system module imports
+        run: python3 tools/check-imports.py dist/PPSA05001/eboot.bin
+
       - name: Upload the app folder
         uses: actions/upload-artifact@v4
         with:
