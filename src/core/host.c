@@ -375,11 +375,10 @@ bool host_read_sector(uint32_t lba, uint8_t out[2048])
     if (!loaded)
         return false;
     unsigned abs = lba + 150; /* sector 0 is at 00:02:00 */
-    unsigned char time[3];
-    unsigned m = abs / 75 / 60, s = abs / 75 % 60, f = abs % 75;
-    time[0] = (unsigned char)(m / 10 * 16 + m % 10); /* BCD */
-    time[1] = (unsigned char)(s / 10 * 16 + s % 10);
-    time[2] = (unsigned char)(f / 10 * 16 + f % 10);
+    /* minute, second, frame as plain numbers: the core's cdra_readTrack takes
+     * them through msf2sec, not as the BCD the PS1's CD commands use */
+    unsigned char time[3] = {(unsigned char)(abs / 75 / 60), (unsigned char)(abs / 75 % 60),
+                             (unsigned char)(abs % 75)};
     if (cdra_readTrack(time) != 0)
         return false;
     const uint8_t *buf = cdra_getBuffer();

@@ -266,6 +266,11 @@ static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
     }
 }
 
+static void RC_CCONV hash_error(const char *message)
+{
+    psxs5_log("ra: disc hash: %s", message);
+}
+
 static void RC_CCONV log_message(const char *message, const rc_client_t *c)
 {
     (void)c;
@@ -354,6 +359,7 @@ void ra_init(const Paths *p)
     static rc_hash_cdreader_t reader = {cd_open_track, cd_read_sector, cd_close_track,
                                         cd_first_track_sector, NULL};
     rc_hash_init_custom_cdreader(&reader);
+    rc_hash_init_error_message_callback(hash_error);
 
     worker = SDL_CreateThread(worker_main, "retroachievements", NULL);
     rc_client_begin_login_with_token(client, user, token, on_login, NULL);
