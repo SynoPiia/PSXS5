@@ -34,4 +34,24 @@ int __cpu_indicator_init(void)
 {
     return 0;
 }
+
+/* PacBrew's SDL2 supports USB keyboards and the on-screen keyboard through
+ * libSceKeyboard and libSceImeDialog. Importing those modules stops the title
+ * from launching at all ("Can't start the game or app"), and PSXS5 needs
+ * neither. Defining the functions here keeps the linker from importing them;
+ * each reports failure, so SDL simply runs without a keyboard. */
+#define SCE_UNAVAILABLE ((int)0x80020016) /* generic "not supported" */
+
+int sceKeyboardInit(void) { return SCE_UNAVAILABLE; }
+int sceKeyboardOpen(int user, int type, int index, void *param)
+{
+    (void)user; (void)type; (void)index; (void)param;
+    return SCE_UNAVAILABLE;
+}
+int sceKeyboardClose(int handle) { (void)handle; return SCE_UNAVAILABLE; }
+int sceKeyboardReadState(int handle, void *data) { (void)handle; (void)data; return SCE_UNAVAILABLE; }
+int sceImeDialogInit(const void *param, void *extended) { (void)param; (void)extended; return SCE_UNAVAILABLE; }
+int sceImeDialogGetStatus(void) { return 0; /* SCE_IME_DIALOG_STATUS_NONE */ }
+int sceImeDialogGetResult(void *result) { (void)result; return SCE_UNAVAILABLE; }
+int sceImeDialogTerm(void) { return SCE_UNAVAILABLE; }
 #endif
