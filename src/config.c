@@ -189,6 +189,8 @@ static bool config_apply(Settings *s, const char *path)
             s->touch_mouse = as_bool(value);
         else if (strcmp(key, "run_ahead") == 0)
             s->run_ahead = atoi(value) % 3;
+        else if (strcmp(key, "fast_effects") == 0)
+            s->fast_effects = as_bool(value);
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -282,7 +284,7 @@ bool config_save(const Settings *s, const char *path)
             s->msaa, s->texture_filter, s->filter_2d, s->supersampling, s->deinterlace, s->pal60, s->game_fixes);
     fprintf(f, "fmv_smooth=%d\ntrue_colour=%d\nboot_intro=%d\nsharpen=%d\ndisc_animation=%d\nnegcon=%d\n",
             s->fmv_smooth, s->true_colour, s->boot_intro, s->sharpen, s->disc_animation, s->negcon);
-    fprintf(f, "touch_mouse=%d\nrun_ahead=%d\n", s->touch_mouse, s->run_ahead);
+    fprintf(f, "touch_mouse=%d\nrun_ahead=%d\nfast_effects=%d\n", s->touch_mouse, s->run_ahead, s->fast_effects);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

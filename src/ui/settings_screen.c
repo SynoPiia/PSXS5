@@ -170,6 +170,8 @@ static const Row GRAPHICS[] = {
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(dithering), OFF_ON, 2, 0},
     {NULL, "True colour", "Beetle PSX HW: draws in 32-bit colour, without the dot pattern or colour banding. Pairs well with a high internal resolution.",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(true_colour), OFF_ON, 2, 0},
+    {NULL, "Faster screen effects", "Beetle PSX HW: effects that read the screen back (Final Fantasy VII's battle swirl, motion blur) are done on the GPU, without a stutter. A few games' effects may then look wrong: turn it off for those.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(fast_effects), OFF_ON, 2, 0},
     {NULL, "Smooth video colours", "Beetle PSX HW: smooths the blocky colour edges of the PS1's video cutscenes (FMV).",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(fmv_smooth), OFF_ON, 2, 0},
     {"Smoothing", "Anti-aliasing", "Beetle PSX HW: smooths the jagged edges of polygons (MSAA). Higher costs more GPU time, and a few games show seams or glitches with it: turn it off for those.",

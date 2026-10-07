@@ -224,6 +224,9 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_depth", s->true_colour ? "32bpp" : "16bpp(native)");
     set_option("beetle_psx_hw_dither_mode", s->dithering && !s->true_colour ? "1x(native)" : "disabled");
     set_option("beetle_psx_hw_mdec_yuv", s->fmv_smooth ? "enabled" : "disabled");
+    /* the software renderer's copy, kept for screen read-backs (FF7's battle swirl):
+     * exact, but a stall when they happen; off, the GPU does those effects */
+    set_option("beetle_psx_hw_renderer_software_fb", s->fast_effects ? "disabled" : "enabled");
     set_option("beetle_psx_hw_negcon_response", "linear");
     set_option("beetle_psx_hw_negcon_deadzone", "0%");
     /* read as it plays: "precache" loads every disc of a game into memory,
