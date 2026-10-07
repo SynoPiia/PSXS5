@@ -528,8 +528,18 @@ static void update_lightbars(void)
 
 static float auto_since, auto_shown; /* auto-save: time since the last, and its icon */
 
+/* Buttons still held from the menu when the game comes back (the Cross that
+ * chose Resume): the game doesn't see them until they're let go. */
+static uint32_t held_from_menu;
+
 static void game_screen(PadState *pads)
 {
+    uint32_t held_now = 0;
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        held_now |= pads[i].buttons;
+    held_from_menu &= held_now;
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        pads[i].buttons &= ~held_from_menu;
     static uint32_t combo_prev;
     uint32_t combo = pads[0].buttons & (BIT(BTN_L3) | BIT(BTN_R3));
     bool combo_hit = combo == (BIT(BTN_L3) | BIT(BTN_R3)) && combo_prev != combo;
@@ -887,10 +897,17 @@ int main(void)
                                                    "memory cards", "library stats", "manual",
                                                    "cheat search", "guide", "profile"};
         ps5_crash_step(screen_names[app.screen]);
+        static enum Screen last_screen = SCREEN_LIBRARY;
+        enum Screen this_screen = app.screen;
         switch (app.screen)
         {
         case SCREEN_LIBRARY: shelf_screen(pressed); break;
-        case SCREEN_GAME: game_screen(pads); break;
+        case SCREEN_GAME:
+            if (last_screen != SCREEN_GAME)
+                for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+                    held_from_menu |= pads[i].buttons;
+            game_screen(pads);
+            break;
         case SCREEN_MENU: menu_screen(pressed); break;
         case SCREEN_SETTINGS: settings_screen(pressed); break;
         case SCREEN_CHEATS: cheats_screen(pressed); break;
@@ -903,6 +920,7 @@ int main(void)
         case SCREEN_PROFILE: profile_screen(pressed); break;
         default: break;
         }
+        last_screen = this_screen;
         count_play_time();
         remote_frame();
         /* a game's cheat file arrived from libretro-database */

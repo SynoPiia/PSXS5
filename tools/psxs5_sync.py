@@ -33,6 +33,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -409,6 +410,7 @@ def upload_tree(local: Path, remote: str, host: str, port: int, force: bool = Fa
     total = sum(p.stat().st_size for p in files)
     done = 0
     made: set[str] = set()
+    started = time.monotonic()
     for p in files:
         rel = p.relative_to(local).as_posix()
         dst = f"{remote}/{rel}"
@@ -420,13 +422,34 @@ def upload_tree(local: Path, remote: str, host: str, port: int, force: bool = Fa
         if not force and ftp_size(ftp, dst) == size:
             done += size
             continue
-        print(f"  [{done * 100 // max(total, 1):3d}%] {rel} ({size >> 20} MB)", flush=True)
+        # the line updates as the file goes: overall %, this file's MB, speed
+        sent = 0
+        file_start = time.monotonic()
+        last_shown = 0.0
+
+        def show(final: bool = False) -> None:
+            elapsed = max(time.monotonic() - file_start, 0.001)
+            speed = sent / elapsed / (1 << 20)
+            line = (f"  [{(done + sent) * 100 // max(total, 1):3d}%] {rel}  "
+                    f"{sent >> 20}/{size >> 20} MB  {speed:.1f} MB/s")
+            print("\r" + line.ljust(100), end="\n" if final else "", flush=True)
+
+        def block(data: bytes) -> None:
+            nonlocal sent, last_shown
+            sent += len(data)
+            now = time.monotonic()
+            if now - last_shown >= 0.25:
+                last_shown = now
+                show()
+
         with p.open("rb") as fh:
-            ftp.storbinary(f"STOR {dst}", fh, blocksize=1 << 20)
+            ftp.storbinary(f"STOR {dst}", fh, blocksize=1 << 20, callback=block)
+        show(final=True)
         ftp_chmod(ftp, dst)
         done += size
     ftp.quit()
-    print(f"  [100%] {len(files)} files in {remote}")
+    elapsed = max(time.monotonic() - started, 0.001)
+    print(f"  [100%] {len(files)} files in {remote}  ({done / elapsed / (1 << 20):.1f} MB/s on average)")
 
 
 # --------------------------------------------------------------------- cheats
