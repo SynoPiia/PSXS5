@@ -939,7 +939,7 @@ static void draw_rows(void)
         switch (r->kind)
         {
         case K_CHOICE:
-            draw_choice(right, ry + 15, 46, 24, sel ? (theme.light ? TH_BG : 0xff3a4590u) : TH_PILL, TH_TEXT_SOFT,
+            draw_choice(right, ry + 15, 46, 24, sel ? (theme.light ? TH_BG : TH_SWITCH_OFF) : TH_PILL, TH_TEXT_SOFT,
                         value_label(r, buf, sizeof(buf)));
             break;
         case K_TOGGLE:
@@ -1064,7 +1064,7 @@ void settings_screen(uint32_t pressed)
     else
         shelf_backdrop();
     if (app.game)
-        draw_rect(0, 0, plat_width(), plat_height(), 0x900a0d24u);
+        draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     draw_header();
     draw_tabs();
 

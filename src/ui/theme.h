@@ -76,6 +76,9 @@ int theme_current(void);
 /* the card or pill colour with another alpha (0..255) */
 #define TH_CARD_A(a) (((uint32_t)(a) << 24) | (theme.card & 0xffffffu))
 #define TH_PILL_A(a) (((uint32_t)(a) << 24) | (theme.pill & 0xffffffu))
+#define TH_BG_A(a) (((uint32_t)(a) << 24) | (theme.bg & 0xffffffu))
+/* what dims the game behind the in-game screens: dark, or light for light themes */
+#define TH_SCRIM (theme.light ? TH_BG_A(0xd8) : (0x90000000u | (theme.bg_deep & 0xffffffu)))
 
 /* sizes, in 1920x1080 screen pixels */
 #define TH_RADIUS 16.0f

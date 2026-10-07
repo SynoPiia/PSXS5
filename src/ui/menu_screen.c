@@ -330,7 +330,7 @@ void menu_screen(uint32_t pressed)
 
     const float pw = 620;
     float px = -pw * (1.0f - ease);
-    draw_rect(px, 0, pw, plat_height(), 0xf00f1330u);
+    draw_rect(px, 0, pw, plat_height(), TH_BG_A(0xf0));
     draw_rect(px + pw, 0, 3, plat_height(), argb_alpha(TH_DIVIDER, ease));
 
     /* the game: cover, title, serial, achievements */
@@ -486,7 +486,7 @@ void cheats_screen(uint32_t pressed)
     }
 
     app_draw_game(40);
-    draw_rect(0, 0, plat_width(), plat_height(), 0x900a0d24u);
+    draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, tr("Cheats"));
     const char *src = strrchr(cl->source, '/');
     if (cl->count)
@@ -667,7 +667,7 @@ void achievements_screen(uint32_t pressed)
     }
 
     app_draw_game(40);
-    draw_rect(0, 0, plat_width(), plat_height(), 0x900a0d24u);
+    draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, tr("Achievements"));
     int unlocked = 0, points = 0, total_points = 0;
     for (int i = 0; i < A.count; ++i)

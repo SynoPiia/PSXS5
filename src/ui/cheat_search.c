@@ -233,7 +233,7 @@ void cheat_search_screen(uint32_t pressed)
     }
 
     app_draw_game(40);
-    draw_rect(0, 0, plat_width(), plat_height(), 0xa00a0d24u);
+    draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     text_draw(TH_MARGIN, 40, 44, FONT_BOLD, TH_TEXT, ALIGN_LEFT, tr("Find a code"));
     char sub[160];
     if (!K.running)

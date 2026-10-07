@@ -83,7 +83,7 @@ void app_draw_toast(void)
     float rise = shown < 0.15f ? (1.0f - shown / 0.15f) * 24.0f : 0.0f;
     float w = text_width(26, FONT_REGULAR, toast) + 96, h = 64;
     float x = (plat_width() - w) * 0.5f, y = plat_height() - 190 + rise;
-    draw_rrect(x, y, w, h, h * 0.5f, argb_alpha(0xf01c2250u, a));
+    draw_rrect(x, y, w, h, h * 0.5f, argb_alpha(TH_PILL_A(0xf0), a));
     icon_draw(ICON_INFO_CIRCLE, x + 22, y + 18, 28, argb_alpha(TH_FOCUS, a));
     text_draw(x + 62, y + 17, 26, FONT_REGULAR, argb_alpha(TH_TEXT, a), ALIGN_LEFT, toast);
 }
@@ -485,7 +485,7 @@ static void draw_timer(void)
     else
         snprintf(text, sizeof(text), "%02d:%02d.%02d", cs / 6000, cs / 100 % 60, cs % 100);
     float w = text_width(34, FONT_BOLD, "00:00:00.00") + 48;
-    draw_rrect(40, 40, w, 64, TH_RADIUS_SMALL, 0xd0101428u);
+    draw_rrect(40, 40, w, 64, TH_RADIUS_SMALL, TH_CARD_A(0xd0));
     text_draw(40 + w * 0.5f, 50, 34, FONT_BOLD, timer.running ? TH_TEXT : TH_GOLD, ALIGN_CENTER, text);
 }
 

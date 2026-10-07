@@ -1,0 +1,21 @@
+wait 60
+press cross
+wait 30
+press right
+wait 15
+press cross
+wait 50
+hold menu 40
+wait 40
+shot g4a-menu
+press down
+press down
+press down
+press down
+press down
+press down
+wait 10
+press cross
+wait 30
+shot g4b-settings
+quit

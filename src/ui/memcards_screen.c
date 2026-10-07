@@ -296,7 +296,7 @@ void memcards_screen(uint32_t pressed)
     if (app.game)
     {
         app_draw_game(40);
-        draw_rect(0, 0, plat_width(), plat_height(), 0x900a0d24u);
+        draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     }
     else
         shelf_backdrop();
