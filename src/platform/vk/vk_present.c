@@ -61,11 +61,11 @@ VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instan
     X(vkCreateDescriptorSetLayout) X(vkDestroyDescriptorSetLayout) X(vkCreateDescriptorPool)     \
     X(vkDestroyDescriptorPool) X(vkAllocateDescriptorSets) X(vkUpdateDescriptorSets)             \
     X(vkCreateSampler) X(vkDestroySampler) X(vkCreateCommandPool) X(vkDestroyCommandPool)        \
-    X(vkAllocateCommandBuffers) X(vkBeginCommandBuffer) X(vkEndCommandBuffer)                    \
+    X(vkAllocateCommandBuffers) X(vkFreeCommandBuffers) X(vkBeginCommandBuffer) X(vkEndCommandBuffer)                    \
     X(vkResetCommandBuffer) X(vkCmdPipelineBarrier) X(vkCmdCopyBufferToImage)                    \
     X(vkCmdBeginRenderPass) X(vkCmdEndRenderPass) X(vkCmdBindPipeline)                           \
     X(vkCmdBindDescriptorSets) X(vkCmdPushConstants) X(vkCmdDraw) X(vkCmdSetViewport)            \
-    X(vkCmdSetScissor) X(vkCreateFence) X(vkDestroyFence) X(vkWaitForFences) X(vkResetFences)    \
+    X(vkCmdSetScissor) X(vkCmdBlitImage) X(vkCmdCopyImageToBuffer) X(vkQueueWaitIdle) X(vkCreateFence) X(vkDestroyFence) X(vkWaitForFences) X(vkResetFences)    \
     X(vkCreateSemaphore) X(vkDestroySemaphore)
 
 #define DECLARE(name) static PFN_##name name;
@@ -116,6 +116,7 @@ static struct
     /* the game picture of a core rendering through Vulkan */
     VkDescriptorSet game_sets[FRAMES];
     VkImageView game_view;
+    VkImage game_image; /* for thumbnails: blitted down and read back */
     VkImageLayout game_layout;
     bool game_shown; /* plat asked for the picture this frame */
     float game_rect[4];
@@ -858,6 +859,7 @@ static void destroy_device_objects(void)
     V.image_count = 0;
     V.canvas_ready = false;
     V.game_view = VK_NULL_HANDLE;
+    V.game_image = VK_NULL_HANDLE;
     V.frame = 0;
 }
 
@@ -908,8 +910,9 @@ bool vkp_adopt_device(VkDevice device, VkQueue queue, uint32_t family, char *err
     return ok;
 }
 
-void vkp_set_game_image(VkImageView view, VkImageLayout layout)
+void vkp_set_game_image(VkImage image, VkImageView view, VkImageLayout layout)
 {
+    V.game_image = image;
     V.game_view = view;
     V.game_layout = layout;
 }
@@ -933,6 +936,102 @@ void vkp_wait_sync_index(void)
 bool vkp_game_image_ready(void)
 {
     return V.game_view != VK_NULL_HANDLE;
+}
+
+/* The game picture scaled to w x h RGBA, for save-state thumbnails and the
+ * quick-resume picture: a linear blit into a small image, copied into a
+ * mapped buffer. Rare, so it simply waits for the GPU. */
+bool vkp_capture_game(uint8_t *rgba, int w, int h, int src_w, int src_h)
+{
+    if (!V.device || !V.game_image || w <= 0 || h <= 0 || src_w <= 0 || src_h <= 0)
+        return false;
+    VkImage small = VK_NULL_HANDLE;
+    VkDeviceMemory small_mem = VK_NULL_HANDLE, buf_mem = VK_NULL_HANDLE;
+    VkBuffer buf = VK_NULL_HANDLE;
+    VkCommandBuffer cb = VK_NULL_HANDLE;
+    bool ok = false;
+    VkImageCreateInfo ii = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    ii.imageType = VK_IMAGE_TYPE_2D;
+    ii.format = VK_FORMAT_R8G8B8A8_UNORM;
+    ii.extent = (VkExtent3D){(uint32_t)w, (uint32_t)h, 1};
+    ii.mipLevels = ii.arrayLayers = 1;
+    ii.samples = VK_SAMPLE_COUNT_1_BIT;
+    ii.tiling = VK_IMAGE_TILING_OPTIMAL;
+    ii.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    VkMemoryRequirements req;
+    VkBufferCreateInfo bi = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bi.size = (VkDeviceSize)w * h * 4;
+    bi.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    VkCommandBufferAllocateInfo ca = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    ca.commandPool = V.commands;
+    ca.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    ca.commandBufferCount = 1;
+    if (vkCreateImage(V.device, &ii, NULL, &small) != VK_SUCCESS)
+        goto done;
+    vkGetImageMemoryRequirements(V.device, small, &req);
+    if (!allocate(req, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &small_mem) ||
+        vkBindImageMemory(V.device, small, small_mem, 0) != VK_SUCCESS)
+        goto done;
+    if (vkCreateBuffer(V.device, &bi, NULL, &buf) != VK_SUCCESS)
+        goto done;
+    vkGetBufferMemoryRequirements(V.device, buf, &req);
+    if (!allocate(req, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &buf_mem) ||
+        vkBindBufferMemory(V.device, buf, buf_mem, 0) != VK_SUCCESS)
+        goto done;
+    if (vkAllocateCommandBuffers(V.device, &ca, &cb) != VK_SUCCESS)
+        goto done;
+    vkDeviceWaitIdle(V.device);
+    VkCommandBufferBeginInfo begin = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cb, &begin);
+    barrier(cb, V.game_image, V.game_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_MEMORY_WRITE_BIT,
+            VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    barrier(cb, small, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+    VkImageBlit blit = {0};
+    blit.srcSubresource.aspectMask = blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blit.srcSubresource.layerCount = blit.dstSubresource.layerCount = 1;
+    blit.srcOffsets[1] = (VkOffset3D){src_w, src_h, 1};
+    blit.dstOffsets[1] = (VkOffset3D){w, h, 1};
+    vkCmdBlitImage(cb, V.game_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, small,
+                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
+    barrier(cb, V.game_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, V.game_layout, VK_ACCESS_TRANSFER_READ_BIT,
+            VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    barrier(cb, small, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT);
+    VkBufferImageCopy copy = {0};
+    copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copy.imageSubresource.layerCount = 1;
+    copy.imageExtent = ii.extent;
+    vkCmdCopyImageToBuffer(cb, small, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buf, 1, &copy);
+    vkEndCommandBuffer(cb);
+    VkSubmitInfo submit = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &cb;
+    if (vkQueueSubmit(V.queue, 1, &submit, VK_NULL_HANDLE) == VK_SUCCESS && vkQueueWaitIdle(V.queue) == VK_SUCCESS)
+    {
+        void *map = NULL;
+        if (vkMapMemory(V.device, buf_mem, 0, VK_WHOLE_SIZE, 0, &map) == VK_SUCCESS)
+        {
+            memcpy(rgba, map, (size_t)w * h * 4);
+            for (size_t i = 0; i < (size_t)w * h; ++i)
+                rgba[i * 4 + 3] = 255; /* the PS1 mask bit isn't transparency */
+            ok = true;
+        }
+    }
+done:
+    if (cb)
+        vkFreeCommandBuffers(V.device, V.commands, 1, &cb);
+    if (buf)
+        vkDestroyBuffer(V.device, buf, NULL);
+    if (buf_mem)
+        vkFreeMemory(V.device, buf_mem, NULL);
+    if (small)
+        vkDestroyImage(V.device, small, NULL);
+    if (small_mem)
+        vkFreeMemory(V.device, small_mem, NULL);
+    return ok;
 }
 
 void vkp_show_game(float x, float y, float w, float h)

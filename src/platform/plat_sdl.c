@@ -986,8 +986,25 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
          * darkens the picture for the menus (premultiplied black) */
         SDL_Rect hole = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - dim));
-        SDL_RenderFillRect(renderer, &hole);
+        if (scan && lines > 0)
+        {
+            /* CRT scanlines: each row's darkness as blit.c computes it */
+            for (int y = 0; y < dh; ++y)
+            {
+                int64_t pos = ((int64_t)y * 2 + 1) * lines * 128 / dh;
+                int phase = (int)(pos & 255) - 128;
+                uint32_t edge = (uint32_t)(phase * phase) >> 6;
+                uint32_t keep = (uint32_t)dim * (256 - ((edge * scan) >> 8)) >> 8;
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - (keep > 255 ? 255 : keep)));
+                SDL_Rect row = {hole.x, hole.y + y, hole.w, 1};
+                SDL_RenderFillRect(renderer, &row);
+            }
+        }
+        else
+        {
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - dim));
+            SDL_RenderFillRect(renderer, &hole);
+        }
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
         vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h);
         return;

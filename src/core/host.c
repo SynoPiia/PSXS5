@@ -247,7 +247,7 @@ static void hw_set_image(void *handle, const struct retro_vulkan_image *image, u
                          const VkSemaphore *semaphores, uint32_t src_queue_family)
 {
     (void)handle, (void)num_semaphores, (void)semaphores, (void)src_queue_family;
-    vkp_set_game_image(image ? image->image_view : VK_NULL_HANDLE,
+    vkp_set_game_image(image ? image->create_info.image : VK_NULL_HANDLE, image ? image->image_view : VK_NULL_HANDLE,
                        image ? image->image_layout : VK_IMAGE_LAYOUT_UNDEFINED);
 }
 static uint32_t hw_get_sync_index(void *handle)
@@ -339,7 +339,7 @@ static void hw_restart(void)
     if (hw.context_destroy)
         hw.context_destroy();
     hw_running = false;
-    vkp_set_game_image(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+    vkp_set_game_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
     char error[200];
     if (!hw_start(error, sizeof(error)))
         psxs5_log("host: could not rebuild Beetle's renderer: %s", error);
@@ -355,7 +355,7 @@ static void hw_stop(void)
     hw_running = false;
     hw_requested = false;
     negotiation = NULL;
-    vkp_set_game_image(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+    vkp_set_game_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
 }
 #endif
 
@@ -1002,6 +1002,10 @@ bool host_unserialize(const void *buffer, size_t size)
 
 bool host_capture(uint8_t *rgba, int w, int h)
 {
+#if defined(PSXS5_VULKAN)
+    if (loaded && hw_running && !frame_data && frame_w && frame_h) /* rendered on the GPU */
+        return vkp_capture_game(rgba, w, h, (int)frame_w, (int)frame_h);
+#endif
     if (!loaded || !frame_data || frame_w == 0 || frame_h == 0)
         return false;
     for (int y = 0; y < h; ++y)
