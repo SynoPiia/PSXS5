@@ -1036,7 +1036,8 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             SDL_RenderFillRect(renderer, &hole);
         }
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop);
+        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop, settings->shader, game_src_w,
+                                      game_src_h, lines);
         return;
     }
     if (game_image)

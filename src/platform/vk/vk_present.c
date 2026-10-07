@@ -94,6 +94,7 @@ static struct
     VkRenderPass pass;
     VkPipelineLayout layout;
     VkPipeline opaque, blended;
+    VkPipeline shaded[2]; /* the game through sharp.frag, crt.frag */
     VkDescriptorSetLayout set_layout;
     VkDescriptorPool pool;
     VkSampler sampler;
@@ -121,6 +122,8 @@ static struct
     bool game_shown; /* plat asked for the picture this frame */
     float game_rect[4];
     float game_crop; /* share of the picture's height hidden at top and bottom */
+    int game_shader;  /* 0 none, 1 sharp bilinear, 2 CRT */
+    float game_tex[2], game_lines;
 } V;
 
 const char *vkp_describe(void)
@@ -465,7 +468,7 @@ static bool create_pipeline(char *error, size_t size)
     dsl.bindingCount = 1;
     dsl.pBindings = &binding;
     CHECK(vkCreateDescriptorSetLayout(V.device, &dsl, NULL, &V.set_layout), "set layout");
-    VkPushConstantRange push = {VK_SHADER_STAGE_VERTEX_BIT, 0, 32};
+    VkPushConstantRange push = {VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 48};
     VkPipelineLayoutCreateInfo pl = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &V.set_layout;
@@ -524,6 +527,22 @@ static bool create_pipeline(char *error, size_t size)
     gp.layout = V.layout;
     gp.renderPass = V.pass;
     VkResult r = vkCreateGraphicsPipelines(V.device, VK_NULL_HANDLE, 1, &gp, NULL, &V.opaque);
+    /* the game's shaders: the same opaque pipeline with another fragment stage */
+    const uint32_t *shader_code[2] = {SPV_SHARP_FRAG, SPV_CRT_FRAG};
+    const size_t shader_size[2] = {sizeof(SPV_SHARP_FRAG), sizeof(SPV_CRT_FRAG)};
+    for (int k = 0; k < 2 && r == VK_SUCCESS; ++k)
+    {
+        VkShaderModule fm;
+        sm.codeSize = shader_size[k];
+        sm.pCode = shader_code[k];
+        r = vkCreateShaderModule(V.device, &sm, NULL, &fm);
+        if (r != VK_SUCCESS)
+            break;
+        stages[1].module = fm;
+        r = vkCreateGraphicsPipelines(V.device, VK_NULL_HANDLE, 1, &gp, NULL, &V.shaded[k]);
+        vkDestroyShaderModule(V.device, fm, NULL);
+    }
+    stages[1].module = frag;
     /* the interface over the game: its alpha is already multiplied in by
      * SDL's blending onto a transparent canvas */
     blend.blendEnable = VK_TRUE;
@@ -664,13 +683,13 @@ bool vkp_open(int canvas_w, int canvas_h, char *error, size_t size)
 
 /* A rectangle in screen pixels -> clip space for the quad shader. */
 static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
-                      float v1)
+                      float v1, const float info[4])
 {
-    float k[8] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
-                  (x + w) / V.extent.width * 2.0f - 1.0f, (y + h) / V.extent.height * 2.0f - 1.0f,
-                  0.0f, v0, 1.0f, v1};
+    float k[12] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
+                   (x + w) / V.extent.width * 2.0f - 1.0f, (y + h) / V.extent.height * 2.0f - 1.0f,
+                   0.0f, v0, 1.0f, v1, info[0], info[1], info[2], info[3]};
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.layout, 0, 1, &set, 0, NULL);
-    vkCmdPushConstants(cb, V.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(k), k);
+    vkCmdPushConstants(cb, V.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(k), k);
     vkCmdDraw(cb, 6, 1, 0, 0);
 }
 
@@ -758,14 +777,22 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
         /* the game picture, then the interface over it: the canvas is
          * transparent (premultiplied) where the game shows */
         float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
-        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
+        int sh = V.game_shader;
+        VkPipeline pipe = sh >= 1 && sh <= 2 && V.shaded[sh - 1] ? V.shaded[sh - 1] : V.opaque;
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
+        /* sharp: screen pixels per texel; crt: the PS1's line count */
+        float shown = 1.0f - 2.0f * V.game_crop;
+        float info[4] = {V.game_tex[0], V.game_tex[1],
+                         sh == 2 ? V.game_lines * shown : V.game_rect[2] * kx / (V.game_tex[0] > 0 ? V.game_tex[0] : 1),
+                         V.game_rect[3] * ky / (V.game_tex[1] * shown > 0 ? V.game_tex[1] * shown : 1)};
         draw_quad(cb, V.game_sets[f], V.game_rect[0] * kx, V.game_rect[1] * ky, V.game_rect[2] * kx,
-                  V.game_rect[3] * ky, V.game_crop, 1.0f - V.game_crop);
+                  V.game_rect[3] * ky, V.game_crop, 1.0f - V.game_crop, info);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.blended);
     }
     else
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
-    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height, 0.0f, 1.0f);
+    static const float none[4] = {0, 0, 0, 0};
+    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height, 0.0f, 1.0f, none);
     vkCmdEndRenderPass(cb);
     vkEndCommandBuffer(cb);
 
@@ -827,6 +854,10 @@ static void destroy_device_objects(void)
         vkDestroyPipeline(V.device, V.opaque, NULL);
     if (V.blended)
         vkDestroyPipeline(V.device, V.blended, NULL);
+    for (int k = 0; k < 2; ++k)
+        if (V.shaded[k])
+            vkDestroyPipeline(V.device, V.shaded[k], NULL);
+    V.shaded[0] = V.shaded[1] = VK_NULL_HANDLE;
     if (V.layout)
         vkDestroyPipelineLayout(V.device, V.layout, NULL);
     if (V.set_layout)
@@ -1036,10 +1067,14 @@ done:
     return ok;
 }
 
-void vkp_show_game(float x, float y, float w, float h, float crop)
+void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines)
 {
     V.game_shown = true;
     V.game_crop = crop;
+    V.game_shader = shader;
+    V.game_tex[0] = (float)tex_w;
+    V.game_tex[1] = (float)tex_h;
+    V.game_lines = (float)lines;
     V.game_rect[0] = x;
     V.game_rect[1] = y;
     V.game_rect[2] = w;
@@ -1069,9 +1104,9 @@ bool vkp_game_image_ready(void)
 {
     return false;
 }
-void vkp_show_game(float x, float y, float w, float h, float crop)
+void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines)
 {
-    (void)x, (void)y, (void)w, (void)h, (void)crop;
+    (void)x, (void)y, (void)w, (void)h, (void)crop, (void)shader, (void)tex_w, (void)tex_h, (void)lines;
 }
 
 #endif

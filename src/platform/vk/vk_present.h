@@ -22,6 +22,7 @@ const char *vkp_describe(void);
 bool vkp_game_image_ready(void);
 /* Draw that picture in this rectangle of the canvas, under it, this frame. */
 /* crop: share of the picture's height hidden at the top and at the bottom */
-void vkp_show_game(float x, float y, float w, float h, float crop);
+/* shader: 0 none, 1 sharp bilinear, 2 CRT; tex_*: the picture's size; lines: the PS1's */
+void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines);
 
 #endif
