@@ -1,0 +1,16 @@
+wait 60
+press square
+wait 40
+shot s1-display
+press r1
+press r1
+wait 30
+shot s2-controls
+press r1
+press r1
+press r1
+press r1
+press r1
+wait 30
+shot s3-about
+quit

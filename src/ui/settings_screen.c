@@ -333,7 +333,7 @@ static struct
     int order[PSXS5_MAX_PADS], assigned; /* controllers chosen so far, in player order */
     uint32_t pad_prev[PSXS5_MAX_PADS];
     int remap_cursor;
-    float tab_y, sel_y, scroll, scope_x, remap_y;
+    float tab_x, tab_w, sel_y, scroll, scope_x, remap_y;
     float switch_t[16];
 } S;
 
@@ -344,7 +344,7 @@ void settings_opened(void)
     S.players = false;
     S.who = false;
     S.game_scope = app.game != NULL && app.game_has_own;
-    S.tab_y = 0;
+    S.tab_x = 0;
     S.sel_y = -1;
     S.scroll = 0;
 }
@@ -1021,8 +1021,8 @@ static void draw_url_qr(const char *text, float x, float y, float size)
 
 static void draw_help(const Row *r)
 {
-    const float x = 1380, w = 476, top = 170;
-    draw_rrect(x, top, w, 780, TH_RADIUS, TH_CARD);
+    const float w = 476, x = plat_width() - TH_MARGIN - w, top = 236;
+    draw_rrect(x, top, w, 724, TH_RADIUS, TH_CARD);
     if (!r && tab()->rows == ABOUT)
         r = &ABOUT[0]; /* nothing to select on About: describe PSXS5 */
     if (!r)
@@ -1043,7 +1043,7 @@ static void draw_help(const Row *r)
         const char *url = remote_address();
         if (app.global.remote && url[0])
         {
-            float qs = 264, qx = x + (w - qs) * 0.5f, qy = top + 330;
+            float qs = 240, qx = x + (w - qs) * 0.5f, qy = top + 300;
             draw_url_qr(url, qx, qy, qs);
             text_draw(x + w * 0.5f, qy + qs + 30, 22, FONT_BOLD, TH_TEXT, ALIGN_CENTER,
                       tr("Scan with your phone"));
@@ -1055,7 +1055,7 @@ static void draw_help(const Row *r)
     else if (tab()->rows == ABOUT)
     {
         /* About: the GitHub page, for a phone */
-        float qs = 264, qx = x + (w - qs) * 0.5f, qy = top + 430;
+        float qs = 240, qx = x + (w - qs) * 0.5f, qy = top + 330;
         draw_project_qr(qx, qy, qs);
         text_draw(x + w * 0.5f, qy + qs + 30, 22, FONT_BOLD, TH_TEXT, ALIGN_CENTER,
                   tr("Scan for the GitHub page"));
@@ -1064,8 +1064,8 @@ static void draw_help(const Row *r)
     }
     if (r->kind != K_INFO && r->kind != K_ACTION)
     {
-        icon_draw(r->apply == APPLY_NOW ? ICON_CHECK : ICON_CLOCK, x + 32, top + 720, 28, TH_FOCUS);
-        text_draw(x + 72, top + 722, 22, FONT_REGULAR, TH_FOCUS, ALIGN_LEFT, tr(notes[r->apply]));
+        icon_draw(r->apply == APPLY_NOW ? ICON_CHECK : ICON_CLOCK, x + 32, top + 664, 28, TH_FOCUS);
+        text_draw(x + 72, top + 666, 22, FONT_REGULAR, TH_FOCUS, ALIGN_LEFT, tr(notes[r->apply]));
     }
     if (r->global_only && S.game_scope && app.game)
     {
@@ -1107,27 +1107,59 @@ static void draw_header(void)
     draw_pad_glyph(GLYPH_R2, gx + pad_glyph_width(GLYPH_R2, 26) * 0.5f, y + 23, 26);
 }
 
+/* The tabs in a row across the top, L1 / R1 at its ends: the highlight
+ * slides left and right as the shoulder buttons go. */
 static void draw_tabs(void)
 {
-    const float x = TH_MARGIN, w = 300, top = 170, h = 66;
-    float target = top + S.tab * (h + 6);
-    if (S.tab_y == 0)
-        S.tab_y = target;
-    anim_approach(&S.tab_y, target, app.dt, TH_SNAP);
-    draw_rrect(x, S.tab_y, w, h, TH_RADIUS_SMALL, TH_ROW_SELECTED);
+    const float y = 146, h = 58, icon = 28, size = 22, gap = 6;
+    float widths[TAB_COUNT], total = 0;
     for (int i = 0; i < TAB_COUNT; ++i)
     {
-        float y = top + i * (h + 6);
+        widths[i] = 28 + icon + 12 + text_width(size, i == S.tab ? FONT_BOLD : FONT_REGULAR, tr(TABS[i].name)) + 28;
+        total += widths[i] + (i ? gap : 0);
+    }
+    float glyph = pad_glyph_width(GLYPH_L1, 28) + 24;
+    float avail = plat_width() - 2 * TH_MARGIN - 2 * glyph;
+    float squeeze = total > avail ? avail / total : 1.0f; /* long languages */
+    /* the room left spread between the tabs, so they fill the bar */
+    float spread = total < avail ? gap + (avail - total) / (TAB_COUNT - 1) : gap;
+    float x = TH_MARGIN + glyph, target_x = x, target_w = 0;
+    for (int i = 0; i < TAB_COUNT; ++i)
+    {
+        if (i == S.tab)
+        {
+            target_x = x;
+            target_w = widths[i] * squeeze;
+        }
+        x += widths[i] * squeeze + spread * squeeze;
+    }
+    if (S.tab_x == 0)
+    {
+        S.tab_x = target_x;
+        S.tab_w = target_w;
+    }
+    anim_approach(&S.tab_x, target_x, app.dt, TH_SNAP);
+    anim_approach(&S.tab_w, target_w, app.dt, TH_SNAP);
+    draw_rrect(TH_MARGIN, y - 6, plat_width() - 2 * TH_MARGIN, h + 12, (h + 12) * 0.5f, TH_PILL_A(0x90));
+    draw_rrect(S.tab_x, y, S.tab_w, h, h * 0.5f, TH_ROW_SELECTED);
+    draw_pad_glyph(GLYPH_L1, TH_MARGIN + glyph * 0.5f + 4, y + h * 0.5f, 28);
+    draw_pad_glyph(GLYPH_R1, plat_width() - TH_MARGIN - glyph * 0.5f - 4, y + h * 0.5f, 28);
+    x = TH_MARGIN + glyph;
+    for (int i = 0; i < TAB_COUNT; ++i)
+    {
         bool on = i == S.tab;
-        icon_draw(TABS[i].icon, x + 20, y + 17, 32, on ? TH_TEXT : TH_HINT);
-        text_draw(x + 70, y + 18, 26, on ? FONT_BOLD : FONT_REGULAR, on ? TH_TEXT : TH_HINT, ALIGN_LEFT,
-                  tr(TABS[i].name));
+        float w = widths[i] * squeeze;
+        icon_draw(TABS[i].icon, x + 28 * squeeze, y + (h - icon) * 0.5f, icon, on ? TH_TEXT : TH_HINT);
+        text_draw_fit(x + (28 + icon + 12) * squeeze, y + (h - size) * 0.5f - 2, size, on ? FONT_BOLD : FONT_REGULAR,
+                      on ? TH_TEXT : TH_HINT, ALIGN_LEFT, w - (28 + icon + 12) * squeeze - 12, tr(TABS[i].name));
+        x += widths[i] * squeeze + spread * squeeze;
     }
 }
 
 static void draw_rows(void)
 {
-    const float x = 410, w = 940, top = 170, bottom = 960, row_h = 78, cap_h = 50;
+    const float x = TH_MARGIN, w = plat_width() - 2 * TH_MARGIN - 476 - 32, top = 236, bottom = 960, row_h = 78,
+                cap_h = 50;
     const Tab *t = tab();
     /* layout pass: row positions in content space */
     float ys[32], y = 0, sel_top = 0;
@@ -1341,7 +1373,8 @@ void settings_screen(uint32_t pressed)
     if (app.game)
         draw_rect(0, 0, plat_width(), plat_height(), TH_SCRIM);
     draw_header();
-    draw_tabs();
+    if (!S.remap && !S.players && !S.who) /* those pages use the whole screen */
+        draw_tabs();
 
     if (S.remap)
     {

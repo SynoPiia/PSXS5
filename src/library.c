@@ -325,8 +325,80 @@ static void scan_root(Library *lib, const char *root)
         if (image_rank(entries[i]) == 3)
             root_has_sheet = true;
 
+    /* Multi-disc games lying loose here ("FF VII (Disc 1).cue", "(Disc 2).cue"...)
+     * are one game, as in their own folder: the discs a playlist (.m3u) here
+     * already lists are skipped, the others get one written, and the shelf
+     * shows the game once, from disc 1. */
+    static bool skip[1024];
+    memset(skip, 0, sizeof(skip));
+    for (int i = 0; i < n; ++i)
+        if (image_rank(entries[i]) == 6)
+        {
+            char m3u[PSXS5_PATH_MAX], line[300];
+            path_join(m3u, sizeof(m3u), root, entries[i]);
+            FILE *f = fopen(m3u, "r");
+            while (f && fgets(line, sizeof(line), f))
+            {
+                line[strcspn(line, "\r\n")] = '\0';
+                for (int k = 0; k < n; ++k)
+                    if (line[0] && !str_icmp(entries[k], line))
+                        skip[k] = true;
+            }
+            if (f)
+                fclose(f);
+        }
     for (int i = 0; i < n; ++i)
     {
+        int rank = image_rank(entries[i]);
+        if (skip[i] || rank < 2 || rank == 6 ||
+            !(contains_icase(entries[i], "(disc") || contains_icase(entries[i], "(cd")))
+            continue;
+        char title[160], other[160];
+        clean_title(entries[i], title, sizeof(title));
+        static NameBuf discs[MAX_DIR_FILES];
+        int count = 0, members[MAX_DIR_FILES];
+        for (int k = i; k < n && count < MAX_DIR_FILES; ++k)
+        {
+            if (skip[k] || image_rank(entries[k]) != rank ||
+                !(contains_icase(entries[k], "(disc") || contains_icase(entries[k], "(cd")))
+                continue;
+            clean_title(entries[k], other, sizeof(other));
+            if (str_icmp(title, other) != 0)
+                continue;
+            members[count] = k;
+            str_copy(discs[count++], sizeof(NameBuf), entries[k]);
+        }
+        if (count < 2)
+            continue;
+        for (int k = 0; k < count; ++k)
+            skip[members[k]] = true;
+        Game *g = add_game(lib);
+        if (!g)
+            return;
+        str_copy(g->title, sizeof(g->title), title);
+        extract_serial(discs[0], g->serial, sizeof(g->serial));
+        str_copy(g->folder, sizeof(g->folder), root);
+        char m3u_name[200], m3u[PSXS5_PATH_MAX];
+        snprintf(m3u_name, sizeof(m3u_name), "%.190s.m3u", title);
+        path_join(m3u, sizeof(m3u), root, m3u_name);
+        char first[PSXS5_PATH_MAX];
+        path_join(first, sizeof(first), root, discs[0]);
+        if (write_m3u(m3u, discs, count))
+        {
+            str_copy(g->path, sizeof(g->path), m3u);
+            psxs5_log("library: wrote %s (%d discs)", m3u, count);
+        }
+        else
+            str_copy(g->path, sizeof(g->path), first);
+        g->discs = count;
+        set_disc_name(g, discs[0]);
+        finish_game(g);
+    }
+
+    for (int i = 0; i < n; ++i)
+    {
+        if (skip[i])
+            continue;
         char full[PSXS5_PATH_MAX];
         path_join(full, sizeof(full), root, entries[i]);
         if (path_is_dir(full))
@@ -346,6 +418,18 @@ static void scan_root(Library *lib, const char *root)
         str_copy(g->folder, sizeof(g->folder), root);
         set_disc_name(g, entries[i]);
         g->discs = 1;
+        if (rank == 6)
+        {
+            /* a playlist: one disc per line */
+            FILE *f = fopen(full, "r");
+            char line[300];
+            int lines = 0;
+            while (f && fgets(line, sizeof(line), f))
+                lines += line[0] && line[0] != '\n' && line[0] != '\r' && line[0] != '#';
+            if (f)
+                fclose(f);
+            g->discs = lines > 0 ? lines : 1;
+        }
         finish_game(g);
     }
 }
