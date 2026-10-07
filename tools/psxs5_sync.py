@@ -163,6 +163,7 @@ def scan_folder(folder: Path) -> Source:
 
 def discover(source: Path) -> list[Source]:
     games: list[Source] = []
+    loose: dict[str, Source] = {}  # discs lying in the source folder itself, by game
     for entry in sorted(source.iterdir(), key=lambda p: p.name.lower()):
         if entry.is_dir():
             g = scan_folder(entry)
@@ -171,9 +172,17 @@ def discover(source: Path) -> list[Source]:
         elif entry.suffix.lower() in ARCHIVE_EXTS:
             title = game_title(entry.name)
             games.append(Source(title, normalize(title), "archive", entry, archives=[entry]))
+        elif entry.suffix.lower() == ".m3u":
+            continue  # PSXS5 writes the playlist itself (one made by VLC may hold this PC's paths)
         elif entry.suffix.lower() in LOADABLE:
+            # "FF IX (USA) (Disc 1).chd", "(Disc 2).chd"...: one game with every disc
             title = game_title(entry.name)
-            games.append(Source(title, normalize(title), "folder", entry.parent, loadables=[entry]))
+            key = normalize(title)
+            if key in loose:
+                loose[key].loadables.append(entry)
+            else:
+                loose[key] = Source(title, key, "folder", entry.parent, loadables=[entry])
+                games.append(loose[key])
 
     # Folders win over loose archives of the same game.
     seen: dict[str, Source] = {}
@@ -272,7 +281,10 @@ def write_m3u(out_dir: Path, title: str) -> None:
     discs = sorted((p for p in out_dir.iterdir() if p.suffix.lower() in {".cue", ".chd", ".pbp"}
                     and disc_number(p.name) > 0), key=lambda p: disc_number(p.name))
     if len(discs) > 1:
-        (out_dir / f"{title}.m3u").write_text("\n".join(p.name for p in discs) + "\n")
+        m3u = out_dir / f"{title}.m3u"
+        if m3u.exists():
+            m3u.unlink()  # it may be a hard link to the user's own file: never write through it
+        m3u.write_text("\n".join(p.name for p in discs) + "\n")
 
 
 def write_serial(out_dir: Path) -> str | None:
