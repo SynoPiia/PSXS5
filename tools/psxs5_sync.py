@@ -584,7 +584,7 @@ def fetch_cheats(dest: Path) -> Path:
 
 # --------------------------------------------------------------------- RetroAchievements
 
-def ra_login(host: str, port: int, user: str | None, hardcore: bool) -> None:
+def ra_login(host: str, port: int, user: str | None, hardcore: bool, profile: str | None = None) -> None:
     """Exchanges the password for a login token once, on this PC. Only the
     token goes to the PS5; the password is never written anywhere."""
     import getpass
@@ -609,10 +609,16 @@ def ra_login(host: str, port: int, user: str | None, hardcore: bool) -> None:
             "# RetroAchievements sign-in (token only, never the password)\n"
             f"user={reply.get('User') or user}\ntoken={reply['Token']}\nhardcore={int(hardcore)}\n",
             encoding="utf-8", newline="\n")
-        upload_tree(tmp, REMOTE_ROOT, host, port, force=True)
+        # a profile's sign-in goes in its folder (the same name rule as PSXS5's)
+        remote = REMOTE_ROOT
+        if profile:
+            folder = "".join(c if c.isalnum() or c in " -_" else "_" for c in profile)
+            remote = f"{REMOTE_ROOT}/profiles/{folder}"
+        upload_tree(tmp, remote, host, port, force=True)
     finally:
         shutil.rmtree(tmp)
-    print(f"Signed in as {reply.get('User') or user}. Restart PSXS5 to use it.")
+    who = f" for the profile {profile}" if profile else ""
+    print(f"Signed in as {reply.get('User') or user}{who}. Restart PSXS5 (or switch profiles) to use it.")
 
 
 # Beetle PSX HW looks for one file name per region (scph5500/5501/5502.bin);
@@ -722,6 +728,7 @@ def main() -> None:
                     help="index: point .cue sheets at the folder's .bin when the name they give is missing")
     ap.add_argument("--user", help="ra-login: RetroAchievements user name")
     ap.add_argument("--hardcore", action="store_true", help="ra-login: start in hardcore mode")
+    ap.add_argument("--profile", help="ra-login: sign in a PSXS5 profile (its name, as on the console)")
     ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA97510",
                     help="app: the built title folder to install")
     ap.add_argument("--all", action="store_true", help="covers: the whole database, not just your games")
@@ -788,7 +795,7 @@ def main() -> None:
     if not args.host:
         sys.exit("--host is required (your PS5's IP address)")
     if args.command == "ra-login":
-        ra_login(args.host, args.port, args.user, args.hardcore)
+        ra_login(args.host, args.port, args.user, args.hardcore, args.profile)
         return
     if args.command == "app":
         if not (args.app_dir / "eboot.bin").exists():

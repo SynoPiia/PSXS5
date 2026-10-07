@@ -14,6 +14,7 @@
 #include "../config.h"
 #include "../covers.h"
 #include "../play.h"
+#include "../profiles.h"
 #include "../i18n.h"
 #include "../platform/platform.h"
 #include "../ra/achievements.h"
@@ -487,6 +488,15 @@ static void draw_header(void)
         icon_draw(ICON_DOWNLOAD, rx - uw + 14, 52, 30, TH_GOLD);
         text_draw(rx - uw + 50, 56, 20, FONT_BOLD, TH_GOLD, ALIGN_LEFT, up);
         rx -= uw + 24;
+    }
+    if (profiles_count() > 1)
+    {
+        const char *name = profiles_name(profiles_current());
+        float pw = text_width(22, FONT_BOLD, name) + 66;
+        draw_rrect(rx - pw, 44, pw, 46, 23, TH_PILL);
+        icon_draw(ICON_USER, rx - pw + 14, 52, 28, TH_FOCUS);
+        text_draw(rx - pw + 50, 56, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
+        rx -= pw + 24;
     }
     if (ra_user()[0])
     {

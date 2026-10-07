@@ -4,6 +4,8 @@
 
 enum Icon
 {
+    ICON_PLUS = 0xeb0b,
+    ICON_FILE_TEXT = 0xeaa2,
     ICON_DEVICE_TV = 0xea8d,
     ICON_SPARKLES = 0xf6d7,
     ICON_DEVICE_GAMEPAD_2 = 0xf1d2,
@@ -58,8 +60,10 @@ enum Icon
     ICON_PLAYER_TRACK_NEXT = 0xed4b,
 };
 
-#define ICON_COUNT 52
+#define ICON_COUNT 54
 static const int ICON_CODEPOINTS[ICON_COUNT] = {
+    0xeb0b,
+    0xeaa2,
     0xea8d,
     0xf6d7,
     0xf1d2,

@@ -287,7 +287,7 @@ void guide_screen(uint32_t pressed)
             bool on = i == G.list_cursor;
             if (on)
                 draw_rrect(x, y, w, row_h - 8, TH_RADIUS_SMALL, TH_ROW_SELECTED);
-            icon_draw(ICON_BOOKS, x + 20, y + 13, 30, TH_FOCUS);
+            icon_draw(ICON_FILE_TEXT, x + 20, y + 13, 30, TH_FOCUS);
             text_draw_fit(x + 70, y + 15, 24, on ? FONT_BOLD : FONT_REGULAR, on ? TH_TEXT : TH_TEXT_SOFT, ALIGN_LEFT,
                           w - 100, base_name(G.paths[i]));
         }

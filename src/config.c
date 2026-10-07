@@ -263,4 +263,13 @@ void config_paths(Paths *p, const char *root)
     path_join(p->covers, sizeof(p->covers), root, "covers");
     path_join(p->logs, sizeof(p->logs), root, "logs");
     path_join(p->config, sizeof(p->config), root, "psxs5.ini");
+    str_copy(p->user, sizeof(p->user), root);
+}
+
+void config_user_paths(Paths *p, const char *dir)
+{
+    str_copy(p->user, sizeof(p->user), dir);
+    path_join(p->saves, sizeof(p->saves), dir, "saves");
+    path_join(p->states, sizeof(p->states), dir, "states");
+    path_join(p->config, sizeof(p->config), dir, "psxs5.ini");
 }

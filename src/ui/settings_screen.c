@@ -7,6 +7,7 @@
 #include "../config.h"
 #include "../core/host.h"
 #include "../i18n.h"
+#include "../profiles.h"
 #include "../platform/platform.h"
 #include "../platform/xbr.h"
 #include "../ra/achievements.h"
@@ -68,6 +69,7 @@ enum Special
     SP_THEME,
     SP_PLAYERS,
     SP_PROFILE,
+    SP_WHO,
 };
 
 typedef struct
@@ -252,6 +254,8 @@ static const Row SYSTEM[] = {
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(rewind), OFF_ON, 2, 0},
     {NULL, "Auto-save", "Saves the game by itself every few minutes into three auto-save slots (the oldest is replaced). Load one from the PSXS5 menu > Auto-saves.",
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(autosave), AUTOSAVES, 4, 0},
+    {"People", "Who's playing", "Profiles: each person keeps their own memory cards, save states, settings, play time, favourites and RetroAchievements sign-in. Games and covers are shared.",
+     K_ACTION, APPLY_NOW, SP_WHO, true, NO_FIELD, NULL, 0, 0},
     {"Phone", "Settings from your phone", "Change settings from a phone on the same network: scan the code.",
      K_TOGGLE, APPLY_NOW, SP_REMOTE, true, BOOL_FIELD(remote), OFF_ON, 2, 0},
     {"Console", "Language", "The language of PSXS5's menus.", K_CHOICE, APPLY_NOW, SP_LANGUAGE, true,
@@ -306,6 +310,9 @@ static struct
     bool game_scope; /* editing this game's own settings */
     bool remap;      /* the button-mapping page */
     bool players;    /* the player-order page */
+    bool who;        /* the profiles page */
+    int who_cursor;
+    float who_y;
     int order[PSXS5_MAX_PADS], assigned; /* controllers chosen so far, in player order */
     uint32_t pad_prev[PSXS5_MAX_PADS];
     int remap_cursor;
@@ -318,6 +325,7 @@ void settings_opened(void)
     S.cursor = -1;
     S.remap = false;
     S.players = false;
+    S.who = false;
     S.game_scope = app.game != NULL && app.game_has_own;
     S.tab_y = 0;
     S.sel_y = -1;
@@ -735,6 +743,113 @@ static void players_page(uint32_t pressed)
     app_draw_hints(glyphs, labels, 3, NULL);
 }
 
+/* ---------------------------------------------------------------- the profiles page */
+
+/* The profiles, then a new one for each signed-in PS5 user who hasn't got
+ * one, then a numbered player. */
+static int who_rows(char adds[][PROFILE_NAME_LEN], int *add_count)
+{
+    *add_count = 0;
+    for (int k = 0; k < PSXS5_MAX_PADS && *add_count < 5; ++k)
+    {
+        const char *name = app.pads[k].connected ? plat_pad_name(k) : NULL;
+        if (!name || !name[0] || profiles_find(name) >= 0)
+            continue;
+        bool dup = false;
+        for (int i = 0; i < *add_count; ++i)
+            dup |= !strcmp(adds[i], name);
+        if (!dup)
+            str_copy(adds[(*add_count)++], PROFILE_NAME_LEN, name);
+    }
+    for (int n = 2; n < 20 && *add_count < 6; ++n)
+    {
+        char name[PROFILE_NAME_LEN];
+        snprintf(name, sizeof(name), tr("Player %d"), n);
+        if (profiles_find(name) < 0)
+        {
+            str_copy(adds[(*add_count)++], PROFILE_NAME_LEN, name);
+            break;
+        }
+    }
+    return profiles_count() + *add_count;
+}
+
+static void who_page(uint32_t pressed)
+{
+    char adds[6][PROFILE_NAME_LEN];
+    int add_count, rows = who_rows(adds, &add_count), have = profiles_count();
+    int before = S.who_cursor;
+    if (pressed & BIT(BTN_UP))
+        S.who_cursor = (S.who_cursor + rows - 1) % rows;
+    if (pressed & BIT(BTN_DOWN))
+        S.who_cursor = (S.who_cursor + 1) % rows;
+    if (S.who_cursor >= rows)
+        S.who_cursor = rows - 1;
+    if (S.who_cursor != before)
+        sfx_play(SFX_CLICK);
+    if (pressed & BIT(BTN_CIRCLE))
+    {
+        S.who = false;
+        sfx_play(SFX_BACK);
+        return;
+    }
+    if (pressed & BIT(BTN_CROSS))
+    {
+        if (app.game)
+            app_toast("Quit the game first");
+        else
+        {
+            int target = S.who_cursor < have ? S.who_cursor : profiles_add(adds[S.who_cursor - have]);
+            if (target >= 0 && profiles_switch(target))
+            {
+                char msg[96];
+                snprintf(msg, sizeof(msg), tr("Playing as %s"), profiles_name(target));
+                app_toast(msg);
+                sfx_play(SFX_SELECT);
+                S.who = false;
+                return;
+            }
+        }
+    }
+    if ((pressed & BIT(BTN_SQUARE)) && S.who_cursor > 0 && S.who_cursor < have)
+    {
+        if (profiles_remove(S.who_cursor))
+        {
+            app_toast("Profile taken off the list (its files are kept)");
+            S.who_cursor = 0;
+        }
+        else
+            app_toast("Switch to another profile first");
+    }
+
+    const float w = 900, x = (plat_width() - w) * 0.5f, top = 230, row_h = 76;
+    text_draw(plat_width() * 0.5f, 150, 30, FONT_BOLD, TH_TEXT, ALIGN_CENTER, tr("Who's playing"));
+    draw_rrect(x - 16, top - 16, w + 32, rows * row_h + 24, TH_RADIUS, TH_CARD);
+    float target_y = top + S.who_cursor * row_h;
+    if (S.who_y == 0)
+        S.who_y = target_y;
+    anim_approach(&S.who_y, target_y, app.dt, TH_SNAP);
+    draw_rrect(x, S.who_y, w, row_h - 8, TH_RADIUS_SMALL, TH_ROW_SELECTED);
+    for (int i = 0; i < rows; ++i)
+    {
+        float y = top + i * row_h;
+        bool add = i >= have, here = i == profiles_current();
+        icon_draw(add ? ICON_PLUS : ICON_USER, x + 24, y + 18, 32, add ? TH_TEXT_DIM : TH_FOCUS);
+        char label[PROFILE_NAME_LEN + 32];
+        if (add)
+            snprintf(label, sizeof(label), tr("New profile: %s"), adds[i - have]);
+        else
+            str_copy(label, sizeof(label), profiles_name(i));
+        text_draw_fit(x + 76, y + 19, 26, here ? FONT_BOLD : FONT_REGULAR, add ? TH_TEXT_SOFT : TH_TEXT, ALIGN_LEFT,
+                      w - 300, label);
+        if (here)
+            text_draw(x + w - 24, y + 22, 22, FONT_REGULAR, TH_GOOD, ALIGN_RIGHT, tr("Playing now"));
+    }
+    static const int glyphs[] = {GLYPH_CROSS, GLYPH_SQUARE, GLYPH_CIRCLE};
+    static const char *const labels[] = {"Switch", "Remove", "Back"};
+    app_draw_hints(glyphs, labels, 3, NULL);
+}
+
 /* ---------------------------------------------------------------- help panel */
 
 /* Wrapped text; returns the height used. */
@@ -1104,6 +1219,12 @@ static void activate(const Row *r)
         sfx_play(SFX_SELECT);
         memcards_open(SCREEN_SETTINGS);
         return;
+    case SP_WHO:
+        S.who = true;
+        S.who_cursor = profiles_current();
+        S.who_y = 0;
+        sfx_play(SFX_SELECT);
+        return;
     case SP_PROFILE:
         sfx_play(SFX_SELECT);
         profile_open(SCREEN_SETTINGS);
@@ -1214,6 +1335,12 @@ void settings_screen(uint32_t pressed)
     if (S.players)
     {
         players_page(pressed);
+        app_draw_toast();
+        return;
+    }
+    if (S.who)
+    {
+        who_page(pressed);
         app_draw_toast();
         return;
     }

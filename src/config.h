@@ -15,4 +15,7 @@ bool config_load_game(Settings *out, const Settings *global, const char *path);
 bool config_save(const Settings *s, const char *path);
 void config_paths(Paths *p, const char *root);
 
+/* A profile's own folders (saves, states, psxs5.ini) under dir. */
+void config_user_paths(Paths *p, const char *dir);
+
 #endif

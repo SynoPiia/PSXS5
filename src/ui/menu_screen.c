@@ -418,7 +418,7 @@ void menu_screen(uint32_t pressed)
         {"Load state", ICON_HISTORY},    {"Auto-saves", ICON_HISTORY},
         {"Disc", ICON_DISC},
         {"Cheats", ICON_CODE},           {"Achievements", ICON_TROPHY},
-        {"Manual", ICON_BOOKS},          {"Guide", ICON_BOOKS},
+        {"Manual", ICON_BOOKS},          {"Guide", ICON_FILE_TEXT},
         {"Settings", ICON_ADJUSTMENTS},
         {"Reset", ICON_REFRESH},         {"Quit to shelf", ICON_DOOR_EXIT},
     };

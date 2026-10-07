@@ -22,7 +22,7 @@ BASE = f"https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@{VERSION}/dist"
 CACHE = ROOT / "build" / "tabler"
 
 ICONS = """
-device-tv sparkles device-gamepad-2 volume trophy books cpu info-circle player-play
+plus file-text device-tv sparkles device-gamepad-2 volume trophy books cpu info-circle player-play
 device-floppy history code adjustments refresh door-exit chevron-right chevron-left
 chevron-up chevron-down star heart clock world disc photo language settings arrows-sort
 user wifi wifi-off download check x lock alert-triangle category list-details

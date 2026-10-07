@@ -278,7 +278,7 @@ static uint32_t RC_CCONV cd_first_track_sector(void *handle)
 static void log_unlock(const rc_client_achievement_t *a)
 {
     char path[PSXS5_PATH_MAX];
-    path_join(path, sizeof(path), paths.root, "achievements-log.txt");
+    path_join(path, sizeof(path), paths.user, "achievements-log.txt");
     FILE *f = fopen(path, "a");
     if (!f)
         return;
@@ -301,7 +301,7 @@ static void log_unlock(const rc_client_achievement_t *a)
 int ra_recent(RaRecent *out, int max)
 {
     char path[PSXS5_PATH_MAX];
-    path_join(path, sizeof(path), paths.root, "achievements-log.txt");
+    path_join(path, sizeof(path), paths.user, "achievements-log.txt");
     FILE *f = fopen(path, "r");
     if (!f || max <= 0)
     {
@@ -436,7 +436,7 @@ static void RC_CCONV log_message(const char *message, const rc_client_t *c)
 
 static void ini_path(char *out, size_t size)
 {
-    path_join(out, size, paths.root, "retroachievements.ini");
+    path_join(out, size, paths.user, "retroachievements.ini"); /* the profile's sign-in */
 }
 
 static void load_ini(void)
@@ -492,15 +492,24 @@ static void RC_CCONV on_login(int result, const char *error, rc_client_t *c, voi
 void ra_init(const Paths *p)
 {
     paths = *p;
+    /* again after a profile change: the other person's sign-in */
+    user[0] = token[0] = '\0';
+    hardcore = false;
+    signed_in = false;
+    quitting = false;
+    worker = NULL;
     load_ini();
     if (!user[0] || !token[0])
     {
         psxs5_log("ra: not set up (run tools/psxs5_sync.py ra-login)");
         return;
     }
-    msg_lock = SDL_CreateMutex();
-    queue_lock = SDL_CreateMutex();
-    queue_cond = SDL_CreateCond();
+    if (!msg_lock)
+        msg_lock = SDL_CreateMutex();
+    if (!queue_lock)
+        queue_lock = SDL_CreateMutex();
+    if (!queue_cond)
+        queue_cond = SDL_CreateCond();
     client = rc_client_create(read_memory, server_call);
     if (!client || !msg_lock || !queue_lock || !queue_cond)
         return;

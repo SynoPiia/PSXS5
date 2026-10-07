@@ -12,6 +12,7 @@
 #include "core/host.h"
 #include "bezels.h"
 #include "controls.h"
+#include "profiles.h"
 #include "covers.h"
 #include "i18n.h"
 #include "platform/platform.h"
@@ -212,7 +213,7 @@ const Paths *app_paths(void)
 void app_game_config_path(char *out, size_t size, const Game *g)
 {
     char dir[PSXS5_PATH_MAX], file[96];
-    path_join(dir, sizeof(dir), app.paths.root, "game-settings");
+    path_join(dir, sizeof(dir), app.paths.user, "game-settings");
     snprintf(file, sizeof(file), "%.80s.ini", g ? g->id : "none");
     path_join(out, size, dir, file);
 }
@@ -223,7 +224,7 @@ void app_save_settings(void)
     if (app.game && app.game_has_own)
     {
         char path[PSXS5_PATH_MAX], dir[PSXS5_PATH_MAX];
-        path_join(dir, sizeof(dir), app.paths.root, "game-settings");
+        path_join(dir, sizeof(dir), app.paths.user, "game-settings");
         make_dirs(dir);
         app_game_config_path(path, sizeof(path), app.game);
         config_save(&app.settings, path);
@@ -828,11 +829,13 @@ int main(void)
     vk_probe(app.paths.root); /* v2: proves the Vulkan driver runs; logs only */
     app.unlock_setting = !plat_unlock_disabled();
 
+    if (!app.storage_error[0])
+        profiles_startup(); /* whose saves, settings and stats */
     config_load(&app.global, app.paths.config);
     app.settings = app.global;
     i18n_set(app.global.language);
     theme_apply(app.global.theme);
-    stats_load(app.paths.root);
+    stats_load(app.paths.user);
     plat_audio_open(UI_RATE);
     sfx_init(UI_RATE);
     sfx_configure(app.global.ui_sound, (app.global.ui_volume + 1) * 25);
