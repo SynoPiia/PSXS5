@@ -23,6 +23,8 @@ rcheevos (RetroAchievements)
   https://github.com/RetroAchievements/rcheevos
 
 SDL 2 - zlib License - https://www.libsdl.org
+Fonts in assets/fonts - SIL Open Font License 1.1 (notices beside them): Inter, Noto Sans JP,
+  Chakra Petch, IBM Plex Sans, Fraunces, Work Sans; Tabler Icons - MIT License
 dlmalloc (Doug Lea) - public domain (CC0)
 miniz - MIT License - https://github.com/richgel999/miniz
 QR Code generator (Nayuki) - MIT License - https://github.com/nayuki/QR-Code-generator
