@@ -825,7 +825,8 @@ int main(void)
         plat_begin_frame(backdrop ? 0 : 0xff000000u);
         static const char *const screen_names[] = {"library", "game",         "menu",
                                                    "settings", "cheats", "achievements",
-                                                   "memory cards", "library stats", "manual"};
+                                                   "memory cards", "library stats", "manual",
+                                                   "cheat search"};
         ps5_crash_step(screen_names[app.screen]);
         switch (app.screen)
         {
@@ -838,6 +839,7 @@ int main(void)
         case SCREEN_MEMCARDS: memcards_screen(pressed); break;
         case SCREEN_STATS: library_stats_screen(pressed); break;
         case SCREEN_MANUAL: manual_screen(pressed); break;
+        case SCREEN_CHEAT_SEARCH: cheat_search_screen(pressed); break;
         default: break;
         }
         count_play_time();

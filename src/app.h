@@ -20,6 +20,7 @@ enum Screen
     SCREEN_MEMCARDS,
     SCREEN_STATS,
     SCREEN_MANUAL,
+    SCREEN_CHEAT_SEARCH,
     SCREEN_COUNT
 };
 
@@ -77,6 +78,8 @@ void library_stats_open(enum Screen back_to);
 int manual_page_count(void);
 void manual_open(void);
 void manual_screen(uint32_t pressed);
+void cheat_search_open(void);
+void cheat_search_screen(uint32_t pressed);
 void menu_open(void);
 void settings_opened(void);
 void shelf_init(int last_game);

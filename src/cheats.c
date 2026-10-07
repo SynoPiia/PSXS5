@@ -441,6 +441,36 @@ static bool file_opens(const char *path)
     return f != NULL;
 }
 
+/* cheats/mine/<game id>.txt: desc<TAB>code per line, made by Find a code */
+static void user_file(const Game *game, const char *cheats_dir, char *dir, size_t dir_size, char *path,
+                      size_t path_size, char *file, size_t file_size)
+{
+    path_join(dir, dir_size, cheats_dir, "mine");
+    snprintf(file, file_size, "%.80s.txt", game->id);
+    path_join(path, path_size, dir, file);
+}
+
+static void load_user(CheatList *list, const Game *game, const char *cheats_dir)
+{
+    char dir[PSXS5_PATH_MAX], path[PSXS5_PATH_MAX], file[96], line[400];
+    user_file(game, cheats_dir, dir, sizeof(dir), path, sizeof(path), file, sizeof(file));
+    FILE *f = fopen(path, "r");
+    while (f && fgets(line, sizeof(line), f) && list->count < CHEATS_MAX)
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        char *tab = strchr(line, '\t');
+        if (!tab || !tab[1])
+            continue;
+        *tab = '\0';
+        Cheat *c = &list->items[list->count++];
+        memset(c, 0, sizeof(*c));
+        str_copy(c->desc, sizeof(c->desc), line);
+        str_copy(c->code, sizeof(c->code), tab + 1);
+    }
+    if (f)
+        fclose(f);
+}
+
 bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
 {
     cheats_clear(list);
@@ -484,18 +514,51 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
             }
         }
     }
-    if (!found || !parse_cht(list, path))
+    bool library = found && parse_cht(list, path);
+    if (library)
+        str_copy(list->source, sizeof(list->source), path);
+    int from_library = list->count;
+    load_user(list, game, cheats_dir);
+    if (!list->count)
         return false;
-
-    str_copy(list->source, sizeof(list->source), path);
     char enabled_dir[PSXS5_PATH_MAX], file[96];
     path_join(enabled_dir, sizeof(enabled_dir), cheats_dir, "enabled");
     make_dirs(enabled_dir);
     snprintf(file, sizeof(file), "%.80s.txt", game->id);
     path_join(list->state_path, sizeof(list->state_path), enabled_dir, file);
     load_selection(list);
-    psxs5_log("cheats: %d codes from %s", list->count, path);
+    psxs5_log("cheats: %d codes from %s, %d of your own", from_library, library ? path : "nowhere",
+              list->count - from_library);
     return true;
+}
+
+bool cheats_add_user(CheatList *list, const Game *game, const char *cheats_dir, const char *desc, const char *code)
+{
+    if (!game || list->count >= CHEATS_MAX)
+        return false;
+    char dir[PSXS5_PATH_MAX], path[PSXS5_PATH_MAX], file[96];
+    user_file(game, cheats_dir, dir, sizeof(dir), path, sizeof(path), file, sizeof(file));
+    make_dirs(dir);
+    FILE *f = fopen(path, "a");
+    if (!f)
+        return false;
+    fprintf(f, "%s\t%s\n", desc, code);
+    bool ok = fclose(f) == 0;
+    Cheat *c = &list->items[list->count++];
+    memset(c, 0, sizeof(*c));
+    str_copy(c->desc, sizeof(c->desc), desc);
+    str_copy(c->code, sizeof(c->code), code);
+    c->enabled = true;
+    if (!list->state_path[0])
+    {
+        char enabled_dir[PSXS5_PATH_MAX], name[96];
+        path_join(enabled_dir, sizeof(enabled_dir), cheats_dir, "enabled");
+        make_dirs(enabled_dir);
+        snprintf(name, sizeof(name), "%.80s.txt", game->id);
+        path_join(list->state_path, sizeof(list->state_path), enabled_dir, name);
+    }
+    cheats_save_selection(list);
+    return ok;
 }
 
 void cheats_apply(const CheatList *list)

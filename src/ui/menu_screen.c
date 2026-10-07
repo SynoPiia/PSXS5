@@ -472,6 +472,12 @@ void cheats_screen(uint32_t pressed)
             app_toast("All cheats off");
         }
     }
+    if (pressed & BIT(BTN_TRIANGLE))
+    {
+        sfx_play(SFX_SELECT);
+        cheat_search_open();
+        return;
+    }
     if (pressed & BIT(BTN_CIRCLE))
     {
         sfx_play(SFX_BACK);
@@ -525,9 +531,9 @@ void cheats_screen(uint32_t pressed)
         }
         plat_set_clip(0, 0, 0, 0);
     }
-    static const int glyphs[] = {GLYPH_CROSS, GLYPH_SQUARE, GLYPH_CIRCLE};
-    static const char *const labels[] = {"Toggle", "All off", "Back"};
-    app_draw_hints(glyphs, labels, 3, cl->count ? "L1 / R1  Page" : NULL);
+    static const int glyphs[] = {GLYPH_CROSS, GLYPH_SQUARE, GLYPH_TRIANGLE, GLYPH_CIRCLE};
+    static const char *const labels[] = {"Toggle", "All off", "Find a code", "Back"};
+    app_draw_hints(glyphs, labels, 4, cl->count ? "L1 / R1  Page" : NULL);
     app_draw_toast();
 }
 

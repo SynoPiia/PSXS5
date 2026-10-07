@@ -32,6 +32,10 @@ void cheats_clear(CheatList *list);
 /* True once when a cheat file cheats_load started downloading has arrived:
  * load again then. */
 bool cheats_fetch_finished(void);
+/* A code of the player's own (Find a code): saved to cheats/mine/<id>.txt,
+ * added to the list and switched on. */
+bool cheats_add_user(CheatList *list, const Game *game, const char *cheats_dir, const char *desc,
+                     const char *code);
 /* Two titles with the same words ("Disney-Pixar's ..." = "Disney-Pixar ...",
  * "VII" = "7", "The Legend of X" = "Legend of X, The"). */
 bool titles_match(const char *a, const char *b);
