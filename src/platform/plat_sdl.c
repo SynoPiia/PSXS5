@@ -933,6 +933,9 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     int lines = game_src_h;
     while (lines > 288)
         lines /= 2;
+    /* Crop black edges: the share of the picture's height cut at the top and
+     * at the bottom (8 or 16 of the PS1's 240 lines) */
+    const float crop = (settings->crop_edges > 0 && settings->crop_edges < 3 ? settings->crop_edges * 8 : 0) / 240.0f;
     int columns = game_src_w; /* the same for the width (internal resolution) */
     while (columns > 768)
         columns /= 2;
@@ -1006,14 +1009,16 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             SDL_RenderFillRect(renderer, &hole);
         }
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h);
+        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop);
         return;
     }
     if (game_image)
     {
         /* run SDL's queued drawing (the clear) first, then write the picture */
         SDL_RenderFlush(renderer);
-        BlitJob job = {game_image, game_image_w, game_image_h, game_image_pitch,
+        int cut = (int)(game_image_h * crop);
+        BlitJob job = {game_image + (size_t)cut * game_image_pitch, game_image_w, game_image_h - 2 * cut,
+                       game_image_pitch,
                        (uint32_t *)canvas->pixels, (size_t)canvas->pitch / 4,
                        (out_w - dw) / 2, (out_h - dh) / 2, dw, dh, settings->smooth, dim,
                        scan, lines};
@@ -1027,7 +1032,8 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 #endif
     SDL_SetTextureColorMod(game_texture, dim, dim, dim);
     SDL_SetTextureBlendMode(game_texture, SDL_BLENDMODE_NONE); /* opaque: no per-pixel blend */
-    SDL_Rect src = {0, 0, game_w, game_h};
+    int cut = (int)(game_h * crop);
+    SDL_Rect src = {0, cut, game_w, game_h - 2 * cut};
     SDL_Rect dst = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
     SDL_RenderCopy(renderer, game_texture, &src, &dst);
     if (scan && lines > 0)

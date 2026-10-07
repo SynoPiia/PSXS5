@@ -100,6 +100,7 @@ static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off
 static const char *const BACKGROUNDS[] = {"Dark", "Cover colour"};
 static const char *const CRT_LEVELS[] = {"Off", "Light", "Strong"};
 static const char *const BORDERS[] = {"Black", "Soft glow", "TV frame"};
+static const char *const CROPS[] = {"Off", "A little", "More"};
 static const char *const PLAYERS[] = {"1 or 2", "Up to 4 (multitap)"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
@@ -110,6 +111,8 @@ static const Row DISPLAY[] = {
      SP_NONE, false, INT_FIELD(upscale), UPSCALE, 4, 1},
     {NULL, "Aspect ratio", "The shape of the picture. Pair 16:9 with a widescreen cheat.", K_CHOICE,
      APPLY_NOW, SP_NONE, false, INT_FIELD(aspect), ASPECTS, 6, 0},
+    {NULL, "Crop black edges", "Hides the black lines many games leave at the top and bottom, which an old TV hid. Pair with Stretch to fill the screen.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(crop_edges), CROPS, 3, 0},
     {NULL, "Widescreen", "Turns on the game's widescreen code from the cheat library and shows 16:9. Games without one stay 4:3.",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(widescreen), OFF_ON, 2, 0},
     {"Screen fit", "Integer scaling", "Whole-number scale factors only: even pixels, black borders.",

@@ -21,6 +21,7 @@ const char *vkp_describe(void);
 /* A core renders through Vulkan and has handed over a picture. */
 bool vkp_game_image_ready(void);
 /* Draw that picture in this rectangle of the canvas, under it, this frame. */
-void vkp_show_game(float x, float y, float w, float h);
+/* crop: share of the picture's height hidden at the top and at the bottom */
+void vkp_show_game(float x, float y, float w, float h, float crop);
 
 #endif

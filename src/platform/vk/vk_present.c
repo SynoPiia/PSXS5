@@ -120,6 +120,7 @@ static struct
     VkImageLayout game_layout;
     bool game_shown; /* plat asked for the picture this frame */
     float game_rect[4];
+    float game_crop; /* share of the picture's height hidden at top and bottom */
 } V;
 
 const char *vkp_describe(void)
@@ -662,11 +663,12 @@ bool vkp_open(int canvas_w, int canvas_h, char *error, size_t size)
 }
 
 /* A rectangle in screen pixels -> clip space for the quad shader. */
-static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h)
+static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
+                      float v1)
 {
     float k[8] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
                   (x + w) / V.extent.width * 2.0f - 1.0f, (y + h) / V.extent.height * 2.0f - 1.0f,
-                  0.0f, 0.0f, 1.0f, 1.0f};
+                  0.0f, v0, 1.0f, v1};
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.layout, 0, 1, &set, 0, NULL);
     vkCmdPushConstants(cb, V.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(k), k);
     vkCmdDraw(cb, 6, 1, 0, 0);
@@ -758,12 +760,12 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
         float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
         draw_quad(cb, V.game_sets[f], V.game_rect[0] * kx, V.game_rect[1] * ky, V.game_rect[2] * kx,
-                  V.game_rect[3] * ky);
+                  V.game_rect[3] * ky, V.game_crop, 1.0f - V.game_crop);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.blended);
     }
     else
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
-    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height);
+    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height, 0.0f, 1.0f);
     vkCmdEndRenderPass(cb);
     vkEndCommandBuffer(cb);
 
@@ -1034,9 +1036,10 @@ done:
     return ok;
 }
 
-void vkp_show_game(float x, float y, float w, float h)
+void vkp_show_game(float x, float y, float w, float h, float crop)
 {
     V.game_shown = true;
+    V.game_crop = crop;
     V.game_rect[0] = x;
     V.game_rect[1] = y;
     V.game_rect[2] = w;
@@ -1066,9 +1069,9 @@ bool vkp_game_image_ready(void)
 {
     return false;
 }
-void vkp_show_game(float x, float y, float w, float h)
+void vkp_show_game(float x, float y, float w, float h, float crop)
 {
-    (void)x, (void)y, (void)w, (void)h;
+    (void)x, (void)y, (void)w, (void)h, (void)crop;
 }
 
 #endif

@@ -116,6 +116,7 @@ typedef struct
     bool update_check;    /* look for new PSXS5 releases at start */
     int emulator;         /* enum Emulator */
     bool pgxp;            /* Beetle: precise geometry, no wobbling polygons */
+    int crop_edges;       /* 0 off, 1: 8 lines top and bottom, 2: 16 (the black a CRT hid) */
     bool ra_popups;       /* achievement unlock banners while playing */
     bool ra_tracker;      /* the progress card when a counted achievement moves */
 } Settings;
