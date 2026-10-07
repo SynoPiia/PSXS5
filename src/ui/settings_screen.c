@@ -63,6 +63,7 @@ enum Special
     SP_REMOTE,
     SP_UPDATE,
     SP_HOTKEYS,
+    SP_WHITELIST,
 };
 
 typedef struct
@@ -192,6 +193,8 @@ static const Row SYSTEM[] = {
      INT_FIELD(language), NULL, LANG_COUNT, 0},
     {NULL, "Unlock /data with etaHEN", "PSXS5 asks etaHEN for access to your games. Turn off if closing PSXS5 crashes the console.",
      K_TOGGLE, APPLY_NEXT_LAUNCH, SP_UNLOCK, true, NO_FIELD, OFF_ON, 2, 0},
+    {NULL, "Allow PSXS5 in PS5SX2 Helper", "PS5SX2 Helper only unlocks the apps listed in /data/whitelist.txt. This adds PSXS5; reload the helper (or restart the console) afterwards.",
+     K_ACTION, APPLY_NOW, SP_WHITELIST, true, NO_FIELD, NULL, 0, 0},
 };
 
 static const Row ABOUT[] = {
@@ -951,6 +954,40 @@ static void activate(const Row *r)
         else
             update_check();
         return;
+    case SP_WHITELIST:
+    {
+        /* one line appended to PS5SX2 Helper's list; nothing else changes */
+        static const char *const list = "/data/whitelist.txt";
+        FILE *f = fopen(list, "r");
+        if (!f)
+        {
+            app_toast("No /data/whitelist.txt: PS5SX2 Helper isn't installed");
+            return;
+        }
+        char line[64];
+        bool present = false, ends_newline = true;
+        while (fgets(line, sizeof(line), f))
+        {
+            size_t n = strlen(line);
+            ends_newline = n && line[n - 1] == '\n';
+            line[strcspn(line, "\r\n")] = '\0';
+            present |= strcmp(line, PSXS5_TITLE_ID) == 0;
+        }
+        fclose(f);
+        if (present)
+        {
+            app_toast("PSXS5 is already in the whitelist");
+            return;
+        }
+        f = fopen(list, "a");
+        bool ok = f && fprintf(f, "%s%s\n", ends_newline ? "" : "\n", PSXS5_TITLE_ID) > 0;
+        if (f && fclose(f) != 0)
+            ok = false;
+        psxs5_log("whitelist: %s %s", PSXS5_TITLE_ID, ok ? "added to /data/whitelist.txt" : "could not be added");
+        app_toast(ok ? "Added: reload PS5SX2 Helper or restart the console" : "Could not write /data/whitelist.txt");
+        sfx_play(ok ? SFX_SELECT : SFX_BACK);
+        return;
+    }
     case SP_RESCAN:
         if (app.game)
         {

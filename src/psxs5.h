@@ -13,6 +13,7 @@
 #include <stdint.h>
 
 #define PSXS5_NAME "PSXS5"
+#define PSXS5_TITLE_ID "PPSA97510"
 #define PSXS5_VERSION "1.2.0"
 #define PSXS5_PATH_MAX 512
 

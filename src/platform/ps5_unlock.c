@@ -3,10 +3,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * A sandboxed title can open and write files under /data but can't list
- * folders. etaHEN (and OnionHEN) watch each sandbox for a jailbreak request
- * file: {"PID":<pid>} in /download0/etahen_jailbreak. On firmware 13.60 this
- * is answered ("jailbreak granted"), while the boilerplate's Lapy helper is
- * not. Porpoise was killed right after its grant; it asks from a process that
+ * folders. Several services lift that, depending on what the console runs:
+ *  - LegacyJB (Phoenixx) and OnionHEN watch each sandbox for a request file,
+ *    {"PID":<pid>} in /download0/etahen_jailbreak, for any app;
+ *  - PS5SX2 Helper answers the same file, but only for the title IDs in
+ *    /data/whitelist.txt (Settings > System can add PSXS5 there);
+ *  - etaHEN answers a HijackerCommand on TCP 127.0.0.1:9028 when its "Legacy
+ *    CMD server" setting is on (LegacyJB listens there too).
+ * The file goes first; the TCP command when nothing answered it. Porpoise was killed right after its grant; it asks from a process that
  * already runs threads, so PSXS5 asks first thing in main(), single-threaded,
  * after giving itself its own credential.
  *
@@ -17,8 +21,12 @@
 #if defined(__PROSPERO__)
 #include "ps5_unlock.h"
 
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -65,6 +73,69 @@ static bool publish(const char *path, int pid)
     return true;
 }
 
+/* etaHEN's legacy command server (README: "Jailbreaking an app ... non-
+ * whitelist method"). Same layout as its HijackerCommand. */
+struct HijackerCommand
+{
+    int magic; /* 0xDEADBEEF */
+    int cmd;   /* JAILBREAK_CMD = 5 */
+    int pid;
+    int ret;   /* -1337 until answered */
+    char msg1[0x500];
+    char msg2[0x500];
+};
+
+static bool request_over_tcp(int pid)
+{
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0)
+        return false;
+    struct timeval tv = {2, 0};
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    struct sockaddr_in a;
+    memset(&a, 0, sizeof(a));
+    a.sin_len = sizeof(a);
+    a.sin_family = AF_INET;
+    a.sin_port = htons(9028);
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    bool ok = false;
+    if (connect(s, (struct sockaddr *)&a, sizeof(a)) == 0)
+    {
+        static struct HijackerCommand c;
+        memset(&c, 0, sizeof(c));
+        c.magic = (int)0xDEADBEEF;
+        c.cmd = 5;
+        c.pid = pid;
+        c.ret = -1337;
+        if (send(s, &c, sizeof(c), 0) == (ssize_t)sizeof(c))
+        {
+            size_t got = 0;
+            while (got < sizeof(c))
+            {
+                ssize_t n = recv(s, (char *)&c + got, sizeof(c) - got, 0);
+                if (n <= 0)
+                    break;
+                got += (size_t)n;
+            }
+            ok = got >= 16 && (c.ret == 0 || c.ret == -1337);
+        }
+    }
+    close(s);
+    return ok;
+}
+
+static bool wait_listable(int polls)
+{
+    for (int poll = 0; poll < polls; ++poll)
+    {
+        sceKernelUsleep(16667);
+        if (ps5_data_listable())
+            return true;
+    }
+    return false;
+}
+
 UnlockResult ps5_unlock_etahen(void)
 {
     if (ps5_data_listable())
@@ -96,18 +167,13 @@ UnlockResult ps5_unlock_etahen(void)
             result = UNLOCK_CANT_REQUEST;
             break;
         }
-        /* ~1.5 s for the HEN to act and /data to open up */
-        for (int poll = 0; poll < 90; ++poll)
-        {
-            sceKernelUsleep(16667);
-            if (ps5_data_listable())
-            {
-                result = UNLOCK_OK;
-                break;
-            }
-        }
+        /* ~1.5 s for a service to act and /data to open up */
+        if (wait_listable(90))
+            result = UNLOCK_OK;
         for (int i = 0; i < REQUEST_COUNT; ++i)
             unlink(REQUESTS[i]);
+        if (result != UNLOCK_OK && round == 0 && request_over_tcp(pid) && wait_listable(60))
+            result = UNLOCK_OK; /* etaHEN's command server */
     }
     unlink(CRASH_MARKER); /* we survived the request either way */
     return result;
@@ -122,9 +188,9 @@ const char *ps5_unlock_describe(UnlockResult r)
 {
     switch (r)
     {
-    case UNLOCK_OK: return "granted by etaHEN";
+    case UNLOCK_OK: return "granted";
     case UNLOCK_ALREADY: return "already unlocked";
-    case UNLOCK_NO_ANSWER: return "etaHEN didn't answer";
+    case UNLOCK_NO_ANSWER: return "no unlock service answered (LegacyJB, etaHEN, PS5SX2 Helper)";
     case UNLOCK_CANT_REQUEST: return "couldn't write the request";
     case UNLOCK_SKIPPED_AFTER_CRASH: return "skipped once after the last request closed PSXS5 (start again to retry)";
     }

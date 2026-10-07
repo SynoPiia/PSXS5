@@ -128,6 +128,18 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 
 > **Where do things go?** Games: `/data/PSXS5/games/<Game name>/`. BIOS: `/data/PSXS5/bios/`. PSXS5 creates both folders the first time it starts; you can also create them yourself over FTP.
 
+### Unlocking /data (so PSXS5 can see your games)
+
+A PS5 app can read and write files in `/data`, but it can't list folders unless something running on the console unlocks it. PSXS5 asks every time it starts. Any one of these answers:
+
+| On your console | What to do |
+|---|---|
+| **[LegacyJB](https://github.com/Phoenixx1202/LegacyJB)** | Load it with your payloads at each boot. It unlocks any app. |
+| **etaHEN** | Turn on *Legacy CMD server* in the etaHEN toolbox. PSXS5 asks on port 9028. |
+| **PS5SX2 Helper** (the PS2 emulator's helper) | It only unlocks apps listed in `/data/whitelist.txt`. Use *Settings → System → Allow PSXS5 in PS5SX2 Helper*, then reload the helper or restart the console. |
+
+The log shows the result: `storage: unlocked`, or `storage: sandboxed (...)` with the reason. Sandboxed still works, but PSXS5 then only knows the games in `/data/PSXS5/library.txt` (written by the PC tool's `upload` and `index` commands).
+
 ### Folders on the console
 
 ```text
