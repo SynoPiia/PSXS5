@@ -41,6 +41,8 @@ void host_hash_disc_end(void) {}
 void *host_memory_data(unsigned id) { (void)id; return NULL; }
 size_t host_memory_size(unsigned id) { (void)id; return 0; }
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]) { (void)pads; }
+void host_set_gun(int device) { (void)device; }
+float host_rumble_level(int port) { (void)port; return 0.0f; }
 bool host_pad_digital(int port) { (void)port; return false; }
 void host_run_frame(void) {}
 void host_reset(void) {}

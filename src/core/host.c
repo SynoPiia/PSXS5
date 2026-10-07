@@ -20,6 +20,7 @@
 #endif
 #include "../platform/ps5_crash.h"
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -234,6 +235,13 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_hd_caching_method", "lazy");
     set_option("beetle_psx_hw_hd_cache_vram_budget", "2048");
     set_option("beetle_psx_hw_hd_cache_ram_budget", "256"); /* the heap is 1 GB */
+    /* fewer slowdowns: a faster CPU, and the GTE (the 3D maths) at one cycle */
+    static const char *const cpu[] = {"100%", "150%", "200%"};
+    int oc = s->overclock >= 0 && s->overclock <= 2 ? s->overclock : 0;
+    set_option("beetle_psx_hw_cpu_freq_scale", cpu[oc]);
+    set_option("beetle_psx_hw_gte_overclock", oc ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_gpu_overclock", oc == 2 ? "2x" : "1x(native)");
+    set_option("beetle_psx_hw_gun_cursor", "off"); /* PSXS5 draws its own */
 }
 #endif
 
@@ -263,6 +271,9 @@ static void apply_settings_to_options(const Settings *s)
     set_option("pcsx_rearmed_multitap", s->multitap ? "port 1" : "disabled");
     /* the widescreen codes need the picture's sides drawn */
     set_option("pcsx_rearmed_show_overscan", s->widescreen ? "hack" : "disabled");
+    /* the emulated CPU's speed: auto is about 57 % of a real PS1's cycles */
+    static const char *const clock[] = {"auto", "75", "100"};
+    set_option("pcsx_rearmed_psxclock", clock[s->overclock >= 0 && s->overclock <= 2 ? s->overclock : 0]);
 }
 
 /* ---------------------------------------------------------------- Vulkan rendering */
@@ -408,20 +419,47 @@ static void RETRO_CALLCONV core_log(enum retro_log_level level, const char *fmt,
 }
 
 static float rumble_scale = 1.0f; /* Settings > Controls > Vibration */
+static int gun_device;           /* 0 a pad, 1 GunCon, 2 Justifier in port 1 */
+
+void host_set_gun(int device)
+{
+    gun_device = device;
+}
+static int rumble_feel;          /* Settings > Controls > Rumble feel */
+static uint16_t rumble_strong[PSXS5_MAX_PADS], rumble_weak[PSXS5_MAX_PADS];
+
+/* Soft: lighter, the big motor tamed. Punchy: weak rumbles lifted so short
+ * hits are felt, strong ones unchanged. */
+static uint16_t feel(uint16_t v, bool big)
+{
+    float x = v / 65535.0f;
+    if (rumble_feel == 1)
+        x *= big ? 0.55f : 0.8f;
+    else if (rumble_feel >= 2 && x > 0.0f)
+        x = sqrtf(x);
+    x *= rumble_scale;
+    return (uint16_t)(x > 1.0f ? 65535.0f : x * 65535.0f);
+}
 
 static bool RETRO_CALLCONV rumble_cb(unsigned port, enum retro_rumble_effect effect,
                                      uint16_t strength)
 {
-    static uint16_t strong[PSXS5_MAX_PADS], weak[PSXS5_MAX_PADS];
     if (port >= PSXS5_MAX_PADS)
         return false;
     if (effect == RETRO_RUMBLE_STRONG)
-        strong[port] = strength;
+        rumble_strong[port] = strength;
     else
-        weak[port] = strength;
-    plat_rumble((int)port, (uint16_t)(strong[port] * rumble_scale),
-                (uint16_t)(weak[port] * rumble_scale));
+        rumble_weak[port] = strength;
+    plat_rumble((int)port, feel(rumble_strong[port], true), feel(rumble_weak[port], false));
     return true;
+}
+
+float host_rumble_level(int port)
+{
+    if (port < 0 || port >= PSXS5_MAX_PADS || !loaded || rumble_scale <= 0.0f)
+        return 0.0f;
+    float s = rumble_strong[port] / 65535.0f, w = rumble_weak[port] / 65535.0f;
+    return s > w ? s : w;
 }
 
 static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
@@ -617,6 +655,21 @@ static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, uns
         if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
             return id == RETRO_DEVICE_ID_ANALOG_X ? p->rx : p->ry;
         return 0;
+    case RETRO_DEVICE_LIGHTGUN:
+        /* the controller as a gun: aimed by PSXS5 (controls.c), R2 fires,
+         * L2 or Square reloads (a shot off the screen), Cross / Circle are A / B */
+        switch (id)
+        {
+        case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_X: return p->gun_x;
+        case RETRO_DEVICE_ID_LIGHTGUN_SCREEN_Y: return p->gun_y;
+        case RETRO_DEVICE_ID_LIGHTGUN_IS_OFFSCREEN: return p->gun_offscreen;
+        case RETRO_DEVICE_ID_LIGHTGUN_TRIGGER: return (p->buttons >> BTN_R2) & 1;
+        case RETRO_DEVICE_ID_LIGHTGUN_RELOAD: return ((p->buttons >> BTN_L2) | (p->buttons >> BTN_SQUARE)) & 1;
+        case RETRO_DEVICE_ID_LIGHTGUN_AUX_A: return (p->buttons >> BTN_CROSS) & 1;
+        case RETRO_DEVICE_ID_LIGHTGUN_AUX_B: return (p->buttons >> BTN_CIRCLE) & 1;
+        case RETRO_DEVICE_ID_LIGHTGUN_START: return (p->buttons >> BTN_START) & 1;
+        default: return 0;
+        }
     default:
         return 0;
     }
@@ -806,6 +859,9 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     frame_data = NULL;
     pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
     rumble_scale = settings->rumble ? (settings->rumble_strength + 1) * 0.25f : 0.0f;
+    rumble_feel = settings->rumble_feel;
+    memset(rumble_strong, 0, sizeof(rumble_strong));
+    memset(rumble_weak, 0, sizeof(rumble_weak));
     apply_settings_to_options(settings);
 
 #define STEP(s) (psxs5_log("host: %s", s), ps5_crash_step(s))
@@ -847,6 +903,12 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
         core->set_controller_port_device(port, device);
+    /* a light gun in port 1: GunCon is subclass 0, the Justifier 1, in both cores */
+    if (gun_device)
+    {
+        core->set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_LIGHTGUN, gun_device - 1));
+        psxs5_log("host: port 1 is a %s", gun_device == 1 ? "GunCon" : "Justifier");
+    }
     loaded = true;
     card_load();
     STEP("running");
@@ -977,6 +1039,7 @@ void host_reset(void)
 void host_apply_settings(const Settings *settings)
 {
     rumble_scale = settings->rumble ? (settings->rumble_strength + 1) * 0.25f : 0.0f;
+    rumble_feel = settings->rumble_feel;
     apply_settings_to_options(settings);
 }
 

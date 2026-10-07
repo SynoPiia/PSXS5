@@ -20,6 +20,10 @@ const char *host_core_name(void);
 const char *host_emulator_for(const Settings *settings, const char *serial, const char **why_not_beetle);
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
+/* Port 1's device for the next host_load: 0 a pad, 1 GunCon, 2 Justifier. */
+void host_set_gun(int device);
+/* How hard the game is rumbling this player's controller now, 0..1. */
+float host_rumble_level(int port);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */
 bool host_pad_digital(int port);
 void host_run_frame(void);

@@ -31,6 +31,8 @@ void config_defaults(Settings *s)
     s->ra_popups = true;
     s->hd_textures = true;
     s->ra_tracker = true;
+    s->trigger_effects = true;
+    s->racing_triggers = true;
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
 }
@@ -130,6 +132,20 @@ static bool config_apply(Settings *s, const char *path)
             s->ra_popup_style = atoi(value) % 3;
         else if (strcmp(key, "lightbar") == 0)
             s->lightbar = atoi(value) % 3;
+        else if (strcmp(key, "stick_deadzone") == 0)
+            s->stick_deadzone = atoi(value) % 5;
+        else if (strcmp(key, "stick_response") == 0)
+            s->stick_response = atoi(value) % 3;
+        else if (strcmp(key, "trigger_effects") == 0)
+            s->trigger_effects = as_bool(value);
+        else if (strcmp(key, "racing_triggers") == 0)
+            s->racing_triggers = as_bool(value);
+        else if (strcmp(key, "rumble_feel") == 0)
+            s->rumble_feel = atoi(value) % 4;
+        else if (strcmp(key, "lightgun") == 0)
+            s->lightgun = atoi(value) % 3;
+        else if (strcmp(key, "overclock") == 0)
+            s->overclock = atoi(value) % 3;
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -215,6 +231,9 @@ bool config_save(const Settings *s, const char *path)
             s->ra_popups, s->ra_tracker, s->crop_edges);
     fprintf(f, "ra_popup_style=%d\nlightbar=%d\nshader=%d\nhd_textures=%d\ntheme=%d\n", s->ra_popup_style,
             s->lightbar, s->shader, s->hd_textures, s->theme);
+    fprintf(f, "stick_deadzone=%d\nstick_response=%d\ntrigger_effects=%d\nracing_triggers=%d\nrumble_feel=%d\n",
+            s->stick_deadzone, s->stick_response, s->trigger_effects, s->racing_triggers, s->rumble_feel);
+    fprintf(f, "lightgun=%d\noverclock=%d\n", s->lightgun, s->overclock);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

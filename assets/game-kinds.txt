@@ -1,0 +1,45 @@
+# PSXS5 games that need something from the controller.
+# kind<TAB>title
+# kinds:
+#   guncon     a GunCon (G-Con 45) light gun game: aim by moving the controller
+#   justifier  a Konami Justifier / Hyperblaster light gun game
+#   racing     Cross is the gas and Square the brake: PSXS5 can put them on R2 and L2
+# A title ending in * matches every game whose title holds all its words
+# ("Gran Turismo*" is Gran Turismo and Gran Turismo 2); without it, the
+# title is compared word by word, as the cheat matching does.
+guncon	Time Crisis*
+guncon	Point Blank*
+guncon	Elemental Gearbolt
+guncon	Ghoul Panic
+guncon	Gunfighter The Legend of Jesse James
+guncon	Judge Dredd
+guncon	Maximum Force
+guncon	Area 51
+guncon	Rescue Shot
+guncon	Extreme Ghostbusters Ultimate Invasion
+guncon	Mighty Hits Special
+guncon	Galaxian 3
+guncon	Die Hard Trilogy 2*
+justifier	Die Hard Trilogy
+justifier	Lethal Enforcers*
+justifier	Crypt Killer
+justifier	Project Horned Owl
+racing	Gran Turismo*
+racing	Need for Speed*
+racing	Ridge Racer*
+racing	Rage Racer
+racing	R4*
+racing	Colin McRae*
+racing	Destruction Derby*
+racing	Crash Team Racing
+racing	Test Drive*
+racing	TOCA*
+racing	V Rally*
+racing	Motor Toon Grand Prix*
+racing	Porsche Challenge
+racing	Formula 1*
+racing	Formula One*
+racing	NASCAR*
+racing	Andretti Racing
+racing	Moto Racer*
+racing	Driver*

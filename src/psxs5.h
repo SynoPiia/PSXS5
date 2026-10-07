@@ -47,6 +47,12 @@ typedef struct
     bool connected;
     uint32_t buttons;
     int16_t lx, ly, rx, ry;
+    uint8_t l2, r2;    /* how far the triggers are pressed, 0..255 */
+    bool motion;       /* quat holds the controller's orientation */
+    float quat[4];     /* x, y, z, w */
+    /* the light gun (filled in by PSXS5): -32767..32767 across the picture */
+    int16_t gun_x, gun_y;
+    bool gun_offscreen;
 } PadState;
 
 enum AspectMode
@@ -124,6 +130,13 @@ typedef struct
     bool ra_tracker;      /* the progress card when a counted achievement moves */
     int ra_popup_style;   /* 0 banner, 1 compact, 2 big trophy */
     int lightbar;         /* 0 left to the system, 1 player colours, 2 the game's cover colour */
+    int stick_deadzone;   /* 0 off, 1..4: 5, 10, 15, 20 % of the stick's travel ignored */
+    int stick_response;   /* 0 normal, 1 precise (slow near the centre), 2 quick */
+    bool trigger_effects; /* DualSense: pedal feel in racing games, a trigger click for light guns */
+    bool racing_triggers; /* racing games: R2 is the gas (Cross), L2 the brake (Square) */
+    int rumble_feel;      /* 0 classic, 1 soft, 2 punchy, 3 punchy and in the triggers */
+    int lightgun;         /* 0 automatic (known gun games), 1 off, 2 on */
+    int overclock;        /* 0 off, 1 a little, 2 a lot */
 } Settings;
 
 enum Emulator

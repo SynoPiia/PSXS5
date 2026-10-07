@@ -373,6 +373,32 @@ bool plat_prepare_storage(char *error, size_t size)
 
 /* ---------------------------------------------------------------- input */
 
+/* order[player] = the controller (Controls > Players order) */
+static int player_order[PSXS5_MAX_PADS] = {0, 1, 2, 3};
+
+void plat_set_player_order(const int order[PSXS5_MAX_PADS])
+{
+    memcpy(player_order, order, sizeof(player_order));
+}
+
+void plat_player_order(int order[PSXS5_MAX_PADS])
+{
+    memcpy(order, player_order, sizeof(player_order));
+}
+
+static int physical(int port)
+{
+    return port >= 0 && port < PSXS5_MAX_PADS ? player_order[port] : -1;
+}
+
+static void order_pads(PadState pads[PSXS5_MAX_PADS])
+{
+    PadState raw[PSXS5_MAX_PADS];
+    memcpy(raw, pads, sizeof(raw));
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        pads[i] = raw[player_order[i]];
+}
+
 #if defined(__PROSPERO__)
 /* The PS5 SDL driver reports DualSense buttons in its own order (see
  * ps5-payload-dev/SDL src/joystick/ps5), but SDL's controller database maps
@@ -381,6 +407,62 @@ bool plat_prepare_storage(char *error, size_t size)
  * joystick in the driver's order instead. The driver has no Create button
  * (slot 5); PSXS5 turns a touchpad tap into Select. */
 static SDL_Joystick *joys[PSXS5_MAX_PADS];
+static int pad_uid[PSXS5_MAX_PADS] = {-1, -1, -1, -1}; /* the PS5 user of each */
+static int pad_h[PSXS5_MAX_PADS] = {-1, -1, -1, -1};   /* its scePad handle */
+static bool motion_on, motion_set[PSXS5_MAX_PADS];
+
+/* scePad, for what the SDL driver doesn't pass on: the motion sensor and the
+ * adaptive triggers (layouts as in Sony's pad.h; the read gets room to spare) */
+typedef struct
+{
+    uint32_t buttons;
+    uint8_t lx, ly, rx, ry, l2, r2;
+    uint16_t padding;
+    float quat[4];
+    float vel[3];
+    float acc[3];
+    uint8_t touch[24];
+    uint8_t connected;
+    uint64_t timestamp;
+    uint8_t ext[16];
+    uint8_t count;
+    uint8_t reserve[2];
+    uint8_t unique_len;
+    uint8_t unique[12];
+} Ps5PadData;
+typedef union
+{
+    Ps5PadData d;
+    uint8_t raw[512];
+} Ps5PadBuffer;
+typedef struct
+{
+    uint32_t mode;
+    uint8_t padding[4];
+    uint8_t data[48];
+} Ps5TriggerCommand;
+typedef struct
+{
+    uint8_t mask; /* 1 L2, 2 R2 */
+    uint8_t padding[7];
+    Ps5TriggerCommand command[2];
+} Ps5TriggerParam;
+_Static_assert(sizeof(Ps5TriggerParam) == 120, "ScePadTriggerEffectParam is 120 bytes");
+int sceUserServiceGetLoginUserIdList(int ids[4]);
+int scePadGetHandle(int user_id, int type, int index);
+int scePadReadState(int handle, void *data);
+int scePadSetMotionSensorState(int handle, bool enable);
+int scePadSetTriggerEffect(int handle, const Ps5TriggerParam *param);
+
+static int pad_handle(int i)
+{
+    if (i < 0 || i >= PSXS5_MAX_PADS || !joys[i] || pad_uid[i] < 0)
+        return -1;
+    if (pad_h[i] < 0)
+        pad_h[i] = scePadGetHandle(pad_uid[i], 0, 0);
+    return pad_h[i];
+}
+
 static const int ps5_buttons[] = {
     BTN_CROSS, BTN_CIRCLE, BTN_SQUARE, BTN_TRIANGLE, BTN_MENU /* touchpad */, -1 /* none */,
     BTN_START /* Options */, BTN_L3, BTN_R3, BTN_L1, BTN_R1, BTN_UP, BTN_DOWN, BTN_LEFT,
@@ -390,11 +472,22 @@ static const int ps5_buttons[] = {
 static void refresh_controllers(void)
 {
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
         if (joys[i] && !SDL_JoystickGetAttached(joys[i]))
         {
             SDL_JoystickClose(joys[i]);
             joys[i] = NULL;
+            pad_uid[i] = -1;
         }
+        pad_h[i] = -1;
+        motion_set[i] = false;
+    }
+    /* the driver lists one controller per signed-in user, in this order */
+    int ids[4] = {-1, -1, -1, -1}, user_of[8], users = 0;
+    if (sceUserServiceGetLoginUserIdList(ids) == 0)
+        for (int k = 0; k < 4; ++k)
+            if (ids[k] != -1)
+                user_of[users++] = ids[k];
     for (int j = 0; j < SDL_NumJoysticks(); ++j)
     {
         const char *name = SDL_JoystickNameForIndex(j);
@@ -408,6 +501,7 @@ static void refresh_controllers(void)
             if (!joys[i])
             {
                 joys[i] = SDL_JoystickOpen(j);
+                pad_uid[i] = j < users ? user_of[j] : -1;
                 if (joys[i])
                     psxs5_log("pad %d: %s (%d buttons, %d axes)", i + 1, name ? name : "?",
                               SDL_JoystickNumButtons(joys[i]), SDL_JoystickNumAxes(joys[i]));
@@ -446,12 +540,97 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
         p->ly = SDL_JoystickGetAxis(j, 1);
         p->rx = SDL_JoystickGetAxis(j, 2);
         p->ry = SDL_JoystickGetAxis(j, 3);
+        p->l2 = (uint8_t)((SDL_JoystickGetAxis(j, 4) + 32768) >> 8);
+        p->r2 = (uint8_t)((SDL_JoystickGetAxis(j, 5) + 32768) >> 8);
+        int h = motion_on ? pad_handle(i) : -1;
+        if (h >= 0)
+        {
+            if (!motion_set[i])
+            {
+                int err = scePadSetMotionSensorState(h, true);
+                psxs5_log("pad %d: motion sensor %s (0x%08x)", i + 1, err ? "failed" : "on", (unsigned)err);
+                motion_set[i] = true;
+            }
+            Ps5PadBuffer b;
+            memset(&b, 0, sizeof(b));
+            if (scePadReadState(h, &b) == 0)
+            {
+                memcpy(p->quat, b.d.quat, sizeof(p->quat));
+                p->motion = b.d.quat[0] || b.d.quat[1] || b.d.quat[2] || b.d.quat[3];
+                /* where the battery is isn't documented: log the extra bytes when they change */
+                static uint8_t last[PSXS5_MAX_PADS][32];
+                static uint64_t logged_at[PSXS5_MAX_PADS];
+                uint64_t now = plat_ticks_us();
+                if (memcmp(last[i], b.d.ext, 32) != 0 && now - logged_at[i] > 30000000ull)
+                {
+                    memcpy(last[i], b.d.ext, 32);
+                    logged_at[i] = now;
+                    char hex[100];
+                    for (int k = 0; k < 32; ++k)
+                        snprintf(hex + k * 3, 4, "%02x ", b.d.ext[k]);
+                    psxs5_log("pad %d extra: %s", i + 1, hex);
+                }
+            }
+        }
     }
+    order_pads(pads);
+}
+
+const char *plat_pad_name(int port)
+{
+    int i = physical(port);
+    return i >= 0 && joys[i] ? SDL_JoystickName(joys[i]) : NULL;
+}
+
+void plat_pad_motion(bool on)
+{
+    motion_on = on;
+}
+
+void plat_pad_triggers(int port, PlatTrigger l2, PlatTrigger r2)
+{
+    int i = physical(port);
+    static PlatTrigger last[PSXS5_MAX_PADS][2];
+    static int last_h[PSXS5_MAX_PADS] = {-2, -2, -2, -2};
+    int h = pad_handle(i);
+    if (h < 0)
+        return;
+    if (last_h[i] == h && !memcmp(&last[i][0], &l2, sizeof(l2)) && !memcmp(&last[i][1], &r2, sizeof(r2)))
+        return;
+    last_h[i] = h;
+    last[i][0] = l2;
+    last[i][1] = r2;
+    Ps5TriggerParam param;
+    memset(&param, 0, sizeof(param));
+    param.mask = 3;
+    const PlatTrigger *t[2] = {&l2, &r2};
+    for (int k = 0; k < 2; ++k)
+    {
+        param.command[k].mode = t[k]->mode;
+        param.command[k].data[0] = t[k]->a;
+        param.command[k].data[1] = t[k]->b;
+        param.command[k].data[2] = t[k]->c;
+        param.command[k].data[3] = t[k]->d;
+    }
+    int err = scePadSetTriggerEffect(h, &param);
+    static bool logged;
+    if (err && !logged)
+    {
+        psxs5_log("pad: trigger effect failed (0x%08x)", (unsigned)err);
+        logged = true;
+    }
+}
+
+int plat_pad_battery(int port)
+{
+    (void)port;
+    return -1;
 }
 
 void plat_set_lightbar(int port, uint32_t rgb)
 {
     static uint32_t last[PSXS5_MAX_PADS] = {0xffffffffu, 0xffffffffu, 0xffffffffu, 0xffffffffu};
+    port = physical(port);
     if (port < 0 || port >= PSXS5_MAX_PADS || !joys[port] || last[port] == rgb)
         return;
     last[port] = rgb;
@@ -468,6 +647,7 @@ void plat_set_lightbar(int port, uint32_t rgb)
 
 void plat_rumble(int port, uint16_t strong, uint16_t weak)
 {
+    port = physical(port);
     if (port < 0 || port >= PSXS5_MAX_PADS || !joys[port])
         return;
     if (rumble_strong[port] == strong && rumble_weak[port] == weak)
@@ -589,7 +769,10 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
         p->ly = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY);
         p->rx = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTX);
         p->ry = SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTY);
+        p->l2 = (uint8_t)(SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_TRIGGERLEFT) >> 7);
+        p->r2 = (uint8_t)(SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_TRIGGERRIGHT) >> 7);
     }
+    order_pads(pads);
 
 #if defined(PSXS5_PREVIEW)
     preview_step();
@@ -611,8 +794,31 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
 #endif
 }
 
+const char *plat_pad_name(int port)
+{
+    int i = physical(port);
+    return i >= 0 && controllers[i] ? SDL_GameControllerName(controllers[i]) : NULL;
+}
+
+void plat_pad_motion(bool on)
+{
+    (void)on;
+}
+
+void plat_pad_triggers(int port, PlatTrigger l2, PlatTrigger r2)
+{
+    (void)port, (void)l2, (void)r2;
+}
+
+int plat_pad_battery(int port)
+{
+    (void)port;
+    return -1;
+}
+
 void plat_set_lightbar(int port, uint32_t rgb)
 {
+    port = physical(port);
 #if SDL_VERSION_ATLEAST(2, 0, 14)
     if (port >= 0 && port < PSXS5_MAX_PADS && controllers[port])
         SDL_GameControllerSetLED(controllers[port], (Uint8)(rgb >> 16), (Uint8)(rgb >> 8), (Uint8)rgb);
@@ -623,6 +829,7 @@ void plat_set_lightbar(int port, uint32_t rgb)
 
 void plat_rumble(int port, uint16_t strong, uint16_t weak)
 {
+    port = physical(port);
     if (port < 0 || port >= PSXS5_MAX_PADS || !controllers[port])
         return;
     if (rumble_strong[port] == strong && rumble_weak[port] == weak)

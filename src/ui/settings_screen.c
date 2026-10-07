@@ -66,6 +66,7 @@ enum Special
     SP_WHITELIST,
     SP_STATS,
     SP_THEME,
+    SP_PLAYERS,
 };
 
 typedef struct
@@ -107,6 +108,11 @@ static const char *const SHADERS[] = {"Off", "Sharp bilinear", "CRT"};
 static const char *const POPUP_STYLES[] = {"Banner", "Compact", "Big trophy"};
 static const char *const LIGHTBARS[] = {"System", "Player colours", "Game cover colour"};
 static const char *const PLAYERS[] = {"1 or 2", "Up to 4 (multitap)"};
+static const char *const DEADZONES[] = {"Off", "5%", "10%", "15%", "20%"};
+static const char *const RESPONSES[] = {"Normal", "Precise", "Quick"};
+static const char *const RUMBLE_FEELS[] = {"Classic", "Soft", "Punchy", "Punchy, in the triggers too"};
+static const char *const LIGHTGUNS[] = {"Automatic", "Off", "On"};
+static const char *const OVERCLOCKS[] = {"Off", "A little", "A lot"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
 static const Row DISPLAY[] = {
@@ -158,6 +164,20 @@ static const Row CONTROLS[] = {
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(lightbar), LIGHTBARS, 3, 0},
     {NULL, "Players", "Up to 4 with a multitap, for games that support it: each PS5 controller is a player.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(multitap), PLAYERS, 2, 0},
+    {NULL, "Player order", "Choose which controller is player 1, 2, 3 and 4: press Cross on each in turn. Kept until PSXS5 closes.",
+     K_ACTION, APPLY_NOW, SP_PLAYERS, true, NO_FIELD, NULL, 0, 0},
+    {"Sticks", "Dead zone", "Ignores small movements near the centre: raise it if a worn stick drifts on its own.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(stick_deadzone), DEADZONES, 5, 0},
+    {NULL, "Stick response", "Precise: small moves stay small, for careful aiming. Quick: a little tilt goes far.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(stick_response), RESPONSES, 3, 0},
+    {"DualSense", "Rumble feel", "Classic as the game sends it; Soft is gentler; Punchy makes light hits easier to feel, and can shake the triggers too.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(rumble_feel), RUMBLE_FEELS, 4, 0},
+    {NULL, "Trigger effects", "The adaptive triggers: R2 firms up like a gas pedal in racing games and clicks like a trigger with a light gun.",
+     K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(trigger_effects), OFF_ON, 2, 0},
+    {NULL, "Gas and brake on R2 / L2", "In racing games where Cross is the gas and Square the brake (Gran Turismo, Ridge Racer...), R2 and L2 press them.",
+     K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(racing_triggers), OFF_ON, 2, 0},
+    {NULL, "Light gun", "GunCon and Justifier games: point the controller at the screen to aim (motion sensor), R2 fires, L2 reloads, R3 re-centres. Automatic turns it on for known gun games.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(lightgun), LIGHTGUNS, 3, 0},
     {"Buttons", "Touchpad shortcuts", "Hold the touchpad and press: R2 fast forward, L2 rewind (turn Rewind on in System), Square screenshot, Triangle start/pause the timer, Circle reset it, R1 next disc.",
      K_INFO, APPLY_NOW, SP_HOTKEYS, true, NO_FIELD, NULL, 0, 0},
     {NULL, "Button mapping", "Choose what each button of your controller presses.", K_ACTION,
@@ -212,6 +232,8 @@ static const Row SYSTEM[] = {
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},
     {NULL, "Fast CD loading", "Shorter loading screens. Rarely, a game glitches.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(cd_fast), OFF_ON, 2, 0},
+    {NULL, "Overclock", "Runs the emulated PS1 faster, which smooths games that slow down on a real console. Some games then run too fast in places.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(overclock), OVERCLOCKS, 3, 0},
     {"Playing", "Quick resume", "Saves when you leave a game, so the shelf can offer Continue.", K_TOGGLE,
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(quick_resume), OFF_ON, 2, 0},
     {NULL, "Rewind", "Keeps the last 8 seconds so you can go back (touchpad + L2). Uses about 200 MB of memory.",
@@ -269,6 +291,9 @@ static struct
     int tab, cursor;
     bool game_scope; /* editing this game's own settings */
     bool remap;      /* the button-mapping page */
+    bool players;    /* the player-order page */
+    int order[PSXS5_MAX_PADS], assigned; /* controllers chosen so far, in player order */
+    uint32_t pad_prev[PSXS5_MAX_PADS];
     int remap_cursor;
     float tab_y, sel_y, scroll, scope_x, remap_y;
     float switch_t[16];
@@ -278,6 +303,7 @@ void settings_opened(void)
 {
     S.cursor = -1;
     S.remap = false;
+    S.players = false;
     S.game_scope = app.game != NULL && app.game_has_own;
     S.tab_y = 0;
     S.sel_y = -1;
@@ -607,6 +633,92 @@ static void remap_page(uint32_t pressed)
     static const int glyphs[] = {GLYPH_LEFT, GLYPH_TRIANGLE, GLYPH_SQUARE, GLYPH_CIRCLE};
     static const char *const labels[] = {"Change", "Reset button", "Presets", "Back"};
     app_draw_hints(glyphs, labels, 4, NULL);
+}
+
+/* ---------------------------------------------------------------- the player-order page */
+
+/* Each controller presses Cross in turn: the first is player 1, and so on. */
+static void players_page(uint32_t pressed)
+{
+    int current[PSXS5_MAX_PADS], connected = 0;
+    plat_player_order(current);
+    for (int k = 0; k < PSXS5_MAX_PADS; ++k)
+        connected += app.pads[k].connected;
+    for (int k = 0; k < PSXS5_MAX_PADS; ++k)
+    {
+        uint32_t now = app.pads[k].buttons, newly = now & ~S.pad_prev[k];
+        S.pad_prev[k] = now;
+        if (!(newly & BIT(BTN_CROSS)) || !app.pads[k].connected)
+            continue;
+        int controller = current[k];
+        bool taken = false;
+        for (int i = 0; i < S.assigned; ++i)
+            taken |= S.order[i] == controller;
+        if (!taken && S.assigned < PSXS5_MAX_PADS)
+        {
+            S.order[S.assigned++] = controller;
+            sfx_play(SFX_SELECT);
+        }
+    }
+    if (S.assigned > 0 && S.assigned >= connected)
+    {
+        /* the controllers that aren't here take the places left */
+        int order[PSXS5_MAX_PADS], n = S.assigned;
+        memcpy(order, S.order, sizeof(order));
+        for (int c = 0; c < PSXS5_MAX_PADS && n < PSXS5_MAX_PADS; ++c)
+        {
+            bool used = false;
+            for (int i = 0; i < n; ++i)
+                used |= order[i] == c;
+            if (!used)
+                order[n++] = c;
+        }
+        plat_set_player_order(order);
+        S.players = false;
+        app_toast("Player order set");
+        return;
+    }
+    if (pressed & BIT(BTN_SQUARE))
+    {
+        static const int standard[PSXS5_MAX_PADS] = {0, 1, 2, 3};
+        plat_set_player_order(standard);
+        S.players = false;
+        app_toast("Players back in the console's order");
+        sfx_play(SFX_SELECT);
+        return;
+    }
+    if (pressed & BIT(BTN_CIRCLE))
+    {
+        S.players = false;
+        sfx_play(SFX_BACK);
+        return;
+    }
+
+    static const uint32_t colours[PSXS5_MAX_PADS] = {0xff2050ffu, 0xffff2030u, 0xff20d040u, 0xffff40c0u};
+    const float w = 900, x = (plat_width() - w) * 0.5f, top = 250, row_h = 120;
+    text_draw(plat_width() * 0.5f, 170, 30, FONT_BOLD, TH_TEXT, ALIGN_CENTER, tr("Player order"));
+    draw_rrect(x - 16, top - 16, w + 32, PSXS5_MAX_PADS * row_h + 32, TH_RADIUS, TH_CARD);
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+    {
+        float y = top + i * row_h;
+        bool done = i < S.assigned, next = i == S.assigned;
+        if (next)
+            draw_rrect(x, y + 6, w, row_h - 12, TH_RADIUS_SMALL, TH_ROW_SELECTED);
+        draw_circle(x + 56, y + row_h * 0.5f, 22, done || next ? colours[i] : argb_alpha(colours[i], 0.35f));
+        char label[32];
+        snprintf(label, sizeof(label), tr("Player %d"), i + 1);
+        text_draw(x + 100, y + 26, 28, FONT_BOLD, done || next ? TH_TEXT : TH_TEXT_DIM, ALIGN_LEFT, label);
+        const char *who = NULL;
+        if (done)
+            for (int k = 0; k < PSXS5_MAX_PADS; ++k)
+                if (current[k] == S.order[i])
+                    who = plat_pad_name(k);
+        text_draw_fit(x + 100, y + 66, 22, FONT_REGULAR, next ? TH_FOCUS : TH_TEXT_SOFT, ALIGN_LEFT, w - 140,
+                      done ? (who ? who : tr("Controller")) : next ? tr("Press Cross on this player's controller") : "");
+    }
+    static const int glyphs[] = {GLYPH_CROSS, GLYPH_SQUARE, GLYPH_CIRCLE};
+    static const char *const labels[] = {"Choose", "Console's order", "Back"};
+    app_draw_hints(glyphs, labels, 3, NULL);
 }
 
 /* ---------------------------------------------------------------- help panel */
@@ -978,6 +1090,13 @@ static void activate(const Row *r)
         sfx_play(SFX_SELECT);
         memcards_open(SCREEN_SETTINGS);
         return;
+    case SP_PLAYERS:
+        S.players = true;
+        S.assigned = 0;
+        for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+            S.pad_prev[i] = app.pads[i].buttons; /* the Cross that opened the page doesn't count */
+        sfx_play(SFX_SELECT);
+        return;
     case SP_STATS:
         sfx_play(SFX_SELECT);
         library_stats_open(SCREEN_SETTINGS);
@@ -1071,6 +1190,12 @@ void settings_screen(uint32_t pressed)
     if (S.remap)
     {
         remap_page(pressed);
+        app_draw_toast();
+        return;
+    }
+    if (S.players)
+    {
+        players_page(pressed);
         app_draw_toast();
         return;
     }

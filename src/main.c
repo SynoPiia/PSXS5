@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "core/host.h"
+#include "controls.h"
 #include "covers.h"
 #include "i18n.h"
 #include "platform/platform.h"
@@ -372,10 +373,13 @@ void app_start_game(int index, bool resume)
     app.game_has_own = config_load_game(&app.settings, &app.global, own);
     bool translated = play_prepare_patch(g);
     play_rewind_reset();
+    controls_start(g, &app.settings);
+    host_set_gun(controls_gun_for(g, &app.settings));
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
     if (!host_load(g->path, g->serial, &app.paths, &app.settings, error, sizeof(error)))
     {
+        controls_stop();
         app.settings = app.global;
         app_toast(error);
         return;
@@ -416,6 +420,8 @@ void app_start_game(int index, bool resume)
         app_toast("Translation patch applied");
     if (resume && play_load_resume())
         app_toast("Continuing where you left off");
+    if (controls_gun_active())
+        app_toast("Light gun: point the controller at the screen, R2 fires, R3 re-centres");
     app.screen = SCREEN_GAME;
 }
 
@@ -432,6 +438,7 @@ void app_stop_game(void)
     }
     stats_save();
     ra_game_unloaded();
+    controls_stop();
     host_unload();
     plat_audio_open(UI_RATE);
     plat_audio_clear();
@@ -605,6 +612,7 @@ static void game_screen(PadState *pads)
             if (pads[i].ly > dead) pads[i].buttons |= BIT(BTN_DOWN);
         }
     }
+    controls_apply(pads, &app.settings, app.dt);
     host_set_pads(pads);
 
     /* Pace by the audio queue: the core's 59.94/50 Hz never matches the TV
@@ -685,6 +693,7 @@ static void game_screen(PadState *pads)
     last_us = now;
 
     app_draw_game(255);
+    controls_draw();
     if (app.settings.show_fps)
     {
         char f[32];
@@ -820,6 +829,7 @@ int main(void)
         last = now;
 
         plat_poll(pads, &quit);
+        memcpy(app.pads, pads, sizeof(app.pads));
         uint32_t pressed = nav_pressed(pads);
         /* the shelf and settings paint a full-screen backdrop: no clear needed */
         bool backdrop = app.screen == SCREEN_LIBRARY || (app.screen == SCREEN_SETTINGS && !app.game);

@@ -42,6 +42,7 @@ typedef struct
     char sandbox_reason[200];
     float dt;                 /* seconds since the last frame */
     float fps;                /* emulated frames per second */
+    PadState pads[PSXS5_MAX_PADS]; /* this frame's controllers, as read (by player) */
 } App;
 
 extern App app;
