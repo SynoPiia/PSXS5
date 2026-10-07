@@ -264,8 +264,8 @@ In a game, open the PSXS5 menu → **Cheats** and switch codes on and off. Cheat
 `tools/psxs5_sync.py` runs on Windows with Python 3 (and [7-Zip](https://www.7-zip.org/) for archives).
 
 ```bash
-python tools/psxs5_sync.py plan    --source E:\ISO\PSX                 # what it would do, read-only
-python tools/psxs5_sync.py sync    --source E:\ISO\PSX --host <PS5 IP>  # prepare + upload, one game at a time
+python tools/psxs5_sync.py plan    --source "D:\Games\PS1"                 # what it would do, read-only
+python tools/psxs5_sync.py sync    --source "D:\Games\PS1" --host <PS5 IP>  # prepare + upload, one game at a time
 python tools/psxs5_sync.py covers  --host <PS5 IP>                     # covers for your games
 python tools/psxs5_sync.py cheats  --host <PS5 IP>                     # the cheat library
 python tools/psxs5_sync.py bios    scph5501.bin --host <PS5 IP>        # your own BIOS dump

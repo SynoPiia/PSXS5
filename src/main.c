@@ -386,6 +386,10 @@ void app_start_game(int index, bool resume)
     {
         const GameInfo *info = gamedb_get(g->serial);
         unsigned fixes = info && app.settings.game_fixes ? info->flags & GDB_FIXES : 0;
+        /* a DualShock starts in digital mode until its ANALOG button is pressed;
+         * games that use the sticks get it in analog mode (Gran Turismo...) */
+        if (info && (info->flags & GDB_ANALOG) && !(info->flags & GDB_NO_AUTO_ANALOG))
+            fixes |= GDB_ANALOG;
         host_set_fixes(fixes);
         if (fixes)
             psxs5_log("start: known fixes %x (DuckStation's database)", fixes);

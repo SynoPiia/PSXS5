@@ -4,9 +4,9 @@
 """
 psxs5_sync.py - get your PS1 games onto PSXS5.
 
-  python tools/psxs5_sync.py plan    --source E:\\ISO\\PSX
-  python tools/psxs5_sync.py prepare --source E:\\ISO\\PSX --staging E:\\PSXS5_ready
-  python tools/psxs5_sync.py upload  --staging E:\\PSXS5_ready --host 192.168.1.50
+  python tools/psxs5_sync.py plan    --source "D:\\Games\\PS1"
+  python tools/psxs5_sync.py prepare --source "D:\\Games\\PS1"   (into PSXS5_ready in your user folder)
+  python tools/psxs5_sync.py upload  --host 192.168.1.50
   python tools/psxs5_sync.py cheats  --host 192.168.1.50      (libretro .cht library)
   python tools/psxs5_sync.py bios    scph5501.bin --host 192.168.1.50
   python tools/psxs5_sync.py index   --host 192.168.1.50 [--fix-cues]
@@ -737,8 +737,9 @@ def main() -> None:
     ap.add_argument("--regions", default="usa,europe,japan",
                     help="covers --all: comma-separated subset of usa,europe,japan")
     ap.add_argument("files", nargs="*", help="BIOS file(s) for the bios command")
-    ap.add_argument("--source", type=Path, default=Path(r"E:\ISO\PSX"))
-    ap.add_argument("--staging", type=Path, default=Path(r"E:\PSXS5_ready"))
+    ap.add_argument("--source", type=Path, help="the folder with your PS1 games")
+    ap.add_argument("--staging", type=Path, default=Path.home() / "PSXS5_ready",
+                    help="where prepared games go before the upload (default: PSXS5_ready in your user folder)")
     ap.add_argument("--host", help="PS5 IP address")
     ap.add_argument("--port", type=int, default=2121, help="etaHEN FTP port")
     ap.add_argument("--only", help="limit prepare to titles containing this text")
@@ -750,6 +751,11 @@ def main() -> None:
         index_remote(args.host, args.port, args.fix_cues)
         return
 
+    if args.command in {"sync", "plan", "prepare"}:
+        if not args.source:
+            sys.exit("--source is required: the folder with your PS1 games, e.g. --source \"D:\\Games\\PS1\"")
+        if not args.source.is_dir():
+            sys.exit(f"{args.source} isn't a folder")
     if args.command == "sync":
         if not args.host:
             sys.exit("--host is required (your PS5's IP address)")

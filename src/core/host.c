@@ -229,7 +229,9 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_pgxp_texture", pgxp ? "enabled" : "disabled");
     set_option("beetle_psx_hw_widescreen_hack", s->widescreen ? "enabled" : "disabled");
     set_option("beetle_psx_hw_widescreen_hack_aspect_ratio", "16:9");
-    set_option("beetle_psx_hw_analog_toggle", "enabled");
+    /* analog mode from the start for games known to use the sticks; the
+     * L1+L2+R1+R2+START+SELECT combination still switches it, as the ANALOG button did */
+    set_option("beetle_psx_hw_analog_toggle", (game_fixes & GDB_ANALOG) ? "enabled-analog" : "enabled");
     /* card 0 through SAVE_RAM: PSXS5 keeps it in PCSX-ReARMed's file */
     set_option("beetle_psx_hw_use_mednafen_memcard0_method", "libretro");
     set_option("beetle_psx_hw_frame_duping", "enabled");
@@ -258,7 +260,7 @@ static void apply_beetle_options(const Settings *s)
     bool sprites = s->filter_2d && !(game_fixes & GDB_NO_SPRITE_FILTER);
     set_option("beetle_psx_hw_filter_exclude_sprite", sprites ? "disabled" : "all");
     set_option("beetle_psx_hw_filter_exclude_2d_polygon", s->filter_2d ? "disabled" : "all");
-    set_option("beetle_psx_hw_super_sampling", s->supersampling ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_super_sampling", "disabled"); /* it made moving scenes flicker */
     static const char *const deint[] = {"weave", "bob", "fastmad"};
     int d = s->deinterlace >= 0 && s->deinterlace <= 2 ? s->deinterlace : 0;
     if (!d && (game_fixes & GDB_DEINTERLACE))

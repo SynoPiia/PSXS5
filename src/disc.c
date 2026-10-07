@@ -7,6 +7,8 @@
  */
 #include "disc.h"
 
+#include "core/host.h"
+
 #include <ctype.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -103,21 +105,36 @@ static bool image_read(Image *img, uint32_t lba, uint8_t *out, size_t length)
     return true;
 }
 
-static bool read_iso(const char *path, char *serial, size_t size)
+/* sectors from a plain image file, or from any image PCSX-ReARMed's CD layer
+ * opens (CHD...) */
+typedef bool (*ReadSectors)(void *ctx, uint32_t lba, uint8_t *out, size_t length);
+
+static bool read_image(void *ctx, uint32_t lba, uint8_t *out, size_t length)
 {
-    Image img;
-    if (!image_open(&img, path))
-        return false;
+    return image_read(ctx, lba, out, length);
+}
+
+static bool read_core(void *ctx, uint32_t lba, uint8_t *out, size_t length)
+{
+    (void)ctx;
+    for (; length >= 2048; length -= 2048, out += 2048, ++lba)
+        if (!host_read_sector(lba, out))
+            return false;
+    return true;
+}
+
+static bool find_serial(ReadSectors read, void *ctx, char *serial, size_t size)
+{
     bool ok = false;
     uint8_t pvd[2048];
     static uint8_t root[16384];
-    if (image_read(&img, 16, pvd, sizeof(pvd)))
+    if (read(ctx, 16, pvd, sizeof(pvd)) && memcmp(pvd + 1, "CD001", 5) == 0)
     {
         uint32_t root_lba = le32(pvd + 158), root_size = le32(pvd + 166);
         if (root_size > sizeof(root))
             root_size = sizeof(root);
         root_size -= root_size % 2048;
-        if (root_size && image_read(&img, root_lba, root, root_size))
+        if (root_size && read(ctx, root_lba, root, root_size))
         {
             for (uint32_t pos = 0; pos < root_size;)
             {
@@ -134,7 +151,7 @@ static bool read_iso(const char *path, char *serial, size_t size)
                     uint32_t cnf_size = le32(root + pos + 10);
                     if (cnf_size > 2048)
                         cnf_size = 2048;
-                    if (image_read(&img, le32(root + pos + 2), (uint8_t *)cnf, 2048))
+                    if (read(ctx, le32(root + pos + 2), (uint8_t *)cnf, 2048))
                     {
                         cnf[cnf_size] = '\0';
                         const char *boot = strstr(cnf, "BOOT");
@@ -146,7 +163,27 @@ static bool read_iso(const char *path, char *serial, size_t size)
             }
         }
     }
+    return ok;
+}
+
+static bool read_iso(const char *path, char *serial, size_t size)
+{
+    Image img;
+    if (!image_open(&img, path))
+        return false;
+    bool ok = find_serial(read_image, &img, serial, size);
     fclose(img.f);
+    return ok;
+}
+
+/* CHD (compressed, as MAME and DuckStation use) and other formats only the
+ * emulator reads: through PCSX-ReARMed's CD layer, while no game runs. */
+static bool read_through_core(const char *path, char *serial, size_t size)
+{
+    if (host_loaded() || !host_hash_disc_begin(path))
+        return false;
+    bool ok = find_serial(read_core, NULL, serial, size);
+    host_hash_disc_end();
     return ok;
 }
 
@@ -284,7 +321,17 @@ bool disc_read_serial(const char *path, char *serial, size_t size)
     }
     if (str_icmp(ext, "pbp") == 0)
         return read_pbp(path, serial, size);
-    if (str_icmp(ext, "bin") == 0 || str_icmp(ext, "iso") == 0 || str_icmp(ext, "img") == 0)
-        return read_iso(path, serial, size);
-    return false;
+    if (str_icmp(ext, "bin") == 0 || str_icmp(ext, "iso") == 0 || str_icmp(ext, "img") == 0 ||
+        str_icmp(ext, "mdf") == 0)
+        return read_iso(path, serial, size) || read_through_core(path, serial, size);
+    if (str_icmp(ext, "ccd") == 0)
+    {
+        /* CloneCD: the sectors are in the .img of the same name */
+        str_copy(next, sizeof(next), path);
+        char *dot = strrchr(next, '.');
+        if (dot && (size_t)(dot - next) + 5 < sizeof(next))
+            strcpy(dot, ".img");
+        return read_iso(next, serial, size) || read_through_core(path, serial, size);
+    }
+    return read_through_core(path, serial, size); /* .chd and the rest */
 }
