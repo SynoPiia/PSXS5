@@ -19,6 +19,7 @@ enum Screen
     SCREEN_ACHIEVEMENTS,
     SCREEN_MEMCARDS,
     SCREEN_STATS,
+    SCREEN_MANUAL,
     SCREEN_COUNT
 };
 
@@ -72,6 +73,10 @@ void memcards_screen(uint32_t pressed);
 void memcards_open(enum Screen back_to);
 void library_stats_screen(uint32_t pressed);
 void library_stats_open(enum Screen back_to);
+/* The game's manual: page images in <game folder>/manual/ (0 when none). */
+int manual_page_count(void);
+void manual_open(void);
+void manual_screen(uint32_t pressed);
 void menu_open(void);
 void settings_opened(void);
 void shelf_init(int last_game);

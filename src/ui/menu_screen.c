@@ -35,6 +35,7 @@ enum Item
     MI_DISC,
     MI_CHEATS,
     MI_ACHIEVEMENTS,
+    MI_MANUAL,
     MI_SETTINGS,
     MI_RESET,
     MI_QUIT,
@@ -93,6 +94,8 @@ void menu_open(void)
 static bool item_shown(int i)
 {
     int unlocked, total;
+    if (i == MI_MANUAL)
+        return manual_page_count() > 0;
     if (i == MI_ACHIEVEMENTS)
         return ra_game_progress(&unlocked, &total);
     return i != MI_DISC || host_disc_count() > 1;
@@ -295,6 +298,10 @@ void menu_screen(uint32_t pressed)
             sfx_play(SFX_SELECT);
             achievements_open();
             return;
+        case MI_MANUAL:
+            sfx_play(SFX_SELECT);
+            manual_open();
+            return;
         case MI_SETTINGS:
             sfx_play(SFX_SELECT);
             app_open_settings(SCREEN_MENU);
@@ -361,6 +368,7 @@ void menu_screen(uint32_t pressed)
         {"Resume", ICON_PLAYER_PLAY},    {"Save state", ICON_DEVICE_FLOPPY},
         {"Load state", ICON_HISTORY},    {"Disc", ICON_DISC},
         {"Cheats", ICON_CODE},           {"Achievements", ICON_TROPHY},
+        {"Manual", ICON_BOOKS},
         {"Settings", ICON_ADJUSTMENTS},
         {"Reset", ICON_REFRESH},         {"Quit to shelf", ICON_DOOR_EXIT},
     };
