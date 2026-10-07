@@ -106,6 +106,8 @@ static int option_count;
 static bool options_dirty;
 
 static const Paths *host_paths;
+/* The game being loaded, for the HD texture pack check. */
+static char loading_path[PSXS5_PATH_MAX];
 extern const Paths *app_paths(void);
 static PadState pad_state[PSXS5_MAX_PADS];
 static enum retro_pixel_format pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
@@ -176,9 +178,6 @@ static void register_variables(const struct retro_variable *vars)
 }
 
 #if defined(PSXS5_VULKAN)
-/* The game being loaded, for the HD texture pack check. */
-static char loading_path[PSXS5_PATH_MAX];
-
 /* Beetle reads a pack from <game folder>/<game file name>-texture-replacements/
  * (by texture hash, no folder listing). Texture tracking costs time and is the
  * risky part, so it's on only when that folder is there. */
