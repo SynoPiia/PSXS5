@@ -117,6 +117,12 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
    /data/PSXS5/games/Crash Bandicoot/     Crash Bandicoot.chd
    ```
    Or let the PC tool prepare and upload a whole folder of games (see [PC tool](#pc-tool)).
+
+   > **Shelf still empty?** When etaHEN doesn't unlock `/data`, PSXS5 can't look into the games folder and only shows the games listed in `/data/PSXS5/library.txt`, which the PC tool writes when it uploads. For games you copied another way (FileZilla, a file manager, a USB drive), let the tool list them:
+   > ```bash
+   > python tools/psxs5_sync.py index --host <PS5 IP> --fix-cues
+   > ```
+   > `--fix-cues` repairs `.cue` files that point at a `.bin` that was renamed, for example to `BREATH~1.BIN` by a FAT32 copy.
 6. **Optional: add your BIOS.** Put your own dump directly in `/data/PSXS5/bios/`, not in a subfolder, and keep its standard name: `scph5501.bin` (US), `scph5500.bin` (Japan) or `scph5502.bin` (Europe) are the best choices; `scph1001.bin` and `scph101.bin` also work. *Settings → System* shows whether it was found. From a PC: `python tools/psxs5_sync.py bios scph5501.bin --host <PS5 IP>`.
 7. **Restart PSXS5.** Covers download the first time, then the shelf opens with your games.
 
