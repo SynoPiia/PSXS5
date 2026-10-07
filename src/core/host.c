@@ -22,6 +22,7 @@
 #endif
 #include "../platform/ps5_crash.h"
 
+#include <errno.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -929,6 +930,13 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     str_copy(loading_path, sizeof(loading_path), game_path);
     core = choose_core(settings, serial ? serial : "");
     psxs5_log("host: emulator %s", core->name);
+    {
+        /* Beetle keeps its Vulkan pipeline cache in <saves>/Beetle PSX HW; without
+         * the folder it can't, and every new effect compiles again (a stutter) */
+        char cache_dir[PSXS5_PATH_MAX];
+        path_join(cache_dir, sizeof(cache_dir), paths->saves, "Beetle PSX HW");
+        make_dirs(cache_dir);
+    }
     card_prepare(serial ? serial : "", game_path);
     option_count = 0;
     disk_available = false;
@@ -1158,14 +1166,22 @@ const void *host_frame(int *width, int *height, size_t *pitch, int *format, bool
 
 bool host_save_state(const char *path)
 {
-    size_t size = core->serialize_size();
-    if (!loaded || size == 0)
+    size_t size = loaded ? core->serialize_size() : 0;
+    if (size == 0)
+    {
+        psxs5_log("host: save state: the emulator gives no state size");
         return false;
+    }
     void *buffer = malloc(size);
     if (!buffer)
+    {
+        psxs5_log("host: save state: no memory for %zu bytes", size);
         return false;
+    }
     bool ok = core->serialize(buffer, size);
-    if (ok)
+    if (!ok)
+        psxs5_log("host: save state: the emulator couldn't write its state (%zu bytes)", size);
+    else
     {
         char temp[PSXS5_PATH_MAX];
         snprintf(temp, sizeof(temp), "%s.tmp", path);
@@ -1173,7 +1189,11 @@ bool host_save_state(const char *path)
         ok = f && fwrite(buffer, 1, size, f) == size;
         if (f)
             ok = (fclose(f) == 0) && ok;
+        if (!ok)
+            psxs5_log("host: save state: couldn't write %s (errno %d)", temp, errno);
         ok = ok && rename(temp, path) == 0;
+        if (!ok)
+            remove(temp);
     }
     free(buffer);
     return ok;
