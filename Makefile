@@ -7,13 +7,24 @@ SHELL := /bin/bash
 
 -include .env
 
+# v2: Vulkan through the linked RADV driver (APP_VULKAN=0 builds without it).
+APP_VULKAN ?= 1
+ifeq ($(APP_VULKAN),1)
+APP_DEFINITIONS ?= PSXS5_HAVE_CURL=1 PSXS5_VULKAN=1
+PSXS5_VULKAN_INCLUDE := .deps/native/radv-release/include
+else
 APP_DEFINITIONS ?= PSXS5_HAVE_CURL=1
+endif
 # PSXS5: the PCSX-ReARMed core is linked as a static libretro archive.
 PSXS5_CORE := build/core-ps5/libpcsx_rearmed.a
 # RetroAchievements: rcheevos (MIT), built by tools/build-rcheevos.sh.
 PSXS5_RCHEEVOS := build/rcheevos-ps5/librcheevos.a
-APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check third_party/rcheevos/include
-APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS)
+APP_INCLUDE_PATHS ?= third_party/pcsx_rearmed/deps/libretro-common/include third_party/stb examples/update-check third_party/rcheevos/include $(PSXS5_VULKAN_INCLUDE)
+ifeq ($(APP_VULKAN),1)
+# v2: Beetle PSX HW (Vulkan renderer), built by tools/build-beetle.sh
+PSXS5_BEETLE := build/beetle-ps5/libbeetle_psx.a
+endif
+APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS) $(PSXS5_BEETLE)
 APP_RUNTIME_MODULES ?=
 # fcntl: console_curl. The allocator family: ps5_heap.c (the C heap is too small).
 APP_WRAP_SYMBOLS ?= fcntl malloc free calloc realloc reallocf memalign posix_memalign aligned_alloc malloc_usable_size
@@ -50,7 +61,7 @@ BUILD_JOBS ?= $(shell nproc 2>/dev/null || echo 2)
 USE_CCACHE ?= 1
 export BUILD_JOBS USE_CCACHE
 export HOST_CC HOST_CXX HOST_TEST_CFLAGS HOST_TEST_CXXFLAGS HOST_TEST_LDFLAGS
-export APP_DEFINITIONS APP_INCLUDE_PATHS APP_STATIC_ARCHIVES APP_RUNTIME_MODULES APP_WRAP_SYMBOLS
+export APP_VULKAN APP_DEFINITIONS APP_INCLUDE_PATHS APP_STATIC_ARCHIVES APP_RUNTIME_MODULES APP_WRAP_SYMBOLS
 export APP_SOURCE_DIR APP_PARAM APP_SCE_SYS APP_ASSETS APP_ROOT_FILES
 export APP_LAPY_HELPER
 export PACBREW_PACKAGES PACBREW_INCLUDE_PATHS PACBREW_STATIC_ARCHIVES
@@ -145,7 +156,7 @@ $(RUNTIME): $(RUNTIME_INPUTS)
 	@printf '%s\n' '==> [libc] Generating the missing or outdated runtime'
 	@bash tools/rebuild-libc.sh
 
-app: $(RUNTIME) core
+app: $(RUNTIME) core radv
 	@printf '%s\n' '==> [app] Compiling, linking, signing, and assembling the app folder'
 	@bash tools/build.sh Folder
 
@@ -235,9 +246,19 @@ distclean: clean
 
 .PHONY: core core-desktop desktop run-desktop
 # The core is rebuilt by its own Makefile; this only forwards to it.
+.PHONY: radv
+# v2: the RADV driver build and the SDK platform layer (tools/fetch-radv.sh).
+radv:
+ifeq ($(APP_VULKAN),1)
+	@bash tools/fetch-radv.sh
+endif
+
 core:
 	@bash tools/build-core.sh ps5
 	@bash tools/build-rcheevos.sh ps5
+ifeq ($(APP_VULKAN),1)
+	@bash tools/build-beetle.sh
+endif
 
 core-desktop:
 	@bash tools/build-core.sh desktop

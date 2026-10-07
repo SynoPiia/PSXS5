@@ -6,7 +6,8 @@
 
 <p align="center">
   <img alt="Platform: jailbroken PS5" src="https://img.shields.io/badge/platform-jailbroken%20PS5-3d55c8">
-  <img alt="Based on PCSX-ReARMed" src="https://img.shields.io/badge/based%20on-PCSX--ReARMed-5a6fe0">
+  <img alt="Beetle PSX HW and PCSX-ReARMed" src="https://img.shields.io/badge/emulation-Beetle%20PSX%20HW%20%7C%20PCSX--ReARMed-5a6fe0">
+  <img alt="Vulkan" src="https://img.shields.io/badge/GPU-Vulkan%20up%20to%2016x-c83d5a">
   <img alt="RetroAchievements" src="https://img.shields.io/badge/RetroAchievements-supported-f0b429">
   <img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-2b2f7a">
 </p>
@@ -17,9 +18,12 @@
 
 PSXS5 (PlayStation X Super 5) is a PlayStation 1 emulator that installs as an app on the PS5 home screen.
 
-- The emulation is [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed), built into the app and running on the PS5's own CPU.
+- Two emulators are built into the app:
+  - [Beetle PSX HW](https://github.com/libretro/beetle-psx-libretro) (Mednafen), accurate, and drawn on the PS5's GPU through Vulkan at up to 16x the PS1's resolution, with PGXP.
+  - [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed), on the CPU. It needs no BIOS.
+  - PSXS5 picks Beetle when it can, game by game.
 - You pick a game from a cover-flow shelf with your covers.
-- Games are upscaled with xBR for a 4K TV.
+- RetroAchievements, cheats for every game, save states and quick resume.
 
 ## Screenshots
 
@@ -44,6 +48,10 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 
 ## Highlights
 
+- **Up to 16x resolution on the GPU.** Beetle PSX HW renders through Vulkan: native, 2x, 4x, 8x or 16x, at full speed.
+- **No more wobbly 3D.** PGXP (precise geometry) keeps polygons still and textures straight.
+- **The right emulator, automatically.** *Emulator: Automatic* uses Beetle when the BIOS for the game's region is there, and PCSX-ReARMed otherwise. Both share one memory card per game.
+
 - **Quick resume.** Leave a game and pick it up later: the shelf offers *Continue* (with a picture of where you were) or *Start over*.
 - **Rewind and fast forward.** Hold the touchpad and press L2 to go back a few seconds, or R2 to speed through cutscenes.
 - **Save states with pictures.** Ten slots per game, each showing a thumbnail and how long ago it was saved.
@@ -52,7 +60,8 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 - **Up to 4 players.** A multitap for the games that support it: each PS5 controller is a player.
 - **Fan translations.** Put a `.ppf` patch next to a game and PSXS5 applies it when the game starts.
 - **Memory card manager.** See the saves on every game's card, export cards for other emulators, import `.mcr`, `.mcd`, `.srm` or `.gme` cards.
-- **Achievements list.** Every achievement of the game you're playing, with badges and progress, from the in-game menu.
+- **Achievements list.** Every achievement of the game you're playing, with badges, in two tabs: *Achievable* (closest first) and *Achieved*.
+  - Counted achievements (18/80 dragons) show a progress bar, and a small tracker pops up in game when they move.
 - **Settings from your phone.** Turn it on and scan the QR code: a settings page opens on any phone on the same network.
 - **Updates from GitHub.** PSXS5 tells you when a new release is out and installs it from *Settings → About*.
 - **Native app.** A real home-screen title (`PPSA97510`) with its own icon and art. Nothing is streamed and no PC is needed while you play.
@@ -63,27 +72,27 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
   - Or pick one by hand: on the shelf press **Triangle** (Details), then **Square**, and choose any image from `covers/` or the game's folder.
 - **Plays every common format.** `.cue`/`.bin`, `.chd`, `.pbp` (including multi-disc), `.iso`, `.img`, `.mdf`, `.ccd` and `.m3u` playlists for multi-disc games.
 - **Sharp on a 4K TV.**
-  - Internal resolution: native or 2x (sharper 3D).
+  - Internal resolution: native up to 16x with Beetle PSX HW, up to 2x with PCSX-ReARMed.
   - Upscale: 1x to 4x, with three filters:
     - Sharp pixels
     - Smooth pixels (Scale2x/3x)
     - xBR, the smoothest edges for 2D art
-  - Aspect ratio: auto, 4:3, 16:9, 16:10, 1:1 pixels or stretch.
+  - Aspect ratio: auto, 4:3, 16:9, 16:10, 1:1 pixels or stretch, and *Crop black edges* to hide the black lines at the top and bottom.
   - Integer scaling, bilinear smoothing and dithering on or off.
-- **Built for full speed.** Aims at 60 fps (50 for PAL games). Scaling is spread over the PS5's CPU cores, and the video goes straight to the PS5's display output.
+- **Built for full speed.** 60 fps (50 for PAL games). Beetle renders on the GPU; the picture and the menus reach the TV through Vulkan.
 - **RetroAchievements.** Earn [RetroAchievements](https://retroachievements.org) as you play.
   - Unlocks and leaderboard results pop up on screen.
   - Optional hardcore mode.
   - See [RetroAchievements](#retroachievements).
-- **Cheats for every game.** PSXS5 reads RetroArch `.cht` files (GameShark / Action Replay codes).
-  - The PC tool installs about 2,000 of them from libretro-database and matches them to your games.
-  - Toggle them per game from the in-game menu.
+- **Cheats for every game, automatically.** PSXS5 knows all 1,961 PlayStation cheat files of libretro-database (GameShark, Action Replay...).
+  - When a game starts it finds that game's file and downloads it: no setup.
+  - Toggle codes per game from the in-game menu.
 - **Save states.** 10 slots per game, plus memory cards saved per game.
 - **DualSense ready.**
   - DualShock analog with rumble.
   - On digital-only games, the left stick drives the D-pad.
   - Cross confirms and Circle goes back in the menus.
-- **Real BIOS or none.** Games boot with PCSX-ReARMed's built-in HLE BIOS. If you put your own BIOS dump in `bios/`, PSXS5 uses it.
+- **Your BIOS, or none.** Beetle PSX HW needs a BIOS dump of your own console for the game's region (`scph5500.bin` Japan, `scph5501.bin` USA, `scph5502.bin` Europe in `bios/`; the PC tool names them for you). Without one, PCSX-ReARMed runs the game with its built-in BIOS.
 - **Five languages.** English, Français, Português (Portugal), Español (Latinoamérica) and 日本語, under Settings → Library → Language.
 - **Quiet interface sounds.** Five styles (Soft, Wood, Pop, Chime, Classic), a volume setting, or off.
 - **A PC tool for your library.** `tools/psxs5_sync.py` prepares your games on Windows and uploads them over FTP:
@@ -194,12 +203,12 @@ The **PSXS5 menu** has:
 
 | Section | Settings |
 |---|---|
-| Video | Internal resolution (native, 2x), upscale (off, 2x, 3x, 4x), upscale filter (sharp, Scale2x, xBR), aspect ratio, integer scaling, smooth final scaling, dithering, FPS counter |
-| System | Region (auto, NTSC, PAL), BIOS (real if present, or built-in HLE), controller (digital or DualShock), left stick as D-pad, fast CD loading, unlocking `/data` with etaHEN |
+| Video | Internal resolution (native to 16x), PGXP, upscale (off, 2x, 3x, 4x), upscale filter (sharp, Scale2x, xBR), aspect ratio, integer scaling, smooth final scaling, dithering, FPS counter |
+| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region (auto, NTSC, PAL), BIOS (real if present, or built-in HLE), controller (digital or DualShock), left stick as D-pad, fast CD loading, unlocking `/data`, PS5SX2 Helper whitelist |
 | RetroAchievements | Account, hardcore mode |
 | Library | Cover style (flat or 3D box), download missing covers, language, interface sound and volume, rescan library |
 
-Video settings apply while you play. Region, BIOS and controller apply from the next game.
+Video settings apply while you play. Emulator, internal resolution, PGXP, region, BIOS and controller apply from the next game.
 
 ## RetroAchievements
 
@@ -213,17 +222,13 @@ Restart PSXS5 and it signs in by itself. Start a game, and if it has an achievem
 
 - **Hardcore mode** (Settings → RetroAchievements) turns off loading states and cheats, as RetroAchievements requires. Turning it on restarts the running game.
 - Without a connection, unlocks are kept and sent when the console is back online.
-- Games are recognised by the same disc hash RetroArch uses, so the usual RetroAchievements-compatible dumps (Redump) work.
+- Games are recognised by the same disc hash RetroArch uses, so the usual RetroAchievements-compatible dumps (Redump) work. When a version isn't in any set (some PlayStation Store or patched images), PSXS5 says so.
 
 ## Cheats
 
-The PC tool downloads libretro-database's PlayStation cheats and installs the right file for each of your games:
+Nothing to install: when a game starts, PSXS5 finds its file among libretro-database's PlayStation cheats and downloads it (the first time, the list appears a few seconds into the game). Games without a file there have no cheats.
 
-```bash
-python tools/psxs5_sync.py cheats --host <PS5 IP>
-```
-
-In a game, open the PSXS5 menu → **Cheats** and switch codes on and off. Your choice is remembered per game. To use your own codes, put a `cheats.cht` in the game's folder.
+In a game, open the PSXS5 menu → **Cheats** and switch codes on and off. Cheats tied to one level ("... Stage") can freeze the game when the level ends: turn them off before. Your choice is remembered per game. To use your own codes, put a `cheats.cht` in the game's folder.
 
 ## PC tool
 
@@ -250,7 +255,8 @@ It remembers what is already on the console, so you can run it again whenever yo
 
 ## Known limitations
 
-- **Rendering is on the CPU.** It is fast enough for full speed, but internal resolution stops at 2x and HD texture packs aren't supported.
+- **Beetle PSX HW needs a BIOS** for the game's region; without it PSXS5 uses PCSX-ReARMed (up to 2x).
+- **Shaders** (CRT filters beyond the scanlines) aren't there yet.
 - **Sandboxed mode.** If etaHEN won't unlock `/data`, PSXS5 still runs: it reads the game list the PC tool uploads (`library.txt`) instead of listing the folder.
 - **Closing from the PS button** crashed the console once during testing while `/data` was unlocked through etaHEN. If it happens to you, set *Settings → System → Unlock /data with etaHEN* to Off and let us know.
 - The PS5's own keyboard and on-screen keyboard aren't used, so text entry (like the RetroAchievements sign-in) happens on the PC.
@@ -267,7 +273,7 @@ make            # -> dist/PPSA97510/
 make desktop    # optional PC test build (needs libsdl2-dev libcurl4-openssl-dev zlib1g-dev)
 ```
 
-`make` builds PCSX-ReARMed (`tools/build-core.sh`) and rcheevos (`tools/build-rcheevos.sh`) as static libraries, compiles `src/` and signs `eboot.bin`.
+`make` builds PCSX-ReARMed (`tools/build-core.sh`), Beetle PSX HW (`tools/build-beetle.sh`) and rcheevos (`tools/build-rcheevos.sh`) as static libraries, links the RADV Vulkan driver (`tools/fetch-radv.sh`), compiles `src/` and signs `eboot.bin`. `APP_VULKAN=0` builds without Vulkan and Beetle.
 
 | Path | What |
 |---|---|
@@ -284,7 +290,8 @@ make desktop    # optional PC test build (needs libsdl2-dev libcurl4-openssl-dev
 
 PSXS5 is built on the work of a lot of people. Thank you all.
 
-* **notaz, the PCSX / PCSX-Reloaded teams and the libretro contributors**, for [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed), which does all the emulating, and for [libretro](https://www.libretro.com/), the interface PSXS5 drives it through.
+* **notaz, the PCSX / PCSX-Reloaded teams and the libretro contributors**, for [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed), and for [libretro](https://www.libretro.com/), the interface PSXS5 drives both emulators through.
+* **Ryphecha and the Mednafen team, the Beetle PSX contributors and Themaister** (parallel-psx), for [Beetle PSX HW](https://github.com/libretro/beetle-psx-libretro), and **Mihawk-99** for its PS5 port and for the PS5 port of Mesa's RADV Vulkan driver.
 * **BlackBearReloaded**, for [ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate), the build pipeline, runtime and deploy tooling that turn PSXS5 into a home-screen app.
 * **John Törnblom**, for the [ps5-payload-dev](https://github.com/ps5-payload-dev) SDK, and PacBrew's SDL2 and libcurl ports.
 * **SvenGDK**, for [SharpProspero](https://github.com/SvenGDK/SharpProspero), whose ELF converter and FSELF writer sign `eboot.bin`.

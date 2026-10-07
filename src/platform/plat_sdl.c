@@ -17,6 +17,7 @@
 #include "blit.h"
 #include "ps5_unlock.h"
 #include "ps5_video.h"
+#include "vk/vk_present.h"
 #include <sys/mman.h>
 int sceKernelSendNotificationRequest(uint32_t device, void *request, size_t size, int blocking);
 int sceSystemServiceHideSplashScreen(void);
@@ -57,6 +58,13 @@ const char *plat_init_error(void)
     return init_error;
 }
 
+static char screen_info[256] = "SDL window";
+
+const char *plat_screen_info(void)
+{
+    return screen_info;
+}
+
 static bool init_failed(const char *stage)
 {
     snprintf(init_error, sizeof(init_error), "%s failed: %s", stage, SDL_GetError());
@@ -66,6 +74,7 @@ static bool init_failed(const char *stage)
 
 #if defined(__PROSPERO__)
 static SDL_Surface *canvas; /* 1920x1080 RGBA in ordinary memory; shown by ps5_video */
+static bool use_vulkan;    /* v2: shown by vk_present instead */
 
 /* SDL's PS5 video driver can't provide a window surface or a renderer, so on
  * PS5 SDL is started without it: SDL draws (software renderer into `canvas`),
@@ -73,7 +82,25 @@ static SDL_Surface *canvas; /* 1920x1080 RGBA in ordinary memory; shown by ps5_v
 static bool init_ps5_screen(void)
 {
     char error[160];
+#if defined(PSXS5_VULKAN)
+    /* v2: the screen through Vulkan; the old VideoOut path stays as the
+     * fallback (and is forced by creating /data/PSXS5/no_vulkan). */
+    /* fopen, not access(): access() fails in the sandbox even for files that open */
+    FILE *off = fopen("/data/PSXS5/no_vulkan", "rb");
+    bool forced_off = off != NULL;
+    if (off)
+        fclose(off);
+    use_vulkan = !forced_off && vkp_open(PS5_SCREEN_W, PS5_SCREEN_H, error, sizeof(error));
+    if (use_vulkan)
+        snprintf(screen_info, sizeof(screen_info), "Vulkan, %s", vkp_describe());
+    else
+        snprintf(screen_info, sizeof(screen_info), "VideoOut (Vulkan %s)",
+                 forced_off ? "turned off by /data/PSXS5/no_vulkan" : error);
+    if (!use_vulkan && !ps5_video_open(error, sizeof(error)))
+#else
+    snprintf(screen_info, sizeof(screen_info), "VideoOut");
     if (!ps5_video_open(error, sizeof(error)))
+#endif
     {
         snprintf(init_error, sizeof(init_error), "screen: %s", error);
         return false;
@@ -334,7 +361,7 @@ bool plat_prepare_storage(char *error, size_t size)
     if (status == 0 && ps5_data_listable())
         return true;
     /* 3. Sandboxed: files in /data still open and save, folders can't be listed. */
-    snprintf(error, size, "etaHEN %s; Lapy code %d via %s", ps5_unlock_describe(hen), status,
+    snprintf(error, size, "%s; Lapy code %d via %s", ps5_unlock_describe(hen), status,
              route);
     return false;
 #else
@@ -767,11 +794,21 @@ static int game_image_w, game_image_h;
 static size_t game_image_pitch;
 #endif
 
+static bool game_gpu; /* v2: the picture is the core's Vulkan image */
+
+void plat_upload_game_gpu(int width, int height)
+{
+    game_gpu = true;
+    game_src_w = width;
+    game_src_h = height;
+}
+
 void plat_upload_game(const void *pixels, int width, int height, size_t pitch, int pixel_format,
                       int upscale, int filter)
 {
     if (!pixels || width <= 0 || height <= 0)
         return;
+    game_gpu = false;
     game_src_w = width;
     game_src_h = height;
     int k = pixel_format == 1 ? upscale : 1; /* prescalers work on 32-bit frames */
@@ -885,7 +922,7 @@ void plat_game_rect(int *x, int *y, int *w, int *h)
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 {
 #if defined(__PROSPERO__)
-    if (!game_image && !game_texture)
+    if (!game_image && !game_texture && !(game_gpu && vkp_game_image_ready()))
         return;
 #else
     if (!game_texture)
@@ -896,6 +933,12 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     int lines = game_src_h;
     while (lines > 288)
         lines /= 2;
+    /* Crop black edges: the share of the picture's height cut at the top and
+     * at the bottom (8 or 16 of the PS1's 240 lines) */
+    const float crop = (settings->crop_edges > 0 && settings->crop_edges < 3 ? settings->crop_edges * 8 : 0) / 240.0f;
+    int columns = game_src_w; /* the same for the width (internal resolution) */
+    while (columns > 768)
+        columns /= 2;
 
     float aspect;
     switch (settings->aspect)
@@ -904,9 +947,7 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     case ASPECT_16_9: aspect = 16.0f / 9.0f; break;
     case ASPECT_16_10: aspect = 16.0f / 10.0f; break;
     case ASPECT_PIXEL:
-        aspect = (float)game_src_w / (float)lines;
-        if (game_src_w > 640) /* 2x internal doubles the width too */
-            aspect *= 0.5f;
+        aspect = (float)columns / (float)lines;
         break;
     case ASPECT_STRETCH: aspect = (float)out_w / out_h; break;
     default: aspect = display_aspect > 0.0f ? display_aspect : 4.0f / 3.0f; break;
@@ -929,7 +970,7 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             dw = out_w;
     }
 
-    if (settings->border == 2)
+    if (settings->border == 2 && settings->aspect != ASPECT_STRETCH)
     {
         /* TV frame: leave room for the TV around the picture */
         dw = dw * 86 / 100;
@@ -942,11 +983,42 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
     static const uint8_t scan_strength[] = {0, 110, 200};
     uint8_t scan = scan_strength[settings->crt % 3];
 #if defined(__PROSPERO__)
+    if (game_gpu && vkp_game_image_ready())
+    {
+        /* a hole in the canvas where the GPU draws the picture; its alpha
+         * darkens the picture for the menus (premultiplied black) */
+        SDL_Rect hole = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+        if (scan && lines > 0)
+        {
+            /* CRT scanlines: each row's darkness as blit.c computes it */
+            for (int y = 0; y < dh; ++y)
+            {
+                int64_t pos = ((int64_t)y * 2 + 1) * lines * 128 / dh;
+                int phase = (int)(pos & 255) - 128;
+                uint32_t edge = (uint32_t)(phase * phase) >> 6;
+                uint32_t keep = (uint32_t)dim * (256 - ((edge * scan) >> 8)) >> 8;
+                SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - (keep > 255 ? 255 : keep)));
+                SDL_Rect row = {hole.x, hole.y + y, hole.w, 1};
+                SDL_RenderFillRect(renderer, &row);
+            }
+        }
+        else
+        {
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, (Uint8)(255 - dim));
+            SDL_RenderFillRect(renderer, &hole);
+        }
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop);
+        return;
+    }
     if (game_image)
     {
         /* run SDL's queued drawing (the clear) first, then write the picture */
         SDL_RenderFlush(renderer);
-        BlitJob job = {game_image, game_image_w, game_image_h, game_image_pitch,
+        int cut = (int)(game_image_h * crop);
+        BlitJob job = {game_image + (size_t)cut * game_image_pitch, game_image_w, game_image_h - 2 * cut,
+                       game_image_pitch,
                        (uint32_t *)canvas->pixels, (size_t)canvas->pitch / 4,
                        (out_w - dw) / 2, (out_h - dh) / 2, dw, dh, settings->smooth, dim,
                        scan, lines};
@@ -960,7 +1032,8 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
 #endif
     SDL_SetTextureColorMod(game_texture, dim, dim, dim);
     SDL_SetTextureBlendMode(game_texture, SDL_BLENDMODE_NONE); /* opaque: no per-pixel blend */
-    SDL_Rect src = {0, 0, game_w, game_h};
+    int cut = (int)(game_h * crop);
+    SDL_Rect src = {0, cut, game_w, game_h - 2 * cut};
     SDL_Rect dst = {(out_w - dw) / 2, (out_h - dh) / 2, dw, dh};
     SDL_RenderCopy(renderer, game_texture, &src, &dst);
     if (scan && lines > 0)
@@ -994,7 +1067,10 @@ void plat_end_frame(void)
     static uint64_t frame_start, draw_us, present_us;
     static int frames;
     uint64_t drawn = plat_ticks_us();
-    ps5_video_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+    if (use_vulkan)
+        vkp_present(canvas->pixels, (size_t)canvas->pitch); /* waits for vblank */
+    else
+        ps5_video_present(canvas->pixels, (size_t)canvas->pitch);
     uint64_t shown = plat_ticks_us();
     if (frame_start)
     {

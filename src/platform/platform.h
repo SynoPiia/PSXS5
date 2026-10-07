@@ -9,6 +9,8 @@
 
 bool plat_init(void);
 const char *plat_init_error(void); /* "SDL window failed: <reason>" after plat_init fails */
+/* How frames reach the screen, for the log (plat_init runs before the log opens). */
+const char *plat_screen_info(void);
 void plat_shutdown(void);
 
 /* PS5: asks the HEN to let PSXS5 list /data. Call before plat_init, while the
@@ -42,6 +44,8 @@ void plat_begin_frame(uint32_t clear_argb);
 /* upscale 1..4 prescales 32-bit frames with `filter` (enum UpscaleFilter) before the final scale. */
 void plat_upload_game(const void *pixels, int width, int height, size_t pitch, int pixel_format,
                       int upscale, int filter);
+/* The core rendered this frame on the GPU (v2): the screen draws it. */
+void plat_upload_game_gpu(int width, int height);
 void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim);
 void plat_fill_rect(int x, int y, int w, int h, uint32_t argb);
 /* Where plat_draw_game last put the picture (for borders around it). */

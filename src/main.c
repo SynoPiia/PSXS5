@@ -14,6 +14,7 @@
 #include "i18n.h"
 #include "platform/platform.h"
 #include "platform/ps5_crash.h"
+#include "platform/vk/vk_probe.h"
 #include "play.h"
 #include "remote.h"
 #include "update.h"
@@ -250,7 +251,7 @@ static void draw_tracker(void)
 
 static void draw_achievement(void)
 {
-    if (app.screen == SCREEN_GAME)
+    if (app.screen == SCREEN_GAME && app.global.ra_tracker)
         draw_tracker();
     static char title[96], detail[192];
     static uint64_t shown_at;
@@ -262,6 +263,12 @@ static void draw_achievement(void)
         showing = ra_next_message(title, sizeof(title), detail, sizeof(detail));
         if (!showing)
             return;
+        /* pop-ups off: messages that arrive during play are dropped, not shown */
+        if (!app.global.ra_popups && app.screen == SCREEN_GAME)
+        {
+            showing = false;
+            return;
+        }
         shown_at = now;
         sfx_play(SFX_SELECT);
     }
@@ -287,6 +294,8 @@ void app_draw_game(uint8_t dim)
     const void *pixels = host_frame(&w, &h, &pitch, &fmt, &fresh);
     if (pixels && fresh)
         plat_upload_game(pixels, w, h, pitch, fmt, app.settings.upscale, app.settings.upscale_filter);
+    else if (!pixels && fresh && w > 0)
+        plat_upload_game_gpu(w, h); /* the core rendered through Vulkan */
     Settings view = app.settings;
     if (play_widescreen_active())
         view.aspect = ASPECT_16_9;
@@ -294,7 +303,8 @@ void app_draw_game(uint8_t dim)
     /* around the picture: black, a soft glow, or a TV */
     int gx, gy, gw, gh;
     plat_game_rect(&gx, &gy, &gw, &gh);
-    if (view.border && gw > 0 && gw < plat_width() - 8)
+    /* Stretch fills the screen: no border or TV around it */
+    if (view.border && view.aspect != ASPECT_STRETCH && gw > 0 && gw < plat_width() - 8)
     {
         float k = dim / 255.0f;
         if (view.border == 1)
@@ -329,7 +339,7 @@ void app_start_game(int index, bool resume)
     play_rewind_reset();
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
-    if (!host_load(g->path, &app.paths, &app.settings, error, sizeof(error)))
+    if (!host_load(g->path, g->serial, &app.paths, &app.settings, error, sizeof(error)))
     {
         app.settings = app.global;
         app_toast(error);
@@ -347,7 +357,7 @@ void app_start_game(int index, bool resume)
     }
     plat_audio_open(host_sample_rate());
     plat_audio_clear();
-    ra_game_loaded();
+    ra_game_loaded(g->path);
     if (ra_hardcore())
         cheats_clear(&app.cheats); /* hardcore: no cheats */
     else if (cheats_load(&app.cheats, g, app.paths.cheats))
@@ -656,6 +666,7 @@ int main(void)
     psxs5_log_open(log_path);
     ps5_crash_install(log_path);
     psxs5_log("PSXS5 %s starting, data root %s", PSXS5_VERSION, app.paths.root);
+    psxs5_log("screen: %s", plat_screen_info());
 #if defined(__PROSPERO__)
     extern size_t ps5_heap_size_mb(void);
     psxs5_log("heap: %zu MB of direct memory%s", ps5_heap_size_mb(),
@@ -664,6 +675,7 @@ int main(void)
     psxs5_log(app.sandboxed ? "storage: sandboxed (%s)" : "storage: unlocked%s",
               app.sandboxed ? app.sandbox_reason : "");
     psxs5_log("storage probe before unlock: %s", plat_sandbox_probe());
+    vk_probe(app.paths.root); /* v2: proves the Vulkan driver runs; logs only */
     app.unlock_setting = !plat_unlock_disabled();
 
     config_load(&app.global, app.paths.config);

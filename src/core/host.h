@@ -7,10 +7,14 @@
 
 #include "../psxs5.h"
 
-bool host_load(const char *game_path, const Paths *paths, const Settings *settings,
+/* serial: the disc's (SLUS-00662), for the emulator choice and the memory
+ * card; may be empty. */
+bool host_load(const char *game_path, const char *serial, const Paths *paths, const Settings *settings,
                char *error, size_t error_size);
 void host_unload(void);
 bool host_loaded(void);
+/* "PCSX-ReARMed" or "Beetle PSX HW": the emulator of the loaded game */
+const char *host_core_name(void);
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */
@@ -40,10 +44,19 @@ void host_set_patches_dir(const char *dir);
 /* For RetroAchievements */
 struct retro_memory_map;
 const struct retro_memory_map *host_memory_map(void);
+void *host_memory_data(unsigned id); /* retro_get_memory_data of the running core */
+size_t host_memory_size(unsigned id);
 bool host_read_sector(uint32_t lba, uint8_t out[2048]); /* user data of a disc sector */
+/* host_read_sector from this image (any core), until _end. */
+bool host_hash_disc_begin(const char *disc_path);
+void host_hash_disc_end(void);
 
 int host_disc_count(void);
 int host_disc_index(void);
 bool host_disc_select(int index);
+
+/* GameShark codes, to the running core */
+void host_cheat_reset(void);
+void host_cheat_set(unsigned index, const char *code);
 
 #endif

@@ -193,8 +193,8 @@ static void RC_CCONV server_call(const rc_api_request_t *request,
 
 static void RC_CCONV core_memory_info(uint32_t id, rc_libretro_core_memory_info_t *info)
 {
-    info->data = retro_get_memory_data(id);
-    info->size = retro_get_memory_size(id);
+    info->data = host_memory_data(id);
+    info->size = host_memory_size(id);
 }
 
 static uint32_t RC_CCONV read_memory(uint32_t address, uint8_t *buffer, uint32_t num_bytes,
@@ -208,17 +208,42 @@ static uint32_t RC_CCONV read_memory(uint32_t address, uint8_t *buffer, uint32_t
 
 /* ---------------------------------------------------------------- disc hashing */
 
+/* PCSX-ReARMed: sectors come from the disc the core has open, whatever the
+ * image format. Other cores (Beetle PSX HW): rcheevos reads the image file
+ * itself (bin/cue, iso). A handle of (void *)1 means the core's disc. */
+static rc_hash_cdreader_t file_reader;
+
+static bool use_core_disc; /* sectors from host_read_sector, during the hash */
+
+static bool core_disc(void)
+{
+    return use_core_disc;
+}
+
 static void *RC_CCONV cd_open_track(const char *path, uint32_t track)
 {
-    (void)path;
+    if (!core_disc())
+        return file_reader.open_track ? file_reader.open_track(path, track) : NULL;
     (void)track; /* PS1 hashing only reads the data track */
-    return (void *)1; /* sectors come from the disc the core has open */
+    return (void *)1;
+}
+
+/* rcheevos prefers this one; its own reader only implements this form */
+static void *RC_CCONV cd_open_track_iterator(const char *path, uint32_t track,
+                                             const struct rc_hash_iterator *iterator)
+{
+    if (!core_disc())
+        return file_reader.open_track_iterator ? file_reader.open_track_iterator(path, track, iterator)
+                                               : cd_open_track(path, track);
+    (void)track;
+    return (void *)1;
 }
 
 static size_t RC_CCONV cd_read_sector(void *handle, uint32_t sector, void *buffer,
                                       size_t requested)
 {
-    (void)handle;
+    if (handle != (void *)1)
+        return file_reader.read_sector(handle, sector, buffer, requested);
     uint8_t data[2048];
     size_t done = 0;
     while (done < requested)
@@ -234,12 +259,14 @@ static size_t RC_CCONV cd_read_sector(void *handle, uint32_t sector, void *buffe
 
 static void RC_CCONV cd_close_track(void *handle)
 {
-    (void)handle;
+    if (handle != (void *)1 && file_reader.close_track)
+        file_reader.close_track(handle);
 }
 
 static uint32_t RC_CCONV cd_first_track_sector(void *handle)
 {
-    (void)handle;
+    if (handle != (void *)1)
+        return file_reader.first_track_sector(handle);
     return 0;
 }
 
@@ -394,7 +421,8 @@ void ra_init(const Paths *p)
     snprintf(agent, sizeof(agent), PSXS5_NAME "/" PSXS5_VERSION " (PS5) %s", clause);
 
     static rc_hash_cdreader_t reader = {cd_open_track, cd_read_sector, cd_close_track,
-                                        cd_first_track_sector, NULL};
+                                        cd_first_track_sector, cd_open_track_iterator};
+    rc_hash_get_default_cdreader(&file_reader);
     rc_hash_init_custom_cdreader(&reader);
     rc_hash_init_error_message_callback(hash_error);
 
@@ -441,14 +469,55 @@ static void RC_CCONV on_game_loaded(int result, const char *error, rc_client_t *
     post("RetroAchievements", detail);
 }
 
-void ra_game_loaded(void)
+/* The image rcheevos reads when the core can't hand it sectors: the first
+ * disc of a .m3u playlist (one path per line, relative to the playlist). */
+static void first_disc(const char *game_path, char *out, size_t size)
+{
+    str_copy(out, size, game_path);
+    if (str_icmp(path_ext(game_path), "m3u") != 0)
+        return;
+    FILE *f = fopen(game_path, "r");
+    char line[PSXS5_PATH_MAX] = "";
+    while (f && fgets(line, sizeof(line), f))
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (line[0] && line[0] != '#')
+            break;
+        line[0] = '\0';
+    }
+    if (f)
+        fclose(f);
+    if (!line[0])
+        return;
+    if (line[0] == '/')
+        str_copy(out, size, line);
+    else
+    {
+        char dir[PSXS5_PATH_MAX];
+        str_copy(dir, sizeof(dir), game_path);
+        char *slash = strrchr(dir, '/');
+        if (slash)
+            *slash = '\0';
+        path_join(out, size, dir, line);
+    }
+}
+
+void ra_game_loaded(const char *game_path)
 {
     if (!client)
         return;
     regions_ready = rc_libretro_memory_init(&regions, host_memory_map(), core_memory_info,
                                             RC_CONSOLE_PLAYSTATION) != 0;
-    char hash[33] = "";
-    if (!rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, "disc.cue"))
+    char hash[33] = "", disc[PSXS5_PATH_MAX];
+    /* Sectors through PCSX-ReARMed's CD layer, which reads every image
+     * format, whichever core runs the game; rcheevos' own reader (bin/cue,
+     * iso only) if that fails. */
+    first_disc(game_path, disc, sizeof(disc));
+    use_core_disc = host_hash_disc_begin(disc);
+    bool ok = rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, use_core_disc ? "disc.cue" : disc);
+    host_hash_disc_end();
+    use_core_disc = false;
+    if (!ok)
     {
         psxs5_log("ra: could not hash this disc");
         return;

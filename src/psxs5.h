@@ -14,7 +14,7 @@
 
 #define PSXS5_NAME "PSXS5"
 #define PSXS5_TITLE_ID "PPSA97510"
-#define PSXS5_VERSION "1.2.0"
+#define PSXS5_VERSION "2.0.0"
 #define PSXS5_PATH_MAX 512
 
 /* Pad bits use RetroPad numbering so the host can hand the mask to the core
@@ -81,7 +81,7 @@ typedef struct
     int aspect;       /* enum AspectMode */
     bool integer_scale; /* whole-number scale factors only */
     bool smooth;      /* bilinear for the final scale to the screen */
-    int internal_res; /* 1 or 2: the core renders 3D at 2x (enhanced GPU) */
+    int internal_res; /* 1..5 = native, 2x, 4x, 8x, 16x; PCSX-ReARMed stops at 2x */
     int upscale;      /* 1..4: prescale before the final scale */
     int upscale_filter; /* enum UpscaleFilter */
     bool show_fps;
@@ -114,7 +114,20 @@ typedef struct
     int border;           /* around the picture: 0 black, 1 glow, 2 TV frame */
     bool remote;          /* settings page for phones on the local network */
     bool update_check;    /* look for new PSXS5 releases at start */
+    int emulator;         /* enum Emulator */
+    bool pgxp;            /* Beetle: precise geometry, no wobbling polygons */
+    int crop_edges;       /* 0 off, 1: 8 lines top and bottom, 2: 16 (the black a CRT hid) */
+    bool ra_popups;       /* achievement unlock banners while playing */
+    bool ra_tracker;      /* the progress card when a counted achievement moves */
 } Settings;
+
+enum Emulator
+{
+    EMU_AUTO,   /* Beetle when it can run the game, else PCSX-ReARMed */
+    EMU_PCSX,
+    EMU_BEETLE,
+    EMU_COUNT
+};
 
 enum StickDpad
 {

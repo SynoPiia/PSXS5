@@ -1,0 +1,80 @@
+# PSXS5 v2 - builds Mihawk-99's RADV port (Mesa's Vulkan driver for the PS5 GPU)
+# as a static archive, for the Vulkan renderer. Slow (Mesa), so it runs on
+# demand and its result is published as a release asset the app build downloads.
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Build RADV (Vulkan driver)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [v2-vulkan]
+    paths: ['.github/workflows/radv.yml']
+
+permissions:
+  contents: write
+
+env:
+  PS5_VULKAN_REV: fde9e3798c2ec1d8fccc90d5067cd6060490607f
+  PS5_MESA_REV: 7b59ef27c1b09b9671bc4153c41940c3155c3af2
+  PS5_SDK_REV: b83202be73e930050e00de0f1b4d9ec46c0391bf
+
+jobs:
+  radv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-18 lld-18 llvm-18 llvm-18-dev libclang-18-dev \
+            libclang-cpp18-dev libclc-18-dev libllvmspirvlib-18-dev spirv-tools glslang-tools \
+            bison flex rsync pkg-config zstd wget unzip python3-mako python3-yaml python3-packaging \
+            pipx
+          pipx install meson
+          pipx install ninja
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          sudo ln -sf "$(command -v clang-18)" /usr/local/bin/clang
+          sudo ln -sf "$(command -v clang++-18)" /usr/local/bin/clang++
+
+      - name: Fetch PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK
+        run: |
+          mkdir -p "$RUNNER_TEMP/src" && cd "$RUNNER_TEMP/src"
+          for repo in PS5_Vulkan:$PS5_VULKAN_REV PS5_Mesa:$PS5_MESA_REV PS5_PayloadSDK:$PS5_SDK_REV; do
+            name=${repo%%:*}; rev=${repo#*:}
+            git clone -q "https://github.com/mihawk-99/$name.git" "$name"
+            git -C "$name" checkout -q "$rev"
+          done
+
+      - name: Build RADV (release)
+        working-directory: ${{ runner.temp }}/src/PS5_Vulkan
+        env:
+          PS5_CLANG: /usr/local/bin/clang
+        run: |
+          bash tools/setup-native-dependencies.sh
+          bash tools/build-radv.sh release
+
+      - name: Package
+        run: |
+          cd "$RUNNER_TEMP/src/PS5_Vulkan/.deps/native"
+          ls -la radv-release radv-release/lib
+          tar --zstd -cf "$GITHUB_WORKSPACE/radv-release.tar.zst" radv-release
+          # the SDK with its platform layer, which the link needs too
+          tar --zstd -cf "$GITHUB_WORKSPACE/ps5-payload-sdk.tar.zst" ps5-payload-sdk || true
+          ls -la "$GITHUB_WORKSPACE"/*.tar.zst
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: radv-release
+          path: '*.tar.zst'
+
+      - name: Publish as a release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=deps-radv-${PS5_MESA_REV:0:8}
+          gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$tag" -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "RADV build $tag (dependency for v2)" \
+              --notes "RADV from mihawk-99/PS5_Mesa $PS5_MESA_REV, built by PS5_Vulkan $PS5_VULKAN_REV. Not an app release."
+          gh release upload "$tag" -R "$GITHUB_REPOSITORY" --clobber *.tar.zst

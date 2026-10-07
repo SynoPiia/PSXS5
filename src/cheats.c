@@ -11,7 +11,7 @@
 #include "cheats.h"
 #include "i18n.h"
 
-#include "libretro.h"
+#include "core/host.h"
 #include "net.h"
 #include "platform/platform.h"
 
@@ -492,9 +492,9 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
 
 void cheats_apply(const CheatList *list)
 {
-    retro_cheat_reset();
+    host_cheat_reset(); /* to the emulator running the game */
     unsigned index = 0;
     for (int i = 0; i < list->count; ++i)
         if (list->items[i].enabled)
-            retro_cheat_set(index++, true, list->items[i].code);
+            host_cheat_set(index++, list->items[i].code);
 }

@@ -86,7 +86,8 @@ typedef struct
 static const char *const OFF_ON[] = {"Off", "On"};
 static const char *const ASPECTS[] = {"Auto (game)", "4:3", "16:9", "16:10", "1:1 pixels",
                                       "Stretch to screen"};
-static const char *const INTERNAL[] = {"Native", "2x"};
+static const char *const INTERNAL[] = {"Native", "2x", "4x", "8x", "16x"};
+static const char *const EMULATORS[] = {"Automatic", "PCSX-ReARMed", "Beetle PSX HW"};
 static const char *const UPSCALE[] = {"Off", "2x", "3x", "4x"};
 static const char *const FILTERS[] = {"Sharp pixels", "Smooth pixels (Scale2x)", "xBR (smoothest)"};
 static const char *const REGIONS[] = {"Auto", "NTSC (60 Hz)", "PAL (50 Hz)"};
@@ -99,6 +100,7 @@ static const char *const STICK_MODES[] = {"Auto (digital games)", "Always", "Off
 static const char *const BACKGROUNDS[] = {"Dark", "Cover colour"};
 static const char *const CRT_LEVELS[] = {"Off", "Light", "Strong"};
 static const char *const BORDERS[] = {"Black", "Soft glow", "TV frame"};
+static const char *const CROPS[] = {"Off", "A little", "More"};
 static const char *const PLAYERS[] = {"1 or 2", "Up to 4 (multitap)"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
@@ -109,6 +111,8 @@ static const Row DISPLAY[] = {
      SP_NONE, false, INT_FIELD(upscale), UPSCALE, 4, 1},
     {NULL, "Aspect ratio", "The shape of the picture. Pair 16:9 with a widescreen cheat.", K_CHOICE,
      APPLY_NOW, SP_NONE, false, INT_FIELD(aspect), ASPECTS, 6, 0},
+    {NULL, "Crop black edges", "Hides the black lines many games leave at the top and bottom, which an old TV hid. Pair with Stretch to fill the screen.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(crop_edges), CROPS, 3, 0},
     {NULL, "Widescreen", "Turns on the game's widescreen code from the cheat library and shows 16:9. Games without one stay 4:3.",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(widescreen), OFF_ON, 2, 0},
     {"Screen fit", "Integer scaling", "Whole-number scale factors only: even pixels, black borders.",
@@ -124,8 +128,10 @@ static const Row DISPLAY[] = {
 };
 
 static const Row GRAPHICS[] = {
-    {"Rendering", "Internal resolution", "Draws 3D at twice the PS1's resolution: sharper polygons.",
-     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(internal_res), INTERNAL, 2, 1},
+    {"Rendering", "Internal resolution", "Draws 3D at a higher resolution: sharper polygons. Above 2x needs Beetle PSX HW.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(internal_res), INTERNAL, 5, 1},
+    {NULL, "Precise geometry (PGXP)", "Beetle PSX HW: stops polygons wobbling and textures warping.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pgxp), OFF_ON, 2, 0},
     {NULL, "Dithering", "The PS1's dot pattern that fakes more colours. Off looks cleaner.", K_TOGGLE,
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(dithering), OFF_ON, 2, 0},
 };
@@ -157,6 +163,10 @@ static const Row SOUND[] = {
 static const Row ACHIEVEMENTS[] = {
     {"Account", "Signed in as", "Sign in on your PC: python tools/psxs5_sync.py ra-login. Only a token reaches the PS5.",
      K_INFO, APPLY_NOW, SP_ACCOUNT, true, NO_FIELD, NULL, 0, 0},
+    {"While playing", "Unlock pop-ups", "The banner when you earn an achievement. Off only hides it: achievements still unlock.",
+     K_TOGGLE, APPLY_NOW, SP_NONE, true, BOOL_FIELD(ra_popups), OFF_ON, 2, 0},
+    {NULL, "Progress tracker", "The small card when a counted achievement moves (18/80 dragons).", K_TOGGLE,
+     APPLY_NOW, SP_NONE, true, BOOL_FIELD(ra_tracker), OFF_ON, 2, 0},
     {"Play", "Hardcore mode", "Earn hardcore achievements: save states and cheats are off. Turning it on restarts the game.",
      K_TOGGLE, APPLY_NOW, SP_HARDCORE, true, NO_FIELD, OFF_ON, 2, 0},
 };
@@ -177,7 +187,9 @@ static const Row LIBRARY[] = {
 };
 
 static const Row SYSTEM[] = {
-    {"Emulation", "Region", "Auto follows the disc; force 50 or 60 Hz if a game misbehaves.", K_CHOICE,
+    {"Emulation", "Emulator", "Beetle PSX HW is more accurate and renders on the GPU, but needs your BIOS. PCSX-ReARMed also runs without one.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(emulator), EMULATORS, 3, 0},
+    {NULL, "Region", "Auto follows the disc; force 50 or 60 Hz if a game misbehaves.", K_CHOICE,
      APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(region), REGIONS, 3, 0},
     {NULL, "BIOS", "Your own BIOS dump in /data/PSXS5/bios, or the built-in one.", K_CHOICE,
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},

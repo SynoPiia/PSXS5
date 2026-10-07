@@ -1,15 +1,23 @@
 /*
- * PSXS5 - libretro host for the statically linked PCSX-ReARMed core.
+ * PSXS5 - libretro host for the statically linked cores.
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The core is linked into PSXS5 as libpcsx_rearmed.a, so retro_* are plain
- * function calls. Only the environment callbacks PCSX-ReARMed relies on are
- * implemented; everything else answers "unsupported" as libretro allows.
+ * The cores are linked into PSXS5 as static archives: PCSX-ReARMed
+ * (libpcsx_rearmed.a, plain retro_*) and, in v2 builds, Beetle PSX HW
+ * (libbeetle_psx.a, its retro_* renamed beetle_retro_* by
+ * tools/build-beetle.sh). A table of functions picks one per game. Only the
+ * environment callbacks the cores rely on are implemented; everything else
+ * answers "unsupported" as libretro allows.
  */
 #include "host.h"
 
 #include "libretro.h"
 #include "../platform/platform.h"
+#if defined(PSXS5_VULKAN)
+#include "../platform/vk/vk_present.h"
+#include "../platform/vk/vk_present_hw.h" /* before libretro_vulkan.h: no prototypes */
+#include "libretro_vulkan.h"
+#endif
 #include "../platform/ps5_crash.h"
 
 #include <stdarg.h>
@@ -17,7 +25,75 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_OPTIONS 160
+#define MAX_OPTIONS 200
+
+/* ---------------------------------------------------------------- the cores */
+
+typedef struct
+{
+    const char *name;
+    void (*set_environment)(retro_environment_t);
+    void (*set_video_refresh)(retro_video_refresh_t);
+    void (*set_audio_sample)(retro_audio_sample_t);
+    void (*set_audio_sample_batch)(retro_audio_sample_batch_t);
+    void (*set_input_poll)(retro_input_poll_t);
+    void (*set_input_state)(retro_input_state_t);
+    void (*init)(void);
+    void (*deinit)(void);
+    bool (*load_game)(const struct retro_game_info *);
+    void (*unload_game)(void);
+    void (*get_system_av_info)(struct retro_system_av_info *);
+    void (*set_controller_port_device)(unsigned, unsigned);
+    void (*run)(void);
+    void (*reset)(void);
+    size_t (*serialize_size)(void);
+    bool (*serialize)(void *, size_t);
+    bool (*unserialize)(const void *, size_t);
+    void *(*get_memory_data)(unsigned);
+    size_t (*get_memory_size)(unsigned);
+    void (*cheat_reset)(void);
+    void (*cheat_set)(unsigned, bool, const char *);
+} CoreApi;
+
+#define CORE_API(label, p)                                                                         \
+    {                                                                                              \
+        label, p##retro_set_environment, p##retro_set_video_refresh, p##retro_set_audio_sample,  \
+            p##retro_set_audio_sample_batch, p##retro_set_input_poll, p##retro_set_input_state,  \
+            p##retro_init, p##retro_deinit, p##retro_load_game, p##retro_unload_game,            \
+            p##retro_get_system_av_info, p##retro_set_controller_port_device, p##retro_run,      \
+            p##retro_reset, p##retro_serialize_size, p##retro_serialize, p##retro_unserialize,   \
+            p##retro_get_memory_data, p##retro_get_memory_size, p##retro_cheat_reset,           \
+            p##retro_cheat_set                                                                  \
+    }
+
+static const CoreApi PCSX = CORE_API("PCSX-ReARMed", );
+
+#if defined(PSXS5_VULKAN)
+void beetle_retro_set_environment(retro_environment_t);
+void beetle_retro_set_video_refresh(retro_video_refresh_t);
+void beetle_retro_set_audio_sample(retro_audio_sample_t);
+void beetle_retro_set_audio_sample_batch(retro_audio_sample_batch_t);
+void beetle_retro_set_input_poll(retro_input_poll_t);
+void beetle_retro_set_input_state(retro_input_state_t);
+void beetle_retro_init(void);
+void beetle_retro_deinit(void);
+bool beetle_retro_load_game(const struct retro_game_info *);
+void beetle_retro_unload_game(void);
+void beetle_retro_get_system_av_info(struct retro_system_av_info *);
+void beetle_retro_set_controller_port_device(unsigned, unsigned);
+void beetle_retro_run(void);
+void beetle_retro_reset(void);
+size_t beetle_retro_serialize_size(void);
+bool beetle_retro_serialize(void *, size_t);
+bool beetle_retro_unserialize(const void *, size_t);
+void *beetle_retro_get_memory_data(unsigned);
+size_t beetle_retro_get_memory_size(unsigned);
+void beetle_retro_cheat_reset(void);
+void beetle_retro_cheat_set(unsigned, bool, const char *);
+static const CoreApi BEETLE = CORE_API("Beetle PSX HW", beetle_);
+#endif
+
+static const CoreApi *core = &PCSX;
 
 typedef struct
 {
@@ -98,8 +174,44 @@ static void register_variables(const struct retro_variable *vars)
     }
 }
 
+#if defined(PSXS5_VULKAN)
+static void apply_beetle_options(const Settings *s)
+{
+    static const char *const regions[] = {"auto", "ntsc-u", "pal"};
+    static const char *const scales[] = {"1x(native)", "2x", "4x", "8x", "16x"};
+    int level = s->internal_res >= 1 && s->internal_res <= 5 ? s->internal_res : 1;
+    bool gpu = vkp_describe()[0] != '\0'; /* the screen runs through Vulkan */
+    if (!gpu && level > 2)
+        level = 2; /* the software renderer: 4x and up would not fit in memory */
+    set_option("beetle_psx_hw_renderer", gpu ? "hardware_vk" : "software");
+    set_option("beetle_psx_hw_internal_resolution", scales[level - 1]);
+    set_option("beetle_psx_hw_region", regions[s->region % REGION_COUNT]);
+    set_option("beetle_psx_hw_dither_mode", s->dithering ? "1x(native)" : "disabled");
+    /* read as it plays: "precache" loads every disc of a game into memory,
+     * and two discs already pass PSXS5's 1 GB */
+    set_option("beetle_psx_hw_cd_access_method", "async");
+    set_option("beetle_psx_hw_cd_fastload", s->cd_fast ? "4x" : "2x(native)");
+    set_option("beetle_psx_hw_skip_bios", "enabled");
+    set_option("beetle_psx_hw_pgxp_mode", s->pgxp ? "memory only" : "disabled");
+    set_option("beetle_psx_hw_pgxp_texture", s->pgxp ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_widescreen_hack", s->widescreen ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_widescreen_hack_aspect_ratio", "16:9");
+    set_option("beetle_psx_hw_analog_toggle", "enabled");
+    /* card 0 through SAVE_RAM: PSXS5 keeps it in PCSX-ReARMed's file */
+    set_option("beetle_psx_hw_use_mednafen_memcard0_method", "libretro");
+    set_option("beetle_psx_hw_frame_duping", "enabled");
+}
+#endif
+
 static void apply_settings_to_options(const Settings *s)
 {
+#if defined(PSXS5_VULKAN)
+    if (core == &BEETLE)
+    {
+        apply_beetle_options(s);
+        return;
+    }
+#endif
     static const char *regions[] = {"auto", "NTSC", "PAL"};
     set_option("pcsx_rearmed_region", regions[s->region % REGION_COUNT]);
     set_option("pcsx_rearmed_bios", s->force_hle ? "HLE" : "auto");
@@ -111,13 +223,141 @@ static void apply_settings_to_options(const Settings *s)
     set_option("pcsx_rearmed_vibration", "enabled");
     set_option("pcsx_rearmed_display_fps_v2", "disabled");
     /* 2x internal resolution: the enhanced GPU renders the 3D scene at double size. */
-    set_option("pcsx_rearmed_neon_enhancement_enable", s->internal_res == 2 ? "enabled" : "disabled");
+    set_option("pcsx_rearmed_neon_enhancement_enable", s->internal_res >= 2 ? "enabled" : "disabled");
     set_option("pcsx_rearmed_neon_enhancement_no_main", "disabled");
     /* players 3 and 4 through a multitap in port 1 */
     set_option("pcsx_rearmed_multitap", s->multitap ? "port 1" : "disabled");
     /* the widescreen codes need the picture's sides drawn */
     set_option("pcsx_rearmed_show_overscan", s->widescreen ? "hack" : "disabled");
 }
+
+/* ---------------------------------------------------------------- Vulkan rendering */
+
+#if defined(PSXS5_VULKAN)
+/* Beetle PSX HW renders through Vulkan: it asks for a Vulkan context
+ * (SET_HW_RENDER), creates the device itself through the negotiation
+ * interface, and hands over a finished image each frame (set_image). The
+ * screen (vk_present.c) moves onto that device and draws the image. */
+static struct retro_hw_render_callback hw;
+static bool hw_requested, hw_running;
+static const struct retro_hw_render_context_negotiation_interface_vulkan *negotiation;
+static struct retro_hw_render_interface_vulkan hw_interface;
+
+static void hw_set_image(void *handle, const struct retro_vulkan_image *image, uint32_t num_semaphores,
+                         const VkSemaphore *semaphores, uint32_t src_queue_family)
+{
+    (void)handle, (void)num_semaphores, (void)semaphores, (void)src_queue_family;
+    vkp_set_game_image(image ? image->create_info.image : VK_NULL_HANDLE, image ? image->image_view : VK_NULL_HANDLE,
+                       image ? image->image_layout : VK_IMAGE_LAYOUT_UNDEFINED);
+}
+static uint32_t hw_get_sync_index(void *handle)
+{
+    (void)handle;
+    return vkp_sync_index();
+}
+static uint32_t hw_get_sync_index_mask(void *handle)
+{
+    (void)handle;
+    return vkp_sync_index_mask();
+}
+static void hw_wait_sync_index(void *handle)
+{
+    (void)handle;
+    vkp_wait_sync_index();
+}
+static void hw_set_command_buffers(void *handle, uint32_t num, const VkCommandBuffer *cmd)
+{
+    (void)handle, (void)num, (void)cmd; /* Beetle submits its own */
+}
+static void hw_queue_noop(void *handle)
+{
+    (void)handle; /* one thread submits: no lock needed */
+}
+static void hw_set_signal_semaphore(void *handle, VkSemaphore semaphore)
+{
+    (void)handle, (void)semaphore;
+}
+
+/* After retro_load_game: the core's device, the screen moved onto it, then
+ * context_reset builds the renderer. */
+static bool hw_start(char *error, size_t size)
+{
+    VkInstance instance;
+    VkPhysicalDevice gpu;
+    VkSurfaceKHR surface;
+    PFN_vkGetInstanceProcAddr gipa;
+    vkp_hw_context(&instance, &gpu, &surface, &gipa);
+    struct retro_vulkan_context context;
+    memset(&context, 0, sizeof(context));
+    const char *extensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    if (!negotiation || !negotiation->create_device ||
+        !negotiation->create_device(&context, instance, gpu, surface, gipa, extensions, 1, NULL, 0, NULL))
+    {
+        snprintf(error, size, "Beetle could not create its Vulkan device.");
+        return false;
+    }
+    char why[160];
+    if (!vkp_adopt_device(context.device, context.queue, context.queue_family_index, why, sizeof(why)))
+    {
+        snprintf(error, size, "The screen could not move to Beetle's device: %s", why);
+        return false;
+    }
+    VkDevice device;
+    VkQueue queue;
+    uint32_t family;
+    PFN_vkGetDeviceProcAddr gdpa;
+    vkp_hw_device(&device, &queue, &family, &gdpa);
+    memset(&hw_interface, 0, sizeof(hw_interface));
+    hw_interface.interface_type = RETRO_HW_RENDER_INTERFACE_VULKAN;
+    hw_interface.interface_version = RETRO_HW_RENDER_INTERFACE_VULKAN_VERSION;
+    hw_interface.instance = instance;
+    hw_interface.gpu = context.gpu ? context.gpu : gpu;
+    hw_interface.device = device;
+    hw_interface.get_device_proc_addr = gdpa;
+    hw_interface.get_instance_proc_addr = gipa;
+    hw_interface.queue = queue;
+    hw_interface.queue_index = family;
+    hw_interface.set_image = hw_set_image;
+    hw_interface.get_sync_index = hw_get_sync_index;
+    hw_interface.get_sync_index_mask = hw_get_sync_index_mask;
+    hw_interface.set_command_buffers = hw_set_command_buffers;
+    hw_interface.wait_sync_index = hw_wait_sync_index;
+    hw_interface.lock_queue = hw_queue_noop;
+    hw_interface.unlock_queue = hw_queue_noop;
+    hw_interface.set_signal_semaphore = hw_set_signal_semaphore;
+    hw_running = true;
+    if (hw.context_reset)
+        hw.context_reset();
+    psxs5_log("host: Beetle renders through Vulkan");
+    return true;
+}
+
+/* The core asked for new geometry (internal resolution...): a new device
+ * and renderer, between frames. */
+static void hw_restart(void)
+{
+    if (hw.context_destroy)
+        hw.context_destroy();
+    hw_running = false;
+    vkp_set_game_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+    char error[200];
+    if (!hw_start(error, sizeof(error)))
+        psxs5_log("host: could not rebuild Beetle's renderer: %s", error);
+    else
+        psxs5_log("host: Beetle's renderer rebuilt for %ux%u", av_info.geometry.max_width,
+                  av_info.geometry.max_height);
+}
+
+static void hw_stop(void)
+{
+    if (hw_running && hw.context_destroy)
+        hw.context_destroy();
+    hw_running = false;
+    hw_requested = false;
+    negotiation = NULL;
+    vkp_set_game_image(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+}
+#endif
 
 /* ---------------------------------------------------------------- callbacks */
 
@@ -210,6 +450,12 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
         return true;
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
         av_info = *(const struct retro_system_av_info *)data;
+#if defined(PSXS5_VULKAN)
+        /* Beetle's Vulkan renderer reads its internal resolution only when
+         * it is rebuilt: like RetroArch, rebuild the context right away */
+        if (hw_running)
+            hw_restart();
+#endif
         return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         av_info.geometry = *(const struct retro_game_geometry *)data;
@@ -236,6 +482,47 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_MESSAGE:
         psxs5_log("core message: %s", ((const struct retro_message *)data)->msg);
         return true;
+#if defined(PSXS5_VULKAN)
+    case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+        *(unsigned *)data = RETRO_HW_CONTEXT_VULKAN;
+        return vkp_describe()[0] != '\0';
+    case RETRO_ENVIRONMENT_SET_HW_RENDER:
+    {
+        struct retro_hw_render_callback *cb = data;
+        if (core != &BEETLE || cb->context_type != RETRO_HW_CONTEXT_VULKAN || !vkp_describe()[0])
+            return false;
+        hw = *cb;
+        hw_requested = true;
+        return true;
+    }
+    case RETRO_ENVIRONMENT_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE:
+    {
+        const struct retro_hw_render_context_negotiation_interface *i = data;
+        if (i->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN)
+            return false;
+        negotiation = data;
+        return true;
+    }
+    case RETRO_ENVIRONMENT_GET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_SUPPORT:
+    {
+        struct retro_hw_render_context_negotiation_interface *i = data;
+        if (i->interface_type != RETRO_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE_VULKAN)
+            return false;
+        i->interface_version = 1; /* create_device, not create_device2 */
+        return true;
+    }
+    case RETRO_ENVIRONMENT_GET_HW_RENDER_INTERFACE:
+        if (!hw_running)
+            return false;
+        *(const struct retro_hw_render_interface **)data = (const struct retro_hw_render_interface *)&hw_interface;
+        return true;
+#endif
+    case RETRO_ENVIRONMENT_SET_MESSAGE_EXT:
+        psxs5_log("core message: %s", ((const struct retro_message_ext *)data)->msg);
+        return true;
+    case RETRO_ENVIRONMENT_GET_MESSAGE_INTERFACE_VERSION:
+        *(unsigned *)data = 1;
+        return true;
     default:
         return false;
     }
@@ -246,6 +533,15 @@ static void RETRO_CALLCONV video_cb(const void *data, unsigned width, unsigned h
 {
     if (!data)
         return; /* duplicate frame: keep showing the previous one */
+    if (data == RETRO_HW_FRAME_BUFFER_VALID)
+    {
+        /* rendered on the GPU: the image went through set_image */
+        frame_data = NULL;
+        frame_w = width;
+        frame_h = height;
+        frame_fresh = true;
+        return;
+    }
     frame_data = data;
     frame_w = width;
     frame_h = height;
@@ -292,13 +588,167 @@ static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, uns
     }
 }
 
+/* ---------------------------------------------------------------- memory card */
+
+/* One card per game, whichever emulator runs it: <saves>/<serial>_1.mcd,
+ * the file PCSX-ReARMed writes itself ("serial" cards) and the memory card
+ * manager shows. Beetle's card is the frontend's (SAVE_RAM): loaded from that
+ * file after retro_load_game, written back when it changes. */
+static char card_path[PSXS5_PATH_MAX];
+static uint8_t card_saved[128 * 1024];
+static int card_check;
+
+static void card_prepare(const char *serial, const char *game_path)
+{
+    card_path[0] = '\0';
+    char name[200], path[PSXS5_PATH_MAX];
+    if (serial[0])
+        snprintf(name, sizeof(name), "%s_1.mcd", serial);
+    else
+    {
+        /* no serial known: the game file's name */
+        const char *base = strrchr(game_path, '/');
+        snprintf(name, sizeof(name), "%.150s", base ? base + 1 : game_path);
+        char *dot = strrchr(name, '.');
+        if (dot)
+            *dot = '\0';
+        strncat(name, "_1.mcd", sizeof(name) - strlen(name) - 1);
+    }
+    path_join(card_path, sizeof(card_path), host_paths->saves, name);
+    /* PCSX names it as the disc spells its ID, sometimes lower case */
+    FILE *f = fopen(card_path, "rb");
+    if (f)
+    {
+        fclose(f);
+        return;
+    }
+    for (char *c = name; *c; ++c)
+        *c = (char)(*c >= 'A' && *c <= 'Z' ? *c + 32 : *c);
+    path_join(path, sizeof(path), host_paths->saves, name);
+    if ((f = fopen(path, "rb")) != NULL)
+    {
+        fclose(f);
+        str_copy(card_path, sizeof(card_path), path);
+    }
+}
+
+static uint8_t *beetle_card(void)
+{
+#if defined(PSXS5_VULKAN)
+    if (core == &BEETLE && card_path[0] && core->get_memory_size(RETRO_MEMORY_SAVE_RAM) == sizeof(card_saved))
+        return core->get_memory_data(RETRO_MEMORY_SAVE_RAM);
+#endif
+    return NULL;
+}
+
+static void card_load(void)
+{
+    uint8_t *card = beetle_card();
+    if (!card)
+        return;
+    FILE *f = fopen(card_path, "rb");
+    if (f)
+    {
+        size_t n = fread(card, 1, sizeof(card_saved), f);
+        fclose(f);
+        psxs5_log("host: memory card %s (%s)", card_path, n == sizeof(card_saved) ? "loaded" : "short");
+    }
+    memcpy(card_saved, card, sizeof(card_saved));
+}
+
+static void card_flush(void)
+{
+    uint8_t *card = beetle_card();
+    if (!card || memcmp(card, card_saved, sizeof(card_saved)) == 0)
+        return;
+    char temp[PSXS5_PATH_MAX];
+    snprintf(temp, sizeof(temp), "%s.tmp", card_path);
+    FILE *f = fopen(temp, "wb");
+    bool ok = f && fwrite(card, 1, sizeof(card_saved), f) == sizeof(card_saved);
+    if (f)
+        ok = fclose(f) == 0 && ok;
+    ok = ok && rename(temp, card_path) == 0;
+    if (ok)
+        memcpy(card_saved, card, sizeof(card_saved));
+    psxs5_log("host: memory card %s %s", card_path, ok ? "saved" : "could not be saved");
+}
+
 /* ---------------------------------------------------------------- API */
 
-bool host_load(const char *game_path, const Paths *paths, const Settings *settings,
+#if defined(PSXS5_VULKAN)
+/* Beetle needs a real BIOS of the disc's region, by one of the names it
+ * looks for (libretro.c firmware_is_present). Region from the serial. */
+static bool beetle_bios_present(const char *serial)
+{
+    static const char *const jp[] = {"scph5500.bin", "SCPH5500.bin", "SCPH5500.BIN", "SCPH-5500.bin",
+                                     "SCPH-5500.BIN", NULL};
+    static const char *const us[] = {"scph5501.bin", "SCPH5501.bin", "SCPH5501.BIN", "SCPH-5501.bin",
+                                     "SCPH-5501.BIN", "scph5503.bin", "scph7003.bin", NULL};
+    static const char *const eu[] = {"scph5502.bin", "SCPH5502.bin", "SCPH5502.BIN", "SCPH-5502.bin",
+                                     "SCPH-5502.BIN", "scph5552.bin", NULL};
+    const char *const *lists[3] = {us, eu, jp};
+    int only = -1; /* unknown region: any BIOS will do */
+    if (!strncmp(serial, "SLUS", 4) || !strncmp(serial, "SCUS", 4) || !strncmp(serial, "PAPX", 4))
+        only = 0;
+    else if (!strncmp(serial, "SLES", 4) || !strncmp(serial, "SCES", 4) || !strncmp(serial, "SCED", 4))
+        only = 1;
+    else if (serial[0] == 'S' || serial[0] == 'P') /* SLPS, SCPS, SLPM, SIPS, PCPX... */
+        only = 2;
+    for (int l = 0; l < 3; ++l)
+    {
+        if (only >= 0 && l != only)
+            continue;
+        for (const char *const *name = lists[l]; *name; ++name)
+        {
+            char path[PSXS5_PATH_MAX];
+            path_join(path, sizeof(path), host_paths->bios, *name);
+            FILE *f = fopen(path, "rb");
+            if (f)
+            {
+                fclose(f);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+#endif
+
+static const CoreApi *choose_core(const Settings *settings, const char *serial)
+{
+#if defined(PSXS5_VULKAN)
+    if (settings->emulator == EMU_BEETLE)
+        return &BEETLE;
+    if (settings->emulator == EMU_AUTO)
+    {
+        /* Beetle when it can run the game well: on the GPU, with the BIOS */
+        const char *why = settings->force_hle             ? "the built-in BIOS was chosen"
+                          : !vkp_describe()[0]            ? "the screen isn't drawn through Vulkan"
+                          : !beetle_bios_present(serial) ? "no BIOS for this disc's region"
+                                                          : NULL;
+        if (!why)
+            return &BEETLE;
+        psxs5_log("host: PCSX-ReARMed, as %s", why);
+    }
+#else
+    (void)settings, (void)serial;
+#endif
+    return &PCSX;
+}
+
+const char *host_core_name(void)
+{
+    return core->name;
+}
+
+bool host_load(const char *game_path, const char *serial, const Paths *paths, const Settings *settings,
                char *error, size_t error_size)
 {
     host_unload();
     host_paths = paths;
+    core = choose_core(settings, serial ? serial : "");
+    psxs5_log("host: emulator %s", core->name);
+    card_prepare(serial ? serial : "", game_path);
     option_count = 0;
     disk_available = false;
     frame_data = NULL;
@@ -308,33 +758,45 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
 
 #define STEP(s) (psxs5_log("host: %s", s), ps5_crash_step(s))
     STEP("retro_set_environment");
-    retro_set_environment(environment);
-    retro_set_video_refresh(video_cb);
-    retro_set_audio_sample(audio_cb);
-    retro_set_audio_sample_batch(audio_batch_cb);
-    retro_set_input_poll(input_poll_cb);
-    retro_set_input_state(input_state_cb);
+    core->set_environment(environment);
+    core->set_video_refresh(video_cb);
+    core->set_audio_sample(audio_cb);
+    core->set_audio_sample_batch(audio_batch_cb);
+    core->set_input_poll(input_poll_cb);
+    core->set_input_state(input_state_cb);
     STEP("retro_init");
-    retro_init();
-    psxs5_set_patches_dir(patches_dir);
+    core->init();
+    if (core == &PCSX)
+        psxs5_set_patches_dir(patches_dir);
 
     STEP("retro_load_game");
     struct retro_game_info info = {game_path, NULL, 0, NULL};
-    if (!retro_load_game(&info))
+    if (!core->load_game(&info))
     {
         snprintf(error, error_size, "The core could not load this game.");
-        retro_deinit();
+        core->deinit();
         return false;
     }
+#if defined(PSXS5_VULKAN)
+    if (hw_requested && !hw_start(error, error_size))
+    {
+        psxs5_log("%s", error);
+        hw_stop();
+        core->unload_game();
+        core->deinit();
+        return false;
+    }
+#endif
     STEP("retro_get_system_av_info");
-    retro_get_system_av_info(&av_info);
+    core->get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
     unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
                                        : RETRO_DEVICE_JOYPAD;
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
-        retro_set_controller_port_device(port, device);
+        core->set_controller_port_device(port, device);
     loaded = true;
+    card_load();
     STEP("running");
 #undef STEP
     psxs5_log("loaded %s: %.3f fps, %.0f Hz, base %ux%u", game_path, av_info.timing.fps,
@@ -347,8 +809,12 @@ void host_unload(void)
 {
     if (!loaded)
         return;
-    retro_unload_game();
-    retro_deinit();
+    card_flush();
+    core->unload_game();
+#if defined(PSXS5_VULKAN)
+    hw_stop();
+#endif
+    core->deinit();
     loaded = false;
     frame_data = NULL;
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
@@ -360,6 +826,16 @@ bool host_loaded(void)
     return loaded;
 }
 
+void *host_memory_data(unsigned id)
+{
+    return loaded ? core->get_memory_data(id) : NULL;
+}
+
+size_t host_memory_size(unsigned id)
+{
+    return loaded ? core->get_memory_size(id) : 0;
+}
+
 const struct retro_memory_map *host_memory_map(void)
 {
     return loaded && memory_map.num_descriptors ? &memory_map : NULL;
@@ -369,10 +845,38 @@ const struct retro_memory_map *host_memory_map(void)
  * image format is loaded (bin/cue, CHD, PBP...). */
 int cdra_readTrack(const unsigned char *time);
 void *cdra_getBuffer(void);
+int cdra_init(void);
+int cdra_open(void);
+void cdra_close(void);
+void set_cd_image(const char *fname); /* PCSX-ReARMed frontend/main.c */
+
+/* When another core runs the game, PCSX-ReARMed's CD layer still reads every
+ * image format (bin/cue, CHD, PBP...): open it just to hash the disc. */
+static bool hash_disc_open;
+
+bool host_hash_disc_begin(const char *disc_path)
+{
+    if (loaded && core == &PCSX)
+        return true; /* the running core's disc */
+    host_hash_disc_end();
+    cdra_init();
+    set_cd_image(disc_path);
+    hash_disc_open = cdra_open() == 0;
+    if (!hash_disc_open)
+        psxs5_log("ra: could not open %s to identify it", disc_path);
+    return hash_disc_open;
+}
+
+void host_hash_disc_end(void)
+{
+    if (hash_disc_open)
+        cdra_close();
+    hash_disc_open = false;
+}
 
 bool host_read_sector(uint32_t lba, uint8_t out[2048])
 {
-    if (!loaded)
+    if (!hash_disc_open && (!loaded || core != &PCSX))
         return false;
     unsigned abs = lba + 150; /* sector 0 is at 00:02:00 */
     /* minute, second, frame as plain numbers: the core's cdra_readTrack takes
@@ -392,7 +896,7 @@ int padGetMode(unsigned int index); /* core, added by tools/patches/pcsx_rearmed
 
 bool host_pad_digital(int port)
 {
-    return loaded && padGetMode((unsigned)port) == 0;
+    return loaded && core == &PCSX && padGetMode((unsigned)port) == 0;
 }
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS])
@@ -402,14 +906,20 @@ void host_set_pads(const PadState pads[PSXS5_MAX_PADS])
 
 void host_run_frame(void)
 {
-    if (loaded)
-        retro_run();
+    if (!loaded)
+        return;
+    core->run();
+    if (++card_check >= 120) /* every 2 s: games write a save in a burst */
+    {
+        card_check = 0;
+        card_flush();
+    }
 }
 
 void host_reset(void)
 {
     if (loaded)
-        retro_reset();
+        core->reset();
 }
 
 void host_apply_settings(const Settings *settings)
@@ -446,13 +956,13 @@ const void *host_frame(int *width, int *height, size_t *pitch, int *format, bool
 
 bool host_save_state(const char *path)
 {
-    size_t size = retro_serialize_size();
+    size_t size = core->serialize_size();
     if (!loaded || size == 0)
         return false;
     void *buffer = malloc(size);
     if (!buffer)
         return false;
-    bool ok = retro_serialize(buffer, size);
+    bool ok = core->serialize(buffer, size);
     if (ok)
     {
         char temp[PSXS5_PATH_MAX];
@@ -474,17 +984,17 @@ void host_set_patches_dir(const char *dir)
 
 size_t host_state_size(void)
 {
-    return loaded ? retro_serialize_size() : 0;
+    return loaded ? core->serialize_size() : 0;
 }
 
 bool host_serialize(void *buffer, size_t size)
 {
-    return loaded && retro_serialize(buffer, size);
+    return loaded && core->serialize(buffer, size);
 }
 
 bool host_unserialize(const void *buffer, size_t size)
 {
-    if (!loaded || !retro_unserialize(buffer, size))
+    if (!loaded || !core->unserialize(buffer, size))
         return false;
     plat_audio_clear();
     return true;
@@ -492,6 +1002,10 @@ bool host_unserialize(const void *buffer, size_t size)
 
 bool host_capture(uint8_t *rgba, int w, int h)
 {
+#if defined(PSXS5_VULKAN)
+    if (loaded && hw_running && !frame_data && frame_w && frame_h) /* rendered on the GPU */
+        return vkp_capture_game(rgba, w, h, (int)frame_w, (int)frame_h);
+#endif
     if (!loaded || !frame_data || frame_w == 0 || frame_h == 0)
         return false;
     for (int y = 0; y < h; ++y)
@@ -534,12 +1048,24 @@ bool host_load_state(const char *path)
     bool ok = false;
     void *buffer = size > 0 ? malloc((size_t)size) : NULL;
     if (buffer && fread(buffer, 1, (size_t)size, f) == (size_t)size)
-        ok = retro_unserialize(buffer, (size_t)size);
+        ok = core->unserialize(buffer, (size_t)size);
     free(buffer);
     fclose(f);
     if (ok)
         plat_audio_clear();
     return ok;
+}
+
+void host_cheat_reset(void)
+{
+    if (loaded)
+        core->cheat_reset();
+}
+
+void host_cheat_set(unsigned index, const char *code)
+{
+    if (loaded)
+        core->cheat_set(index, true, code);
 }
 
 int host_disc_count(void)
