@@ -164,14 +164,34 @@ def scan_folder(folder: Path) -> Source:
 def discover(source: Path) -> list[Source]:
     games: list[Source] = []
     loose: dict[str, Source] = {}  # discs lying in the source folder itself, by game
+    # one folder or archive per disc ("FF VII (USA) (Disc 1)", "(Disc 2)"...): one game
+    per_disc: dict[tuple[str, str], Source] = {}
     for entry in sorted(source.iterdir(), key=lambda p: p.name.lower()):
+        disc_named = disc_number(entry.name) > 0
         if entry.is_dir():
             g = scan_folder(entry)
-            if g.loadables or g.loose_bins or g.archives:
-                games.append(g)
+            if not (g.loadables or g.loose_bins or g.archives):
+                continue
+            if disc_named and (g.key, "folder") in per_disc:
+                first = per_disc[(g.key, "folder")]
+                first.loadables += g.loadables
+                first.loose_bins += g.loose_bins
+                first.archives += g.archives
+                first.cover = first.cover or g.cover
+                continue
+            if disc_named:
+                per_disc[(g.key, "folder")] = g
+            games.append(g)
         elif entry.suffix.lower() in ARCHIVE_EXTS:
             title = game_title(entry.name)
-            games.append(Source(title, normalize(title), "archive", entry, archives=[entry]))
+            key = normalize(title)
+            if disc_named and (key, "archive") in per_disc:
+                per_disc[(key, "archive")].archives.append(entry)
+                continue
+            g = Source(title, key, "archive", entry, archives=[entry])
+            if disc_named:
+                per_disc[(key, "archive")] = g
+            games.append(g)
         elif entry.suffix.lower() == ".m3u":
             continue  # PSXS5 writes the playlist itself (one made by VLC may hold this PC's paths)
         elif entry.suffix.lower() in LOADABLE:
