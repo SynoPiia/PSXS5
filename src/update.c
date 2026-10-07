@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define APP_DIR "/data/homebrew/PPSA97510"
 
@@ -85,7 +86,10 @@ static int check_thread(void *unused)
     (void)unused;
     char *body = NULL;
     size_t len = 0;
-    int status = net_request("https://api.github.com/repos/" UPDATE_REPO "/releases/latest", NULL, NULL,
+    /* every recent release, not /releases/latest: from 2.1.1 on, new releases
+     * aren't marked Latest, so that 2.0.0 (whose updater left the app unable to
+     * start) never offers them */
+    int status = net_request("https://api.github.com/repos/" UPDATE_REPO "/releases?per_page=15", NULL, NULL,
                              PSXS5_NAME "/" PSXS5_VERSION, &body, &len);
     if (status == 404)
     {
@@ -99,24 +103,42 @@ static int check_thread(void *unused)
         fail(tr("Couldn't reach GitHub"));
         return 0;
     }
-    char tag[32] = "";
-    json_string(body, "tag_name", tag, sizeof(tag));
-    const char *v = tag[0] == 'v' ? tag + 1 : tag;
-    str_copy(version, sizeof(version), v);
-    /* the release zip: an asset URL ending in .zip */
+    /* the newest release (not a draft or a pre-release) that has a .zip */
+    version[0] = '\0';
     zip_url[0] = '\0';
-    for (const char *p = body; (p = strstr(p, "\"browser_download_url\""));)
+    for (const char *rel = strstr(body, "\"tag_name\""); rel;)
     {
-        char url[512];
-        if (json_string(p, "browser_download_url", url, sizeof(url)) && strlen(url) > 4 &&
-            !strcmp(url + strlen(url) - 4, ".zip"))
-        {
-            str_copy(zip_url, sizeof(zip_url), url);
+        const char *next = strstr(rel + 10, "\"tag_name\"");
+        size_t span = next ? (size_t)(next - rel) : strlen(rel);
+        char *one = malloc(span + 1);
+        if (!one)
             break;
+        memcpy(one, rel, span);
+        one[span] = '\0';
+        char tag[32] = "", url[512] = "", found[512] = "";
+        json_string(one, "tag_name", tag, sizeof(tag));
+        bool skip = strstr(one, "\"draft\":true") || strstr(one, "\"prerelease\":true");
+        for (const char *p = one; !skip && (p = strstr(p, "\"browser_download_url\""));)
+        {
+            if (json_string(p, "browser_download_url", url, sizeof(url)) && strlen(url) > 4 &&
+                !strcmp(url + strlen(url) - 4, ".zip"))
+            {
+                str_copy(found, sizeof(found), url);
+                break;
+            }
+            p += 22;
         }
-        p += 22;
+        free(one);
+        const char *tv = tag[0] == 'v' ? tag + 1 : tag;
+        if (!skip && tv[0] && found[0] && (!version[0] || newer(tv, version)))
+        {
+            str_copy(version, sizeof(version), tv);
+            str_copy(zip_url, sizeof(zip_url), found);
+        }
+        rel = next;
     }
     free(body);
+    const char *v = version;
     bool available = v[0] && newer(v, PSXS5_VERSION) && zip_url[0];
     psxs5_log("update: latest %s, this %s%s", v[0] ? v : "?", PSXS5_VERSION, available ? ", available" : "");
     SDL_AtomicSet(&state, available ? UPDATE_AVAILABLE : UPDATE_NONE);
@@ -179,7 +201,10 @@ static int install_thread(void *unused)
             make_dirs(parent);
         }
         snprintf(temp, sizeof(temp), "%s.new", target);
-        ok = mz_zip_reader_extract_to_file(&archive, i, temp, 0) && rename(temp, target) == 0;
+        /* executable, as an FTP upload makes them: without it the PS5 won't start
+         * the app ("Can't start the game or app"), which 2.0.0's updater did */
+        ok = mz_zip_reader_extract_to_file(&archive, i, temp, 0) && chmod(temp, 0777) == 0 &&
+             rename(temp, target) == 0;
         if (!ok)
             remove(temp);
         files += ok;
