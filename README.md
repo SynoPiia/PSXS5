@@ -77,7 +77,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
     - Sharp pixels
     - Smooth pixels (Scale2x/3x)
     - xBR, the smoothest edges for 2D art
-  - Aspect ratio: auto, 4:3, 16:9, 16:10, 1:1 pixels or stretch.
+  - Aspect ratio: auto, 4:3, 16:9, 16:10, 1:1 pixels or stretch, and *Crop black edges* to hide the black lines at the top and bottom.
   - Integer scaling, bilinear smoothing and dithering on or off.
 - **Built for full speed.** 60 fps (50 for PAL games). Beetle renders on the GPU; the picture and the menus reach the TV through Vulkan.
 - **RetroAchievements.** Earn [RetroAchievements](https://retroachievements.org) as you play.
