@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "core/host.h"
+#include "bezels.h"
 #include "controls.h"
 #include "covers.h"
 #include "i18n.h"
@@ -333,12 +334,14 @@ void app_draw_game(uint8_t dim)
     Settings view = app.settings;
     if (play_widescreen_active())
         view.aspect = ASPECT_16_9;
+    if (bezel_shown(&view))
+        view.border = 0; /* the bezel's window is the full-height 4:3 picture */
 
     /* around the picture: black, a soft glow, or a TV */
     int gx, gy, gw, gh;
     plat_game_rect(&gx, &gy, &gw, &gh);
     /* Stretch fills the screen: no border or TV around it */
-    if (view.border && view.aspect != ASPECT_STRETCH && gw > 0 && gw < plat_width() - 8)
+    if (view.border && !bezel_shown(&view) && view.aspect != ASPECT_STRETCH && gw > 0 && gw < plat_width() - 8)
     {
         float k = dim / 255.0f;
         if (view.border == 1)
@@ -358,7 +361,9 @@ void app_draw_game(uint8_t dim)
                       ALIGN_CENTER, PSXS5_NAME);
         }
     }
+    plat_set_colour(view.brightness, view.colour);
     plat_draw_game(&view, host_aspect(), dim);
+    bezel_draw(&view, dim);
     if (app.screen == SCREEN_GAME)
         draw_timer();
 }
@@ -374,6 +379,7 @@ void app_start_game(int index, bool resume)
     bool translated = play_prepare_patch(g);
     play_rewind_reset();
     controls_start(g, &app.settings);
+    app.play_seconds = 0;
     host_set_gun(controls_gun_for(g, &app.settings));
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
@@ -506,6 +512,8 @@ static void update_lightbars(void)
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
         plat_set_lightbar(i, app.settings.lightbar == 2 && cover ? cover : players[i]);
 }
+
+static float auto_since, auto_shown; /* auto-save: time since the last, and its icon */
 
 static void game_screen(PadState *pads)
 {
@@ -672,6 +680,20 @@ static void game_screen(PadState *pads)
         since_resume = 0;
         play_save_resume(true);
     }
+    /* auto-save: every 5, 10 or 15 minutes of play, the oldest of three slots */
+    if (app.play_seconds < app.dt * 2)
+        auto_since = 0; /* a game just started */
+    app.play_seconds += app.dt;
+    if (app.settings.autosave > 0 && !ra_hardcore())
+    {
+        auto_since += app.dt;
+        if (auto_since > app.settings.autosave * 300.0f)
+        {
+            auto_since = 0;
+            if (play_save_auto())
+                auto_shown = 2.0f;
+        }
+    }
     emu_us += plat_ticks_us() - emu_start;
     emu_frames += runs;
     if (emu_frames >= 240)
@@ -694,6 +716,14 @@ static void game_screen(PadState *pads)
 
     app_draw_game(255);
     controls_draw();
+    if (auto_shown > 0)
+    {
+        /* a quiet sign that an auto-save was written */
+        auto_shown -= app.dt;
+        float a = auto_shown > 1.6f ? (2.0f - auto_shown) / 0.4f : auto_shown < 0.5f ? auto_shown / 0.5f : 1.0f;
+        draw_rrect(plat_width() - 96, plat_height() - 96, 64, 64, 32, argb_alpha(0xb0000000u, a));
+        icon_draw(ICON_DEVICE_FLOPPY, plat_width() - 82, plat_height() - 82, 36, argb_alpha(TH_TEXT, a));
+    }
     if (app.settings.show_fps)
     {
         char f[32];
@@ -837,7 +867,7 @@ int main(void)
         static const char *const screen_names[] = {"library", "game",         "menu",
                                                    "settings", "cheats", "achievements",
                                                    "memory cards", "library stats", "manual",
-                                                   "cheat search"};
+                                                   "cheat search", "guide"};
         ps5_crash_step(screen_names[app.screen]);
         switch (app.screen)
         {
@@ -851,6 +881,7 @@ int main(void)
         case SCREEN_STATS: library_stats_screen(pressed); break;
         case SCREEN_MANUAL: manual_screen(pressed); break;
         case SCREEN_CHEAT_SEARCH: cheat_search_screen(pressed); break;
+        case SCREEN_GUIDE: guide_screen(pressed); break;
         default: break;
         }
         count_play_time();

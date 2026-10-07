@@ -113,6 +113,9 @@ static const char *const RESPONSES[] = {"Normal", "Precise", "Quick"};
 static const char *const RUMBLE_FEELS[] = {"Classic", "Soft", "Punchy", "Punchy, in the triggers too"};
 static const char *const LIGHTGUNS[] = {"Automatic", "Off", "On"};
 static const char *const OVERCLOCKS[] = {"Off", "A little", "A lot"};
+static const char *const BRIGHTNESS[] = {"Darker", "Normal", "Brighter", "Brightest"};
+static const char *const COLOURS[] = {"Natural", "Vivid", "Soft", "Warm", "Cool", "Black and white"};
+static const char *const AUTOSAVES[] = {"Off", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
 static const Row DISPLAY[] = {
@@ -136,6 +139,12 @@ static const Row DISPLAY[] = {
      SP_NONE, false, INT_FIELD(crt), CRT_LEVELS, 3, 0},
     {NULL, "Border", "What surrounds a 4:3 picture: black, a soft glow, or a TV.", K_CHOICE, APPLY_NOW,
      SP_NONE, false, INT_FIELD(border), BORDERS, 3, 0},
+    {NULL, "Game artwork border", "Shows the game's own artwork around a 4:3 picture instead of the border, when there is one (downloaded with the covers).",
+     K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(bezel), OFF_ON, 2, 0},
+    {"Colour", "Brightness", "Makes the game picture darker or brighter, for dark games or a dim TV.", K_CHOICE,
+     APPLY_NOW, SP_NONE, false, INT_FIELD(brightness), BRIGHTNESS, 4, 0},
+    {NULL, "Colours", "Vivid: richer colours. Soft: gentler. Warm and Cool shift the tint. Black and white, for fun.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(colour), COLOURS, 6, 0},
     {"Overlay", "Show FPS", "Frames per second in the corner while you play.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(show_fps), OFF_ON, 2, 0},
 };
@@ -238,6 +247,8 @@ static const Row SYSTEM[] = {
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(quick_resume), OFF_ON, 2, 0},
     {NULL, "Rewind", "Keeps the last 8 seconds so you can go back (touchpad + L2). Uses about 200 MB of memory.",
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(rewind), OFF_ON, 2, 0},
+    {NULL, "Auto-save", "Saves the game by itself every few minutes into three auto-save slots (the oldest is replaced). Load one from the PSXS5 menu > Auto-saves.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(autosave), AUTOSAVES, 4, 0},
     {"Phone", "Settings from your phone", "Change settings from a phone on the same network: scan the code.",
      K_TOGGLE, APPLY_NOW, SP_REMOTE, true, BOOL_FIELD(remote), OFF_ON, 2, 0},
     {"Console", "Language", "The language of PSXS5's menus.", K_CHOICE, APPLY_NOW, SP_LANGUAGE, true,

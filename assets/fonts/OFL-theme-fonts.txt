@@ -2,7 +2,7 @@ The theme fonts: each is licensed under the SIL Open Font License, Version 1.1.
 
 Chakra Petch (ChakraPetch-500.ttf, ChakraPetch-700.ttf):
   Copyright 2018 The Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch.git)
-IBM Plex Sans (IBMPlexSans-400.ttf, IBMPlexSans-600.ttf):
+IBM Plex Sans (IBMPlexSans-400.ttf, IBMPlexSans-600.ttf), IBM Plex Mono (IBMPlexMono-400.ttf):
   Copyright 2019 IBM Corp. All rights reserved.
 Fraunces (Fraunces-600.ttf):
   Copyright 2020 The Fraunces Project Authors (github.com/undercasetype/Fraunces)

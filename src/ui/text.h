@@ -11,6 +11,7 @@ enum
 {
     FONT_REGULAR = 0,
     FONT_BOLD = 1,
+    FONT_MONO = 2, /* IBM Plex Mono: text guides keep their columns */
 };
 
 enum

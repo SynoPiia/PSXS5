@@ -12,6 +12,7 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #if defined(__PROSPERO__)
 #include "blit.h"
@@ -1030,6 +1031,104 @@ static size_t game_image_pitch;
 
 static bool game_gpu; /* v2: the picture is the core's Vulkan image */
 
+/* ---------------------------------------------------------------- picture colours */
+
+static float colour_k[3] = {1.0f, 1.0f, 0.0f}; /* brightness, saturation, warmth */
+static bool colour_on;
+static uint8_t colour_lut[3][256]; /* per channel: brightness and warmth */
+
+void plat_set_colour(int brightness, int colour)
+{
+    static int last_b = -1, last_c = -1;
+    if (brightness == last_b && colour == last_c)
+        return;
+    last_b = brightness;
+    last_c = colour;
+    static const float bright[] = {0.85f, 1.0f, 1.12f, 1.25f};
+    static const float sat[] = {1.0f, 1.3f, 0.78f, 1.05f, 1.0f, 0.0f};
+    static const float warm[] = {0.0f, 0.0f, 0.0f, 0.06f, -0.06f, 0.0f};
+    colour_k[0] = bright[brightness >= 0 && brightness < 4 ? brightness : 1];
+    colour_k[1] = sat[colour >= 0 && colour < 6 ? colour : 0];
+    colour_k[2] = warm[colour >= 0 && colour < 6 ? colour : 0];
+    colour_on = colour_k[0] != 1.0f || colour_k[1] != 1.0f || colour_k[2] != 0.0f;
+    const float gain[3] = {colour_k[0] * (1.0f + colour_k[2]), colour_k[0], colour_k[0] * (1.0f - colour_k[2])};
+    for (int c = 0; c < 3; ++c)
+        for (int v = 0; v < 256; ++v)
+        {
+            float x = v * gain[c];
+            colour_lut[c][v] = (uint8_t)(x > 255.0f ? 255 : x);
+        }
+#if defined(__PROSPERO__)
+    vkp_set_colour(colour_k[0], colour_k[1], colour_k[2]);
+#endif
+}
+
+/* The PCSX-ReARMed picture (XRGB8888) graded on the CPU. */
+static void grade_pixels(uint32_t *px, int w, int h, size_t pitch)
+{
+    if (!colour_on)
+        return;
+    int s = (int)(colour_k[1] * 256.0f);
+    for (int y = 0; y < h; ++y)
+    {
+        uint32_t *row = px + (size_t)y * pitch;
+        for (int x = 0; x < w; ++x)
+        {
+            uint32_t p = row[x];
+            int r = (int)(p >> 16 & 255), g = (int)(p >> 8 & 255), b = (int)(p & 255);
+            if (s != 256)
+            {
+                int l = (r * 77 + g * 150 + b * 29) >> 8;
+                r = l + (((r - l) * s) >> 8);
+                g = l + (((g - l) * s) >> 8);
+                b = l + (((b - l) * s) >> 8);
+                r = r < 0 ? 0 : r > 255 ? 255 : r;
+                g = g < 0 ? 0 : g > 255 ? 255 : g;
+                b = b < 0 ? 0 : b > 255 ? 255 : b;
+            }
+            row[x] = (p & 0xff000000u) | (uint32_t)colour_lut[0][r] << 16 | (uint32_t)colour_lut[1][g] << 8 |
+                     colour_lut[2][b];
+        }
+    }
+}
+
+/* ---------------------------------------------------------------- clock */
+
+#if defined(__PROSPERO__)
+int sceSystemServiceParamGetInt(int id, int *value);
+#endif
+
+void plat_clock(char *out, size_t size)
+{
+    time_t now = time(NULL);
+    bool h24 = true;
+#if defined(__PROSPERO__)
+    /* the console's time zone (minutes from UTC), summer time and 12/24 h */
+    int zone = 0, summer = 0, format = 1;
+    sceSystemServiceParamGetInt(4, &zone);   /* TIME_ZONE */
+    sceSystemServiceParamGetInt(5, &summer); /* SUMMERTIME */
+    if (sceSystemServiceParamGetInt(3, &format) == 0) /* TIME_FORMAT: 0 12 h, 1 24 h */
+        h24 = format != 0;
+    long long t = (long long)now + (long long)zone * 60 + (summer ? 3600 : 0);
+    int minutes = (int)((t / 60) % 1440);
+    if (minutes < 0)
+        minutes += 1440;
+    int hour = minutes / 60, minute = minutes % 60;
+#else
+    struct tm tm;
+    if (!local_time((long long)now, &tm))
+    {
+        out[0] = '\0';
+        return;
+    }
+    int hour = tm.tm_hour, minute = tm.tm_min;
+#endif
+    if (h24)
+        snprintf(out, size, "%02d:%02d", hour, minute);
+    else
+        snprintf(out, size, "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute, hour < 12 ? "AM" : "PM");
+}
+
 void plat_upload_game_gpu(int width, int height)
 {
     game_gpu = true;
@@ -1091,6 +1190,7 @@ void plat_upload_game(const void *pixels, int width, int height, size_t pitch, i
         }
         else
             prescale_sharp(src, width, height, pitch_px, out, k);
+        grade_pixels(out, width * (k > 1 ? k : 1), height * (k > 1 ? k : 1), (size_t)width * (k > 1 ? k : 1));
         game_image = out;
         game_image_w = width * (k > 1 ? k : 1);
         game_image_h = height * (k > 1 ? k : 1);

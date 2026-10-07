@@ -137,6 +137,10 @@ typedef struct
     int rumble_feel;      /* 0 classic, 1 soft, 2 punchy, 3 punchy and in the triggers */
     int lightgun;         /* 0 automatic (known gun games), 1 off, 2 on */
     int overclock;        /* 0 off, 1 a little, 2 a lot */
+    int brightness;       /* 0 darker, 1 normal, 2 brighter, 3 brightest */
+    int colour;           /* 0 natural, 1 vivid, 2 soft, 3 warm, 4 cool, 5 black and white */
+    int autosave;         /* 0 off, else every 5, 10 or 15 minutes into the auto slots */
+    bool bezel;           /* the game's artwork around a 4:3 picture, when downloaded */
 } Settings;
 
 enum Emulator

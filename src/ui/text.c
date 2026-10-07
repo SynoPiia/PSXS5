@@ -34,9 +34,9 @@ typedef struct
     PlatTexture *texture;
 } Atlas;
 
-static unsigned char *font_data[2];
-static stbtt_fontinfo font_info[2];
-static bool font_ok[2];
+static unsigned char *font_data[3]; /* regular, bold (the theme's), mono */
+static stbtt_fontinfo font_info[3];
+static bool font_ok[3];
 static Atlas atlases[MAX_ATLASES];
 static int atlas_count;
 
@@ -119,6 +119,18 @@ void text_set_fonts(const char *regular, const char *bold)
 bool text_init(void)
 {
     load_fonts("fonts/Inter-400.ttf", "fonts/Inter-600.ttf");
+    char mono_path[PSXS5_PATH_MAX];
+    plat_asset_path(mono_path, sizeof(mono_path), "fonts/IBMPlexMono-400.ttf");
+    font_data[FONT_MONO] = read_file(mono_path);
+    font_ok[FONT_MONO] = font_data[FONT_MONO] &&
+                         stbtt_InitFont(&font_info[FONT_MONO], font_data[FONT_MONO],
+                                        stbtt_GetFontOffsetForIndex(font_data[FONT_MONO], 0));
+    if (!font_ok[FONT_MONO])
+    {
+        psxs5_log("font missing or invalid: %s (guides use the regular face)", mono_path);
+        free(font_data[FONT_MONO]);
+        font_data[FONT_MONO] = NULL;
+    }
     char jp_path[PSXS5_PATH_MAX];
     plat_asset_path(jp_path, sizeof(jp_path), "fonts/NotoSansJP-PSXS5.ttf");
     jp_data = read_file(jp_path);
@@ -142,7 +154,7 @@ static void free_atlases(void)
 void text_shutdown(void)
 {
     free_atlases();
-    for (int w = 0; w < 2; ++w)
+    for (int w = 0; w < 3; ++w)
         free(font_data[w]);
     free(jp_data);
 }
@@ -207,7 +219,7 @@ static int bucket_for(float size)
 
 static Atlas *get_atlas(int weight, float size)
 {
-    weight = weight ? FONT_BOLD : FONT_REGULAR;
+    weight = weight == FONT_MONO && font_ok[FONT_MONO] ? FONT_MONO : weight ? FONT_BOLD : FONT_REGULAR;
     if (!font_ok[weight])
         return NULL;
     int px = bucket_for(size);

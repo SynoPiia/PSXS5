@@ -468,7 +468,7 @@ static bool create_pipeline(char *error, size_t size)
     dsl.bindingCount = 1;
     dsl.pBindings = &binding;
     CHECK(vkCreateDescriptorSetLayout(V.device, &dsl, NULL, &V.set_layout), "set layout");
-    VkPushConstantRange push = {VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 48};
+    VkPushConstantRange push = {VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 64};
     VkPipelineLayoutCreateInfo pl = {VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &V.set_layout;
@@ -682,12 +682,22 @@ bool vkp_open(int canvas_w, int canvas_h, char *error, size_t size)
 }
 
 /* A rectangle in screen pixels -> clip space for the quad shader. */
-static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
-                      float v1, const float info[4])
+static float colour_k[4] = {1.0f, 1.0f, 0.0f, 0.0f}; /* the game picture: brightness, saturation, warmth */
+
+void vkp_set_colour(float brightness, float saturation, float warmth)
 {
-    float k[12] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
+    colour_k[0] = brightness;
+    colour_k[1] = saturation;
+    colour_k[2] = warmth;
+}
+
+static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
+                      float v1, const float info[4], const float colour[4])
+{
+    float k[16] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
                    (x + w) / V.extent.width * 2.0f - 1.0f, (y + h) / V.extent.height * 2.0f - 1.0f,
-                   0.0f, v0, 1.0f, v1, info[0], info[1], info[2], info[3]};
+                   0.0f, v0, 1.0f, v1, info[0], info[1], info[2], info[3],
+                   colour[0], colour[1], colour[2], colour[3]};
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.layout, 0, 1, &set, 0, NULL);
     vkCmdPushConstants(cb, V.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(k), k);
     vkCmdDraw(cb, 6, 1, 0, 0);
@@ -786,13 +796,13 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
                          sh == 2 ? V.game_lines * shown : V.game_rect[2] * kx / (V.game_tex[0] > 0 ? V.game_tex[0] : 1),
                          V.game_rect[3] * ky / (V.game_tex[1] * shown > 0 ? V.game_tex[1] * shown : 1)};
         draw_quad(cb, V.game_sets[f], V.game_rect[0] * kx, V.game_rect[1] * ky, V.game_rect[2] * kx,
-                  V.game_rect[3] * ky, V.game_crop, 1.0f - V.game_crop, info);
+                  V.game_rect[3] * ky, V.game_crop, 1.0f - V.game_crop, info, colour_k);
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.blended);
     }
     else
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
-    static const float none[4] = {0, 0, 0, 0};
-    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height, 0.0f, 1.0f, none);
+    static const float none[4] = {0, 0, 0, 0}, plain[4] = {1, 1, 0, 0};
+    draw_quad(cb, V.canvas_set, 0, 0, (float)V.extent.width, (float)V.extent.height, 0.0f, 1.0f, none, plain);
     vkCmdEndRenderPass(cb);
     vkEndCommandBuffer(cb);
 
@@ -1103,6 +1113,10 @@ const char *vkp_describe(void)
 bool vkp_game_image_ready(void)
 {
     return false;
+}
+void vkp_set_colour(float brightness, float saturation, float warmth)
+{
+    (void)brightness, (void)saturation, (void)warmth;
 }
 void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines)
 {

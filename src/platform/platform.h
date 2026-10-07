@@ -54,6 +54,10 @@ enum
 };
 void plat_pad_triggers(int port, PlatTrigger l2, PlatTrigger r2);
 int plat_pad_battery(int port); /* 0..100, -1 when unknown */
+/* The game picture's colours: Settings brightness (0..3, 1 normal) and colour (0..5). */
+void plat_set_colour(int brightness, int colour);
+/* The console's time of day as the user set it up ("21:42" or "9:42 PM"). */
+void plat_clock(char *out, size_t size);
 /* Frame profiling: the time since the previous mark goes to `name`
  * (drawing flushed first); averages are logged every 120 frames. */
 void plat_profile(const char *name);

@@ -21,6 +21,7 @@ enum Screen
     SCREEN_STATS,
     SCREEN_MANUAL,
     SCREEN_CHEAT_SEARCH,
+    SCREEN_GUIDE,
     SCREEN_COUNT
 };
 
@@ -43,6 +44,7 @@ typedef struct
     float dt;                 /* seconds since the last frame */
     float fps;                /* emulated frames per second */
     PadState pads[PSXS5_MAX_PADS]; /* this frame's controllers, as read (by player) */
+    double play_seconds;      /* how long this game has been played since it started */
 } App;
 
 extern App app;
@@ -80,6 +82,10 @@ int manual_page_count(void);
 void manual_open(void);
 void manual_screen(uint32_t pressed);
 void cheat_search_open(void);
+/* Text guides beside the game (.txt): how many, and the reader. */
+int guide_count(void);
+void guide_open(void);
+void guide_screen(uint32_t pressed);
 void cheat_search_screen(uint32_t pressed);
 void menu_open(void);
 void settings_opened(void);

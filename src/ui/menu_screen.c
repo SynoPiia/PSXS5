@@ -32,10 +32,12 @@ enum Item
     MI_RESUME,
     MI_SAVE,
     MI_LOAD,
+    MI_AUTO,
     MI_DISC,
     MI_CHEATS,
     MI_ACHIEVEMENTS,
     MI_MANUAL,
+    MI_GUIDE,
     MI_SETTINGS,
     MI_RESET,
     MI_QUIT,
@@ -75,6 +77,7 @@ static struct
     int cursor;
     float sel_y, open_t, slot_x;
     int disc_choice;
+    int auto_choice; /* which auto-save, newest first */
     int cheat_cursor;
     float cheat_y, cheat_scroll;
 } M;
@@ -85,6 +88,7 @@ void menu_open(void)
     M.open_t = 0;
     M.sel_y = 0;
     M.disc_choice = host_disc_index();
+    M.auto_choice = 0;
     forget_thumbs();
     play_save_resume(true); /* the menu is a good moment: nothing is moving */
     app.screen = SCREEN_MENU;
@@ -96,6 +100,14 @@ static bool item_shown(int i)
     int unlocked, total;
     if (i == MI_MANUAL)
         return manual_page_count() > 0;
+    if (i == MI_GUIDE)
+        return guide_count() > 0;
+    if (i == MI_AUTO)
+    {
+        int slots[AUTO_SLOTS];
+        long ages[AUTO_SLOTS];
+        return play_auto_list(slots, ages) > 0;
+    }
     if (i == MI_ACHIEVEMENTS)
         return ra_game_progress(&unlocked, &total);
     return i != MI_DISC || host_disc_count() > 1;
@@ -225,6 +237,16 @@ void menu_screen(uint32_t pressed)
         app.global.state_slot = app.settings.state_slot;
         sfx_play(SFX_CLICK);
     }
+    int auto_slots[AUTO_SLOTS];
+    long auto_ages[AUTO_SLOTS];
+    int autos = play_auto_list(auto_slots, auto_ages);
+    if (M.auto_choice >= autos)
+        M.auto_choice = 0;
+    if (M.cursor == MI_AUTO && autos > 1 && (left || right))
+    {
+        M.auto_choice = (M.auto_choice + (right ? 1 : autos - 1)) % autos;
+        sfx_play(SFX_CLICK);
+    }
     int discs = host_disc_count();
     if (M.cursor == MI_DISC && discs > 1 && (left || right))
     {
@@ -271,6 +293,33 @@ void menu_screen(uint32_t pressed)
                 snprintf(msg, sizeof(msg), tr("Slot %d is empty"), app.settings.state_slot);
             app_toast(msg);
             sfx_play(SFX_SELECT);
+            return;
+        case MI_AUTO:
+        {
+            char path[PSXS5_PATH_MAX];
+            if (ra_hardcore())
+                str_copy(msg, sizeof(msg), tr("Not allowed in hardcore mode"));
+            else if (autos > 0)
+            {
+                play_auto_path(auto_slots[M.auto_choice], path, sizeof(path));
+                if (host_load_state(path))
+                {
+                    str_copy(msg, sizeof(msg), tr("Auto-save loaded"));
+                    app.screen = SCREEN_GAME;
+                }
+                else
+                    str_copy(msg, sizeof(msg), tr("Could not load the auto-save"));
+            }
+            else
+                msg[0] = '\0';
+            if (msg[0])
+                app_toast(msg);
+            sfx_play(SFX_SELECT);
+            return;
+        }
+        case MI_GUIDE:
+            sfx_play(SFX_SELECT);
+            guide_open();
             return;
         case MI_DISC:
             if (host_disc_select(M.disc_choice))
@@ -366,9 +415,10 @@ void menu_screen(uint32_t pressed)
         int icon;
     } ITEMS[MI_COUNT] = {
         {"Resume", ICON_PLAYER_PLAY},    {"Save state", ICON_DEVICE_FLOPPY},
-        {"Load state", ICON_HISTORY},    {"Disc", ICON_DISC},
+        {"Load state", ICON_HISTORY},    {"Auto-saves", ICON_HISTORY},
+        {"Disc", ICON_DISC},
         {"Cheats", ICON_CODE},           {"Achievements", ICON_TROPHY},
-        {"Manual", ICON_BOOKS},
+        {"Manual", ICON_BOOKS},          {"Guide", ICON_BOOKS},
         {"Settings", ICON_ADJUSTMENTS},
         {"Reset", ICON_REFRESH},         {"Quit to shelf", ICON_DOOR_EXIT},
     };
@@ -396,7 +446,24 @@ void menu_screen(uint32_t pressed)
         icon_draw(ITEMS[i].icon, x + 22, y + 16, 32, i == MI_QUIT ? TH_DANGER : TH_FOCUS);
         text_draw(x + 74, y + 17, 28, FONT_REGULAR, c, ALIGN_LEFT, tr(ITEMS[i].name));
         char value[64] = "";
-        if (i == MI_DISC)
+        if (i == MI_AUTO && autos > 0)
+        {
+            long ago = auto_ages[M.auto_choice];
+            if (ago < 60)
+                str_copy(value, sizeof(value), tr("Just now"));
+            else if (ago < 3600)
+                snprintf(value, sizeof(value), tr("%ld min ago"), ago / 60);
+            else if (ago < 86400)
+                snprintf(value, sizeof(value), tr("%ld h ago"), ago / 3600);
+            else
+                snprintf(value, sizeof(value), tr("%ld days ago"), ago / 86400);
+            if (autos > 1)
+            {
+                draw_choice(x + w - 16, y + 12, 42, 22, TH_PILL, TH_TEXT_SOFT, value);
+                value[0] = '\0';
+            }
+        }
+        else if (i == MI_DISC)
         {
             snprintf(value, sizeof(value), tr("%d of %d"), M.disc_choice + 1, discs);
             draw_choice(x + w - 16, y + 12, 42, 22, TH_PILL, TH_TEXT_SOFT, value);
@@ -423,6 +490,36 @@ void menu_screen(uint32_t pressed)
         if (value[0])
             text_draw(x + w - 24, y + 19, 24, FONT_REGULAR, TH_TEXT_DIM, ALIGN_RIGHT, value);
         y += row_h;
+    }
+
+    /* the time, how long you've played, and the controllers' batteries */
+    {
+        char clock[32], played[64] = "";
+        plat_clock(clock, sizeof(clock));
+        int minutes = (int)(app.play_seconds / 60.0);
+        if (minutes < 1)
+            str_copy(played, sizeof(played), tr("Just started"));
+        else if (minutes < 60)
+            snprintf(played, sizeof(played), tr("Playing for %d min"), minutes);
+        else
+            snprintf(played, sizeof(played), tr("Playing for %d h %02d"), minutes / 60, minutes % 60);
+        char batteries[96] = "";
+        for (int k = 0; k < PSXS5_MAX_PADS; ++k)
+        {
+            int level = app.pads[k].connected ? plat_pad_battery(k) : -1;
+            if (level >= 0)
+                snprintf(batteries + strlen(batteries), sizeof(batteries) - strlen(batteries), "%sP%d %d%%",
+                         batteries[0] ? "   " : "", k + 1, level);
+        }
+        float cw = fmaxf(text_width(56, FONT_BOLD, clock), text_width(22, FONT_REGULAR, played)) + 64;
+        if (batteries[0])
+            cw = fmaxf(cw, text_width(22, FONT_REGULAR, batteries) + 64);
+        float ch = batteries[0] ? 160 : 128, rx = plat_width() - TH_MARGIN - cw;
+        draw_rrect(rx, 48, cw, ch, TH_RADIUS, argb_alpha(TH_BG_A(0xe0), ease));
+        text_draw(rx + cw - 32, 60, 56, FONT_BOLD, argb_alpha(TH_TEXT, ease), ALIGN_RIGHT, clock);
+        text_draw(rx + cw - 32, 132, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, ease), ALIGN_RIGHT, played);
+        if (batteries[0])
+            text_draw(rx + cw - 32, 164, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, ease), ALIGN_RIGHT, batteries);
     }
 
     /* save slots, along the bottom right */

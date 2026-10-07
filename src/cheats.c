@@ -299,10 +299,10 @@ static bool find_in_dir(const char *dir, const Game *game, char *best_path, size
 /* assets/cheats-index.txt: every PlayStation cheat file of libretro-database
  * (tools/make-cheat-index.py). The best name for the game, without listing
  * any folder. */
-static bool best_from_index(const Game *game, char *name, size_t size)
+bool cheats_best_in_index(const Game *game, const char *asset, char *name, size_t size)
 {
     char path[PSXS5_PATH_MAX];
-    plat_asset_path(path, sizeof(path), "cheats-index.txt");
+    plat_asset_path(path, sizeof(path), asset);
     FILE *f = fopen(path, "r");
     if (!f)
         return false;
@@ -503,7 +503,7 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
     if (!found)
     {
         char name[256];
-        if (best_from_index(game, name, sizeof(name)))
+        if (cheats_best_in_index(game, "cheats-index.txt", name, sizeof(name)))
         {
             path_join(path, sizeof(path), cheats_dir, name);
             found = file_opens(path);

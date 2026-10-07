@@ -39,6 +39,9 @@ bool cheats_add_user(CheatList *list, const Game *game, const char *cheats_dir, 
 /* Two titles with the same words ("Disney-Pixar's ..." = "Disney-Pixar ...",
  * "VII" = "7", "The Legend of X" = "Legend of X, The"). */
 bool titles_match(const char *a, const char *b);
+/* The best match for the game in a list of Redump-style names (an assets/
+ * file, one per line, as cheats-index.txt); false when nothing matches. */
+bool cheats_best_in_index(const Game *game, const char *asset, char *name, size_t size);
 
 /* Pushes enabled codes into the running core and remembers the selection. */
 void cheats_apply(const CheatList *list);

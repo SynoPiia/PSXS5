@@ -262,12 +262,77 @@ static int write_thread(void *arg)
     return 0;
 }
 
+static bool save_state_to(const char *path, bool background);
+
 void play_save_resume(bool background)
 {
     if (!app.game || !app.settings.quick_resume || ra_hardcore())
         return;
+    char path[PSXS5_PATH_MAX];
+    play_resume_path(app.game, path, sizeof(path));
+    save_state_to(path, background);
+}
+
+void play_auto_path(int slot, char *out, size_t size)
+{
+    char file[96];
+    snprintf(file, sizeof(file), "%.80s.auto%d", app.game ? app.game->id : "game", slot + 1);
+    path_join(out, size, app.paths.states, file);
+}
+
+int play_auto_list(int slots[AUTO_SLOTS], long ages[AUTO_SLOTS])
+{
+    int n = 0;
+    time_t now = time(NULL);
+    for (int s = 0; s < AUTO_SLOTS; ++s)
+    {
+        char path[PSXS5_PATH_MAX];
+        play_auto_path(s, path, sizeof(path));
+        struct stat st;
+        if (stat(path, &st) != 0)
+            continue;
+        long age = (long)(now - st.st_mtime);
+        int at = n++;
+        while (at > 0 && ages[at - 1] > age)
+        {
+            slots[at] = slots[at - 1];
+            ages[at] = ages[at - 1];
+            --at;
+        }
+        slots[at] = s;
+        ages[at] = age;
+    }
+    return n;
+}
+
+bool play_save_auto(void)
+{
+    if (!app.game || ra_hardcore())
+        return false;
+    int slots[AUTO_SLOTS];
+    long ages[AUTO_SLOTS];
+    int n = play_auto_list(slots, ages);
+    int slot = 0;
+    if (n == AUTO_SLOTS)
+        slot = slots[n - 1]; /* the oldest */
+    else
+        for (bool used = true; used && slot < AUTO_SLOTS;)
+        {
+            used = false;
+            for (int i = 0; i < n; ++i)
+                used |= slots[i] == slot;
+            if (used)
+                ++slot;
+        }
+    char path[PSXS5_PATH_MAX];
+    play_auto_path(slot, path, sizeof(path));
+    return save_state_to(path, true);
+}
+
+static bool save_state_to(const char *path, bool background)
+{
     if (SDL_AtomicGet(&writing))
-        return; /* the previous one is still being written */
+        return false; /* the previous one is still being written */
     size_t size = host_state_size();
     Writer *w = size ? calloc(1, sizeof(*w)) : NULL;
     if (!w || !(w->data = malloc(size)) || !host_serialize(w->data, size))
@@ -275,23 +340,24 @@ void play_save_resume(bool background)
         if (w)
             free(w->data);
         free(w);
-        return;
+        return false;
     }
     w->size = size;
     make_dirs(app.paths.states);
-    play_resume_path(app.game, w->path, sizeof(w->path));
+    str_copy(w->path, sizeof(w->path), path);
     play_save_thumb(w->path);
     SDL_AtomicSet(&writing, 1);
     if (background)
     {
-        SDL_Thread *t = SDL_CreateThread(write_thread, "resume", w);
+        SDL_Thread *t = SDL_CreateThread(write_thread, "save", w);
         if (t)
         {
             SDL_DetachThread(t);
-            return;
+            return true;
         }
     }
     write_thread(w);
+    return true;
 }
 
 bool play_load_resume(void)

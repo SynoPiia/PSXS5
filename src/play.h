@@ -23,6 +23,14 @@ bool play_has_resume(const Game *g, long *age_seconds);
 void play_save_resume(bool background);
 bool play_load_resume(void);
 
+/* Auto-saves (Settings > System > Auto-save): <states>/<id>.auto1..3, the
+ * oldest replaced each time, written in the background. */
+#define AUTO_SLOTS 3
+void play_auto_path(int slot, char *out, size_t size);
+bool play_save_auto(void);
+/* The auto-saves there are, newest first; returns how many. */
+int play_auto_list(int slots[AUTO_SLOTS], long ages[AUTO_SLOTS]);
+
 /* State thumbnails: <state file>.thumb, a small picture of the moment. */
 #define THUMB_W 192
 #define THUMB_H 144

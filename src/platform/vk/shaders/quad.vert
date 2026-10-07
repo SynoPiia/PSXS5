@@ -8,6 +8,7 @@ layout(push_constant) uniform Quad
     vec4 dst;  // x0, y0, x1, y1 in clip space (-1..1, y down)
     vec4 uv;   // u0, v0, u1, v1
     vec4 info; // for the game's shaders (see sharp.frag, crt.frag)
+    vec4 colour; // brightness, saturation, warmth (quad.frag)
 } quad;
 
 layout(location = 0) out vec2 out_uv;
