@@ -36,13 +36,14 @@ static const Theme THEMES[THEME_COUNT] = {
         .switch_off = 0xffc4c7cfu, .text = 0xff2b2d33u, .text_dim = 0xff5f636eu, .text_soft = 0xff3d4048u,
         .hint = 0xff5a5e69u, .gold = 0xffb07d0fu, .danger = 0xffc4302bu, .good = 0xff1f8a52u,
         .divider = 0xffd4d6dcu, .cover_outline = 0xff2f5fb3u, .backdrop_tint = 0xfff4f4f6u, .backdrop = BACKDROP_FLAT,
-        .light = true, .font_regular = "fonts/IBMPlexSans-400.ttf", .font_bold = "fonts/IBMPlexSans-600.ttf"},
+        .layout = LAYOUT_GRID, .light = true, .font_regular = "fonts/IBMPlexSans-400.ttf", .font_bold = "fonts/IBMPlexSans-600.ttf"},
     [THEME_MEMORY_DARK] = {
         .bg = 0xff1f2128u, .bg_deep = 0xff17181eu, .card = 0xff2a2d36u, .card_soft = 0xe02a2d36u,
         .row_selected = 0xff35425eu, .focus = 0xff7fa6ecu, .pill = 0xff33363fu, .switch_on = 0xff4a7bd0u,
         .switch_off = 0xff4a4d58u, .text = 0xffe8e9edu, .text_dim = 0xff9a9eaau, .text_soft = 0xffcfd1d8u,
         .hint = 0xff9a9eaau, .gold = 0xffe9b52au, .danger = 0xffff8a80u, .good = 0xff5fc98au,
         .divider = 0xff3a3d47u, .cover_outline = 0xff7fa6ecu, .backdrop_tint = 0xff8a90a6u, .backdrop = BACKDROP_FLAT,
+        .layout = LAYOUT_GRID,
         .font_regular = "fonts/IBMPlexSans-400.ttf", .font_bold = "fonts/IBMPlexSans-600.ttf"},
     [THEME_RECORD] = {
         .bg = 0xff22160fu, .bg_deep = 0xff170f0au, .card = 0xff2e2018u, .card_soft = 0xe02e2018u,
@@ -50,7 +51,7 @@ static const Theme THEMES[THEME_COUNT] = {
         .switch_off = 0xff5a4434u, .text = 0xfff4e7d6u, .text_dim = 0xffb89a7du, .text_soft = 0xffe2cfb8u,
         .hint = 0xffb89a7du, .gold = 0xffe8b85au, .danger = 0xffe88a7au, .good = 0xff9fcf8au,
         .divider = 0xff4a3628u, .cover_outline = 0xffe8a35au, .backdrop_tint = 0xffffc98au, .backdrop = BACKDROP_LAMP,
-        .shelf_plank = true, .font_regular = "fonts/WorkSans-400.ttf", .font_bold = "fonts/Fraunces-600.ttf"},
+        .shelf_plank = true, .layout = LAYOUT_SPINES, .font_regular = "fonts/WorkSans-400.ttf", .font_bold = "fonts/Fraunces-600.ttf"},
 };
 
 void theme_apply(int id)

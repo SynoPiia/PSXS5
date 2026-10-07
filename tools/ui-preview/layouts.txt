@@ -1,0 +1,8 @@
+wait 80
+shot l4a
+press down
+press right
+press right
+wait 40
+shot l4b
+quit

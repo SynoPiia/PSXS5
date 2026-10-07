@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define KEEP_RADIUS 14  /* textures kept around the cursor */
-#define LOAD_RADIUS 9   /* covers requested around the cursor */
+#define KEEP_RADIUS 22  /* textures kept around the cursor */
+#define LOAD_RADIUS 16  /* covers requested around the cursor (the grid and spines show more) */
 #define MAX_HEIGHT 640  /* decoded covers are scaled down to this */
 #define QUEUE_SIZE 64
 

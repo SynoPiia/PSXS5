@@ -21,6 +21,13 @@ enum ThemeId
     THEME_COUNT
 };
 
+enum ThemeLayout
+{
+    LAYOUT_FLOW,   /* the cover flow */
+    LAYOUT_GRID,   /* a grid of covers and a detail card */
+    LAYOUT_SPINES  /* spines on a shelf, the chosen one pulled out */
+};
+
 enum ThemeBackdrop
 {
     BACKDROP_STAGE, /* a lit band behind the covers, the 1.1 backdrop */
@@ -37,6 +44,7 @@ typedef struct
     uint32_t backdrop_tint; /* 0: the cover's colour (Classic) */
     int backdrop;           /* enum ThemeBackdrop */
     bool shelf_plank;       /* a wooden shelf under the covers */
+    int layout;             /* enum ThemeLayout */
     bool light;             /* dark text on a light ground */
     const char *font_regular, *font_bold; /* assets/fonts/... */
 } Theme;

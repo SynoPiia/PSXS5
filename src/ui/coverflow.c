@@ -746,6 +746,141 @@ static void picker_draw(void)
                   tr("Images from /data/PSXS5/covers/ and the game's folder. Named like the game, they are used without picking."));
 }
 
+/* ---------------------------------------------------------------- grid layout */
+
+#define GRID_COLS 5
+#define GRID_ROWS 3
+
+/* Memory Card: covers in a grid on the left, the chosen game's card on the right */
+static void draw_grid(int game, float launch)
+{
+    const float x0 = TH_MARGIN + 8, y0 = 170, tile = 212, gap = 22, title_h = 40;
+    const float cell_h = tile + title_h + gap;
+    /* scroll by rows, keeping the cursor's row in view */
+    static float scroll;
+    int row = S.cursor / GRID_COLS;
+    static int top_row;
+    if (row < top_row)
+        top_row = row;
+    if (row >= top_row + GRID_ROWS)
+        top_row = row - GRID_ROWS + 1;
+    anim_approach(&scroll, (float)top_row, app.dt, TH_SNAP);
+    plat_set_clip(0, (int)y0 - 16, (int)(x0 + GRID_COLS * (tile + gap)), (int)(GRID_ROWS * cell_h + 8));
+    int first = (int)floorf(scroll) * GRID_COLS, last = first + (GRID_ROWS + 1) * GRID_COLS;
+    for (int k = first; k < last && k < S.view_count; ++k)
+    {
+        int c = k % GRID_COLS, r = k / GRID_COLS;
+        float x = x0 + c * (tile + gap), y = y0 + (r - scroll) * cell_h;
+        bool on = k == S.cursor;
+        int index = S.view[k];
+        const Game *g = &app.library.games[index];
+        draw_rrect(x, y, tile, tile, TH_RADIUS_SMALL, TH_CARD);
+        PlatTexture *t = covers_get(index);
+        if (t)
+        {
+            int tw, th;
+            plat_texture_size(t, &tw, &th);
+            float k2 = fminf((tile - 20) / tw, (tile - 20) / th), w = tw * k2, h = th * k2;
+            plat_draw_texture(t, x + (tile - w) * 0.5f, y + (tile - h) * 0.5f, w, h, 0xffffffffu, true);
+        }
+        else
+            icon_draw(ICON_DISC, x + tile * 0.5f - 32, y + tile * 0.5f - 32, 64, TH_TEXT_DIM);
+        if (on)
+            draw_rrect_outline(x - 5, y - 5, tile + 10, tile + 10, TH_RADIUS_SMALL + 4, 4, theme.cover_outline);
+        text_draw_fit(x + 4, y + tile + 8, 18, on ? FONT_BOLD : FONT_REGULAR, on ? TH_TEXT : TH_TEXT_DIM, ALIGN_LEFT,
+                      tile - 8, g->title);
+    }
+    plat_set_clip(0, 0, 0, 0);
+
+    /* the chosen game's card */
+    const Game *g = &app.library.games[game];
+    const float cx = x0 + GRID_COLS * (tile + gap) + 40, cw = plat_width() - TH_MARGIN - cx, cy = y0, ch = 760;
+    draw_rrect(cx, cy, cw, ch, TH_RADIUS, TH_CARD);
+    PlatTexture *t = covers_get(game);
+    const float art = 340;
+    if (t)
+    {
+        int tw, th;
+        plat_texture_size(t, &tw, &th);
+        float k2 = fminf((cw - 64) / tw, art / th), w = tw * k2, h = th * k2;
+        plat_draw_texture(t, cx + (cw - w) * 0.5f, cy + 32, w, h, 0xffffffffu, true);
+    }
+    float ty = cy + 32 + art + 28;
+    float a = 1.0f - launch;
+    text_draw_fit(cx + 32, ty, 36, FONT_BOLD, argb_alpha(TH_TEXT, a), ALIGN_LEFT, cw - 64, g->title);
+    GameStats *st = stats_get(g->id);
+    char played[48] = "", ach[48] = "";
+    if (st && st->seconds)
+        stats_format_time(st->seconds, played, sizeof(played));
+    if (st && st->ach_total > 0 && st->ach_unlocked >= 0)
+        snprintf(ach, sizeof(ach), "%d / %d", st->ach_unlocked, st->ach_total);
+    const char *labels[4] = {"Serial", "Region", "Played", "Achievements"};
+    const char *values[4] = {g->serial[0] ? g->serial : tr("Unknown"), shelf_region_name(g->serial),
+                             played[0] ? played : tr("Not yet"), ach[0] ? ach : tr("Unknown")};
+    for (int i = 0; i < 4; ++i)
+    {
+        float ry = ty + 64 + i * 46;
+        text_draw(cx + 32, ry, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, a), ALIGN_LEFT, tr(labels[i]));
+        text_draw_fit(cx + cw * 0.45f, ry, 22, FONT_BOLD, argb_alpha(TH_TEXT, a), ALIGN_LEFT, cw * 0.55f - 32, values[i]);
+    }
+    if (st && st->favorite)
+        icon_draw(ICON_STAR, cx + cw - 64, cy + ch - 64, 36, TH_GOLD);
+}
+
+/* ---------------------------------------------------------------- spines layout */
+
+/* Record Shelf: each game a spine (a slice of its cover's art), the chosen one
+ * pulled out face-on above the shelf */
+static void draw_spines(float launch)
+{
+    const float spine_w = 52, gap = 8, spine_h = 330, base = CENTER_Y + COVER_H * 0.5f + 8;
+    const float face_h = COVER_H * 0.9f;
+    PlatTexture *sel = covers_get(S.view[S.cursor]);
+    float face_w = face_h * 0.88f;
+    if (sel)
+    {
+        int tw, th;
+        plat_texture_size(sel, &tw, &th);
+        face_w = face_h * tw / th;
+    }
+    /* positions relative to the selection, which slides (S.pos) */
+    for (int side = -1; side <= 1; side += 2)
+        for (int d = 1; d <= 14; ++d)
+        {
+            int k = S.cursor + d * side;
+            if (k < 0 || k >= S.view_count)
+                continue;
+            float off = (k - S.pos);
+            float x = CENTER_X + side * (face_w * 0.5f + 24) + (off - side) * (spine_w + gap) - (side < 0 ? spine_w : 0);
+            if (x + spine_w < 0 || x > plat_width())
+                continue;
+            int index = S.view[k];
+            PlatTexture *t = covers_get(index);
+            float y = base - spine_h;
+            uint32_t shade = d > 8 ? 0xff9a9a9au : 0xffd8d8d8u;
+            if (t)
+            {
+                /* a slice from the middle of the art, as a spine */
+                int tw, th;
+                plat_texture_size(t, &tw, &th);
+                int sw = tw / 9 > 1 ? tw / 9 : 1;
+                plat_draw_texture_region(t, tw / 2 - sw / 2, 0, sw, th, x, y, spine_w, spine_h, shade);
+            }
+            else
+                draw_rrect(x, y, spine_w, spine_h, 3, TH_CARD);
+            draw_rect(x + spine_w - 3, y, 3, spine_h, 0x40000000u); /* the spine's edge */
+        }
+    /* the chosen game, face-on and lifted */
+    float lift = 18.0f + launch * 20.0f;
+    float fx = CENTER_X - face_w * 0.5f, fy = base - face_h - lift;
+    draw_rrect(fx + 10, fy + 24, face_w, face_h, 8, 0x70000000u); /* shadow */
+    if (sel)
+        plat_draw_texture(sel, fx, fy, face_w, face_h, 0xffffffffu, true);
+    else
+        draw_rrect(fx, fy, face_w, face_h, 8, TH_CARD);
+    draw_rrect_outline(fx - 5, fy - 5, face_w + 10, face_h + 10, 10, 3, theme.cover_outline);
+}
+
 void shelf_screen(uint32_t pressed)
 {
     if (app.storage_error[0])
@@ -784,10 +919,15 @@ void shelf_screen(uint32_t pressed)
     if (S.launch_t <= 0.0f)
     {
         int before = S.cursor;
-        if (pressed & (BIT(BTN_LEFT) | BIT(BTN_UP)))
+        int row = theme.layout == LAYOUT_GRID ? GRID_COLS : 1;
+        if (pressed & BIT(BTN_LEFT))
             --S.cursor;
-        if (pressed & (BIT(BTN_RIGHT) | BIT(BTN_DOWN)))
+        if (pressed & BIT(BTN_RIGHT))
             ++S.cursor;
+        if (pressed & BIT(BTN_UP))
+            S.cursor = S.cursor - row >= 0 ? S.cursor - row : (row > 1 ? S.cursor : S.cursor - 1);
+        if (pressed & BIT(BTN_DOWN))
+            S.cursor = S.cursor + row < S.view_count ? S.cursor + row : (row > 1 ? S.cursor : S.cursor + 1);
         if (pressed & BIT(BTN_L2))
             S.cursor -= 8;
         if (pressed & BIT(BTN_R2))
@@ -938,7 +1078,22 @@ void shelf_screen(uint32_t pressed)
     }
     plat_profile("backdrop");
     float launch = S.launch_t > 0.0f ? S.launch_t / LAUNCH_TIME : 0.0f;
-    if (S.view_count > 0)
+    if (S.view_count > 0 && theme.layout == LAYOUT_GRID)
+    {
+        draw_grid(game, launch);
+        draw_details(&app.library.games[game], S.details_t);
+        plat_profile("covers");
+    }
+    else if (S.view_count > 0 && theme.layout == LAYOUT_SPINES)
+    {
+        draw_spines(launch);
+        plat_profile("covers");
+        float text_a = (1.0f - launch) * (1.0f - S.title_fade / 0.35f * 0.8f);
+        draw_info(&app.library.games[game], text_a);
+        draw_details(&app.library.games[game], S.details_t);
+        plat_profile("info");
+    }
+    else if (S.view_count > 0)
     {
         int first = (int)floorf(S.pos) - 6, last = (int)ceilf(S.pos) + 6;
         /* far to near, so the selected cover is drawn last */
