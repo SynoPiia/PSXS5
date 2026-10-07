@@ -254,6 +254,60 @@ void cheats_clear(CheatList *list)
     list->state_path[0] = '\0';
 }
 
+static bool file_opens(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    if (f)
+        fclose(f);
+    return f != NULL;
+}
+
+/* A sandboxed PSXS5 can't list the library, so it tries the names libretro-
+ * database gives its files: "<title> (<region>) (<device>).cht", e.g.
+ * "Parasite Eve (World) (GameShark).cht". */
+static bool guess_in_dir(const char *dir, const Game *game, char *out, size_t size)
+{
+    char base[96];
+    str_copy(base, sizeof(base), game->title);
+    char *paren = strstr(base, " (");
+    if (paren)
+        *paren = '\0';
+    static const char *const us[] = {"USA", "USA, Europe", "World", "USA, Japan", "Europe, USA", NULL};
+    static const char *const eu[] = {"Europe", "USA, Europe", "World", "Europe, Japan", "Germany", "France",
+                                     "Italy", NULL};
+    static const char *const jp[] = {"Japan", "Europe, Japan", "USA, Japan", "World", "Japan, Asia", NULL};
+    static const char *const any[] = {"USA", "Europe", "Japan", "World", "USA, Europe", NULL};
+    const char *const *regions = !strncmp(game->serial, "SLUS", 4) || !strncmp(game->serial, "SCUS", 4) ? us
+                                 : !strncmp(game->serial, "SLES", 4) || !strncmp(game->serial, "SCES", 4) ? eu
+                                 : game->serial[0] ? jp
+                                                   : any;
+    static const char *const devices[] = {"GameShark", "Game Buster", "Xploder", "Action Replay", NULL};
+    char name[160];
+    for (const char *const *r = regions; *r; ++r)
+    {
+        for (const char *const *d = devices; *d; ++d)
+        {
+            snprintf(name, sizeof(name), "%s (%s) (%s).cht", base, *r, *d);
+            path_join(out, size, dir, name);
+            if (file_opens(out))
+                return true;
+        }
+        snprintf(name, sizeof(name), "%s (%s).cht", base, *r);
+        path_join(out, size, dir, name);
+        if (file_opens(out))
+            return true;
+    }
+    const char *plain[] = {game->disc_name, game->title, base};
+    for (int i = 0; i < 3; ++i)
+    {
+        snprintf(name, sizeof(name), "%.150s.cht", plain[i]);
+        path_join(out, size, dir, name);
+        if (file_opens(out))
+            return true;
+    }
+    return false;
+}
+
 bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
 {
     cheats_clear(list);
@@ -281,6 +335,8 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
         path_join(sub, sizeof(sub), cheats_dir, "Sony - PlayStation");
         found = find_in_dir(sub, game, path, sizeof(path), &score);
     }
+    if (!found) /* folders can't be listed in the sandbox: try the usual names */
+        found = guess_in_dir(cheats_dir, game, path, sizeof(path));
     if (!found || !parse_cht(list, path))
         return false;
 
