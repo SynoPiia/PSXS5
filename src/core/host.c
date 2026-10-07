@@ -176,6 +176,32 @@ static void register_variables(const struct retro_variable *vars)
 }
 
 #if defined(PSXS5_VULKAN)
+/* The game being loaded, for the HD texture pack check. */
+static char loading_path[PSXS5_PATH_MAX];
+
+/* Beetle reads a pack from <game folder>/<game file name>-texture-replacements/
+ * (by texture hash, no folder listing). Texture tracking costs time and is the
+ * risky part, so it's on only when that folder is there. */
+static bool texture_pack_present(void)
+{
+    char dir[PSXS5_PATH_MAX], name[256];
+    str_copy(dir, sizeof(dir), loading_path);
+    char *slash = strrchr(dir, '/');
+    if (!slash)
+        return false;
+    str_copy(name, sizeof(name), slash + 1);
+    *slash = '\0';
+    char *dot = strrchr(name, '.');
+    if (dot)
+        *dot = '\0';
+    char pack[PSXS5_PATH_MAX];
+    snprintf(pack, sizeof(pack), "%s/%s-texture-replacements", dir, name);
+    bool here = path_is_dir(pack);
+    if (here)
+        psxs5_log("host: HD texture pack %s", pack);
+    return here;
+}
+
 static void apply_beetle_options(const Settings *s)
 {
     static const char *const regions[] = {"auto", "ntsc-u", "pal"};
@@ -201,6 +227,14 @@ static void apply_beetle_options(const Settings *s)
     /* card 0 through SAVE_RAM: PSXS5 keeps it in PCSX-ReARMed's file */
     set_option("beetle_psx_hw_use_mednafen_memcard0_method", "libretro");
     set_option("beetle_psx_hw_frame_duping", "enabled");
+    bool pack = gpu && s->hd_textures && texture_pack_present();
+    set_option("beetle_psx_hw_track_textures", pack ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_replace_textures", pack ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_dump_textures", "disabled");
+    set_option("beetle_psx_hw_texture_directory", "content");
+    set_option("beetle_psx_hw_hd_caching_method", "lazy");
+    set_option("beetle_psx_hw_hd_cache_vram_budget", "2048");
+    set_option("beetle_psx_hw_hd_cache_ram_budget", "256"); /* the heap is 1 GB */
 }
 #endif
 
@@ -764,6 +798,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
 {
     host_unload();
     host_paths = paths;
+    str_copy(loading_path, sizeof(loading_path), game_path);
     core = choose_core(settings, serial ? serial : "");
     psxs5_log("host: emulator %s", core->name);
     card_prepare(serial ? serial : "", game_path);
