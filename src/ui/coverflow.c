@@ -10,6 +10,7 @@
 #include "coverflow.h"
 
 #include "../app.h"
+#include "../art.h"
 #include "../config.h"
 #include "../covers.h"
 #include "../play.h"
@@ -315,6 +316,23 @@ static void update_tint(int game)
 
 /* ---------------------------------------------------------------- pieces */
 
+/* RetroAchievements progress in a cover's bottom-right corner: gold once
+ * mastered. Nothing for games without achievements or not played yet. */
+static void draw_ach_badge(const Game *g, float right, float bottom, float size)
+{
+    GameStats *st = stats_get(g->id);
+    if (!st || st->ach_total <= 0 || st->ach_unlocked < 0)
+        return;
+    bool done = st->ach_unlocked >= st->ach_total;
+    char t[24];
+    snprintf(t, sizeof(t), "%d/%d", st->ach_unlocked, st->ach_total);
+    float h = size * 1.7f, tw = text_width(size, FONT_BOLD, t) + h + size * 0.9f;
+    float x = right - tw - size * 0.4f, y = bottom - h - size * 0.4f;
+    draw_rrect(x, y, tw, h, h * 0.5f, done ? 0xf0c8961eu : 0xd0101018u);
+    icon_draw(ICON_TROPHY, x + h * 0.22f, y + h * 0.18f, h * 0.64f, done ? 0xffffffffu : 0xfff0b429u);
+    text_draw(x + tw - size * 0.6f, y + (h - size) * 0.5f - 1, size, FONT_BOLD, 0xffffffffu, ALIGN_RIGHT, t);
+}
+
 static void draw_cover(PlatTexture *tex, const Game *g, float cx, float cy, float h, float squeeze,
                        uint32_t tint, bool selected)
 {
@@ -336,6 +354,8 @@ static void draw_cover(PlatTexture *tex, const Game *g, float cx, float cy, floa
         draw_rrect(x, y, w, h, 10, TH_CARD);
         text_draw_fit(cx, cy - 16, 24, FONT_BOLD, TH_TEXT_DIM, ALIGN_CENTER, w - 24, g->title);
     }
+    if (selected)
+        draw_ach_badge(g, x + w, y + h, 20);
 }
 
 static void draw_details(const Game *g, float t)
@@ -343,7 +363,7 @@ static void draw_details(const Game *g, float t)
     if (t <= 0.0f)
         return;
     float ease = 1.0f - (1.0f - t) * (1.0f - t);
-    float w = 620, x = plat_width() - (w + 48) * ease, y = 140, h = 800;
+    float w = 620, x = plat_width() - (w + 48) * ease, y = 130, h = 830;
     draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(TH_CARD_A(theme.light ? 0xff : 0xf2), t));
     text_draw_fit(x + 40, y + 34, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80, g->title);
     GameStats *st = stats_get(g->id);
@@ -369,11 +389,33 @@ static void draw_details(const Game *g, float t)
     };
     for (int i = 0; i < 8; ++i)
     {
-        float ry = y + 100 + i * 56;
-        icon_draw(rows[i].icon, x + 40, ry + 2, 30, argb_alpha(TH_FOCUS, t));
-        text_draw(x + 88, ry, 24, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, tr(rows[i].label));
-        text_draw_fit(x + 310, ry, 24, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 350,
+        float ry = y + 92 + i * 44;
+        icon_draw(rows[i].icon, x + 40, ry + 1, 26, argb_alpha(TH_FOCUS, t));
+        text_draw(x + 84, ry, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, tr(rows[i].label));
+        text_draw_fit(x + 310, ry, 22, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 350,
                       rows[i].value);
+    }
+    /* the title screen and a moment of play (downloaded with the covers) */
+    {
+        const float pw = (w - 80 - 16) * 0.5f, ph = pw * 0.75f, py = y + 452;
+        const int kinds[2] = {ART_TITLE, ART_SNAP};
+        for (int k = 0; k < 2; ++k)
+        {
+            float px = x + 40 + k * (pw + 16);
+            PlatTexture *pic = art_get(g, kinds[k]);
+            draw_rrect(px, py, pw, ph, TH_RADIUS_SMALL, argb_alpha(TH_BG_DEEP, t));
+            if (pic)
+            {
+                int tw, th;
+                plat_texture_size(pic, &tw, &th);
+                float s = fminf(pw / tw, ph / th), dw = tw * s, dh = th * s;
+                plat_draw_texture(pic, px + (pw - dw) * 0.5f, py + (ph - dh) * 0.5f, dw, dh,
+                                  argb_alpha(0xffffffffu, t), true);
+            }
+            else
+                icon_draw(art_pending(g, kinds[k]) ? ICON_DOWNLOAD : ICON_PHOTO, px + pw * 0.5f - 18,
+                          py + ph * 0.5f - 18, 36, argb_alpha(TH_TEXT_DIM, t * 0.6f));
+        }
     }
     /* tips: worked out once per game (they read files), with its own settings */
     static char tips[3][TIP_LEN];
@@ -390,12 +432,10 @@ static void draw_details(const Game *g, float t)
     }
     for (int i = 0; i < tip_count; ++i)
     {
-        float ty = y + 560 + i * 40;
+        float ty = y + 668 + i * 34;
         icon_draw(ICON_INFO_CIRCLE, x + 40, ty + 2, 24, argb_alpha(TH_GOLD, t));
         text_draw_fit(x + 76, ty, 19, FONT_REGULAR, argb_alpha(TH_TEXT_SOFT, t), ALIGN_LEFT, w - 116, tips[i]);
     }
-    text_draw(x + 40, y + h - 96, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT,
-              tr("Saves and cheats follow the serial."));
     if (t > 0.5f)
         draw_pad_glyph(GLYPH_SQUARE, x + 54, y + h - 46, 28);
     text_draw(x + 78, y + h - 58, 22, FONT_REGULAR, argb_alpha(TH_TEXT, t), ALIGN_LEFT,
@@ -432,11 +472,8 @@ static void draw_header(void)
     }
 
     /* account and clock, top right */
-    char clock_text[16] = "";
-    time_t now = time(NULL);
-    struct tm tm;
-    if (local_time(now, &tm))
-        snprintf(clock_text, sizeof(clock_text), "%02d:%02d", tm.tm_hour, tm.tm_min);
+    char clock_text[16];
+    plat_clock(clock_text, sizeof(clock_text)); /* the console's time zone and 12/24 h */
     float rx = plat_width() - TH_MARGIN;
     text_draw(rx, 53, 24, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_RIGHT, clock_text);
     rx -= text_width(24, FONT_REGULAR, clock_text) + 32;
@@ -785,6 +822,7 @@ static void draw_grid(int game, float launch)
         }
         else
             icon_draw(ICON_DISC, x + tile * 0.5f - 32, y + tile * 0.5f - 32, 64, TH_TEXT_DIM);
+        draw_ach_badge(g, x + tile, y + tile, 15);
         if (on)
             draw_rrect_outline(x - 5, y - 5, tile + 10, tile + 10, TH_RADIUS_SMALL + 4, 4, theme.cover_outline);
         text_draw_fit(x + 4, y + tile + 8, 18, on ? FONT_BOLD : FONT_REGULAR, on ? TH_TEXT : TH_TEXT_DIM, ALIGN_LEFT,
@@ -879,6 +917,121 @@ static void draw_spines(float launch)
     else
         draw_rrect(fx, fy, face_w, face_h, 8, TH_CARD);
     draw_rrect_outline(fx - 5, fy - 5, face_w + 10, face_h + 10, 10, 3, theme.cover_outline);
+    draw_ach_badge(&app.library.games[S.view[S.cursor]], fx + face_w, fy + face_h, 20);
+}
+
+/* ---------------------------------------------------------------- idle slideshow */
+
+/* After a minute without a button on the shelf: the library's games one by
+ * one, full screen (a gameplay picture when there is one, else the cover),
+ * slowly drifting. Any button brings the shelf back (and is used up). */
+#define IDLE_SECONDS 60.0f
+#define SLIDE_SECONDS 7.0f
+
+static struct
+{
+    float idle, t;
+    bool on;
+    int game;        /* library index */
+    float dir;       /* this slide's drift, -1 or 1 */
+} SS;
+
+static void slideshow_next(void)
+{
+    if (S.view_count <= 0)
+        return;
+    /* rather a game whose picture is already here (downloaded or loaded) */
+    int pick = S.view[rand() % S.view_count];
+    for (int tries = 0; tries < 16; ++tries)
+    {
+        int g = S.view[rand() % S.view_count];
+        if (g == SS.game && S.view_count > 1)
+            continue;
+        pick = g;
+        char path[PSXS5_PATH_MAX], file[120];
+        snprintf(file, sizeof(file), "art/snaps/%.100s.png", app.library.games[g].id);
+        path_join(path, sizeof(path), app.paths.root, file);
+        FILE *f = fopen(path, "rb");
+        if (f || covers_get(g))
+        {
+            if (f)
+                fclose(f);
+            break;
+        }
+    }
+    SS.game = pick;
+    SS.t = 0;
+    SS.dir = (rand() & 1) ? 1.0f : -1.0f;
+    int one[1] = {pick};
+    covers_update_view(one, 1, 0); /* load this cover even far from the cursor */
+}
+
+/* True while the slideshow has the screen. */
+static bool slideshow(uint32_t pressed)
+{
+    if (pressed || S.launch_t > 0 || S.dialog || P.open)
+    {
+        bool was = SS.on;
+        SS.on = false;
+        SS.idle = 0;
+        if (was)
+            covers_update_view(S.view, S.view_count, S.cursor);
+        return was; /* the button that ends it does nothing else */
+    }
+    SS.idle += app.dt;
+    if (!SS.on)
+    {
+        if (SS.idle < IDLE_SECONDS || S.view_count <= 0)
+            return false;
+        SS.on = true;
+        SS.game = -1;
+        slideshow_next();
+    }
+    SS.t += app.dt;
+    if (SS.t > SLIDE_SECONDS)
+        slideshow_next();
+
+    const Game *g = &app.library.games[SS.game];
+    PlatTexture *pic = art_get(g, ART_SNAP);
+    bool snap = pic != NULL;
+    if (!pic)
+        pic = covers_get(SS.game);
+    float fade = fminf(fminf(SS.t / 0.8f, (SLIDE_SECONDS - SS.t) / 0.8f), 1.0f);
+    fade = fade < 0 ? 0 : fade;
+    float sw = (float)plat_width(), sh = (float)plat_height();
+    draw_rect(0, 0, sw, sh, 0xff000000u);
+    if (pic)
+    {
+        int tw, th;
+        plat_texture_size(pic, &tw, &th);
+        /* gameplay pictures fill the screen; covers are shown whole */
+        float k = snap ? fmaxf(sw / tw, sh / th) : fminf(sw * 0.62f / tw, (sh - 380) / th);
+        float zoom = 1.04f + 0.06f * SS.t / SLIDE_SECONDS;
+        float w = tw * k * zoom, h = th * k * zoom;
+        float x = (sw - w) * 0.5f + SS.dir * (SS.t / SLIDE_SECONDS - 0.5f) * sw * 0.04f;
+        float y = snap ? (sh - h) * 0.5f : (sh - 250 - h) * 0.5f; /* a cover stays above the title */
+        plat_draw_texture(pic, x, y, w, h, argb_alpha(0xffffffffu, fade), true);
+    }
+    /* the title, bottom left, over a shade */
+    for (int i = 0; i < 30; ++i) /* darker towards the bottom */
+        draw_rect(0, sh - 300 + i * 10, sw, 10, (uint32_t)(i * 6.5f) << 24);
+    text_draw_fit(TH_MARGIN, sh - 170, 56, FONT_BOLD, argb_alpha(0xffffffffu, fade), ALIGN_LEFT, sw - 2 * TH_MARGIN,
+                  g->title);
+    GameStats *st = stats_get(g->id);
+    char line[96] = "";
+    if (st && st->seconds)
+    {
+        char played[48];
+        stats_format_time(st->seconds, played, sizeof(played));
+        snprintf(line, sizeof(line), tr("Played %s"), played);
+    }
+    text_draw(TH_MARGIN, sh - 96, 24, FONT_REGULAR, argb_alpha(0xffc8c8d0u, fade), ALIGN_LEFT,
+              line[0] ? line : shelf_region_name(g->serial));
+    char clock_text[16];
+    plat_clock(clock_text, sizeof(clock_text));
+    text_draw(sw - TH_MARGIN, 48, 40, FONT_BOLD, 0xd0ffffffu, ALIGN_RIGHT, clock_text);
+    text_draw(sw - TH_MARGIN, sh - 96, 22, FONT_REGULAR, 0x90ffffffu, ALIGN_RIGHT, tr("Press any button"));
+    return true;
 }
 
 void shelf_screen(uint32_t pressed)
@@ -888,6 +1041,8 @@ void shelf_screen(uint32_t pressed)
         storage_screen(pressed);
         return;
     }
+    if (slideshow(pressed))
+        return;
 
     /* ------------------------------------------------ input */
     if (P.open)

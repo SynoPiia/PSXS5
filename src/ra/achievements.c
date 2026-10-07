@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 static rc_client_t *client;
 static Paths paths;
@@ -272,6 +273,95 @@ static uint32_t RC_CCONV cd_first_track_sector(void *handle)
 
 /* ---------------------------------------------------------------- events */
 
+/* Each unlock, for the profile's "Recently unlocked": <root>/achievements-log.txt,
+ * time<TAB>points<TAB>game<TAB>achievement<TAB>description. */
+static void log_unlock(const rc_client_achievement_t *a)
+{
+    char path[PSXS5_PATH_MAX];
+    path_join(path, sizeof(path), paths.root, "achievements-log.txt");
+    FILE *f = fopen(path, "a");
+    if (!f)
+        return;
+    const rc_client_game_t *g = client ? rc_client_get_game_info(client) : NULL;
+    char game[96], title[96], description[192];
+    const char *src[3] = {g && g->title ? g->title : "", a->title ? a->title : "", a->description ? a->description : ""};
+    char *dst[3] = {game, title, description};
+    size_t cap[3] = {sizeof(game), sizeof(title), sizeof(description)};
+    for (int k = 0; k < 3; ++k)
+    {
+        str_copy(dst[k], cap[k], src[k]);
+        for (char *p = dst[k]; *p; ++p)
+            if (*p == '\t' || *p == '\n' || *p == '\r')
+                *p = ' ';
+    }
+    fprintf(f, "%lld\t%u\t%s\t%s\t%s\n", (long long)time(NULL), a->points, game, title, description);
+    fclose(f);
+}
+
+int ra_recent(RaRecent *out, int max)
+{
+    char path[PSXS5_PATH_MAX];
+    path_join(path, sizeof(path), paths.root, "achievements-log.txt");
+    FILE *f = fopen(path, "r");
+    if (!f || max <= 0)
+    {
+        if (f)
+            fclose(f);
+        return 0;
+    }
+    /* keep the last `max` lines, newest first */
+    int n = 0, at = 0;
+    char line[512];
+    while (fgets(line, sizeof(line), f))
+    {
+        char *field[5] = {0};
+        char *p = line;
+        line[strcspn(line, "\r\n")] = '\0';
+        for (int i = 0; i < 5 && p; ++i)
+        {
+            field[i] = p;
+            p = strchr(p, '\t');
+            if (p)
+                *p++ = '\0';
+        }
+        if (!field[3])
+            continue;
+        RaRecent *r = &out[at];
+        r->when = atoll(field[0]);
+        r->points = (unsigned)strtoul(field[1], NULL, 10);
+        str_copy(r->game, sizeof(r->game), field[2]);
+        str_copy(r->title, sizeof(r->title), field[3]);
+        str_copy(r->description, sizeof(r->description), field[4] ? field[4] : "");
+        at = (at + 1) % max;
+        if (n < max)
+            ++n;
+    }
+    fclose(f);
+    /* the ring holds the newest at at-1: turn it into newest first */
+    RaRecent tmp[64];
+    int count = n < 64 ? n : 64;
+    for (int i = 0; i < count; ++i)
+        tmp[i] = out[((at - 1 - i) % max + max) % max];
+    memcpy(out, tmp, sizeof(RaRecent) * (size_t)count);
+    return count;
+}
+
+unsigned ra_user_softcore_score(void)
+{
+    if (!client || !signed_in)
+        return 0;
+    const rc_client_user_t *u = rc_client_get_user_info(client);
+    return u ? u->score_softcore : 0;
+}
+
+unsigned ra_user_hardcore_score(void)
+{
+    if (!client || !signed_in)
+        return 0;
+    const rc_client_user_t *u = rc_client_get_user_info(client);
+    return u ? u->score : 0;
+}
+
 static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
 {
     char detail[192];
@@ -281,6 +371,7 @@ static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
         snprintf(detail, sizeof(detail), tr("%s  (%u points)"), e->achievement->description,
                  e->achievement->points);
         post(e->achievement->title, detail);
+        log_unlock(e->achievement);
         break;
     case RC_CLIENT_EVENT_ACHIEVEMENT_PROGRESS_INDICATOR_SHOW:
     case RC_CLIENT_EVENT_ACHIEVEMENT_PROGRESS_INDICATOR_UPDATE:

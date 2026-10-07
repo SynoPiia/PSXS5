@@ -9,6 +9,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <stdio.h>
 
 /* ---- the core: a striped test picture instead of a game */
 static bool loaded;
@@ -88,6 +90,22 @@ void ra_reset(void) {}
 bool ra_signed_in(void) { return true; }
 const char *ra_user(void) { return "SynoPiia"; }
 unsigned ra_user_score(void) { return 1240; }
+unsigned ra_user_hardcore_score(void) { return 1240; }
+unsigned ra_user_softcore_score(void) { return 85; }
+int ra_recent(RaRecent *out, int max)
+{
+    static const char *const t[] = {"Wumpa Collector", "Dragon Rescuer", "Bonus Round", "Gem Hunter"};
+    int n = max < 4 ? max : 4;
+    for (int i = 0; i < n; ++i)
+    {
+        memset(&out[i], 0, sizeof(out[i]));
+        out[i].when = (long long)time(NULL) - i * 90000;
+        out[i].points = 5 + i * 5;
+        snprintf(out[i].game, sizeof(out[i].game), "%s", i < 2 ? "Crash Bandicoot" : "Spyro the Dragon");
+        snprintf(out[i].title, sizeof(out[i].title), "%s", t[i]);
+    }
+    return n;
+}
 bool ra_game_progress(int *unlocked, int *total)
 {
     if (!loaded)

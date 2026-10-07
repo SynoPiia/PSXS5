@@ -37,6 +37,16 @@ typedef struct
 } RaAchievement;
 /* The loaded game's achievements, unlocked ones first. Returns how many. */
 int ra_list(RaAchievement *out, int max);
+/* The unlocks PSXS5 has seen (its own log), newest first; max <= 64. */
+typedef struct
+{
+    long long when;
+    unsigned points;
+    char game[96], title[96], description[192];
+} RaRecent;
+int ra_recent(RaRecent *out, int max);
+unsigned ra_user_hardcore_score(void);
+unsigned ra_user_softcore_score(void);
 bool ra_hardcore(void);          /* blocks save states, cheats and rewind */
 void ra_set_hardcore(bool on);   /* saved to the ini */
 /* "12 of 40 achievements, 115 of 400 points", or "" when no set is loaded */

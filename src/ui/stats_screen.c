@@ -6,6 +6,7 @@
 #include "../covers.h"
 #include "../i18n.h"
 #include "../platform/platform.h"
+#include "../ra/achievements.h"
 #include "../stats.h"
 #include "coverflow.h"
 #include "draw.h"
@@ -90,6 +91,12 @@ static void tile(float x, float y, float w, int icon, const char *value, const c
 
 void library_stats_screen(uint32_t pressed)
 {
+    if ((pressed & BIT(BTN_SQUARE)) && ra_user()[0])
+    {
+        sfx_play(SFX_SELECT);
+        profile_open(SCREEN_STATS);
+        return;
+    }
     if (pressed & (BIT(BTN_CIRCLE) | BIT(BTN_CROSS)))
     {
         sfx_play(SFX_BACK);
@@ -155,8 +162,8 @@ void library_stats_screen(uint32_t pressed)
         text_draw(x + 16, cy + ch + 52, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, played);
     }
 
-    static const int glyphs[] = {GLYPH_CIRCLE};
-    static const char *const labels[] = {"Back"};
-    app_draw_hints(glyphs, labels, 1, NULL);
+    static const int glyphs[] = {GLYPH_CIRCLE, GLYPH_SQUARE};
+    static const char *const labels[] = {"Back", "RetroAchievements profile"};
+    app_draw_hints(glyphs, labels, ra_user()[0] ? 2 : 1, NULL);
     app_draw_toast();
 }

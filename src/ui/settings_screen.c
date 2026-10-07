@@ -67,6 +67,7 @@ enum Special
     SP_STATS,
     SP_THEME,
     SP_PLAYERS,
+    SP_PROFILE,
 };
 
 typedef struct
@@ -203,6 +204,8 @@ static const Row SOUND[] = {
 static const Row ACHIEVEMENTS[] = {
     {"Account", "Signed in as", "Sign in on your PC: python tools/psxs5_sync.py ra-login. Only a token reaches the PS5.",
      K_INFO, APPLY_NOW, SP_ACCOUNT, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Your profile", "Your points, games mastered, what you unlocked lately and the games closest to mastery.",
+     K_ACTION, APPLY_NOW, SP_PROFILE, true, NO_FIELD, NULL, 0, 0},
     {"While playing", "Unlock pop-ups", "The banner when you earn an achievement. Off only hides it: achievements still unlock.",
      K_TOGGLE, APPLY_NOW, SP_NONE, true, BOOL_FIELD(ra_popups), OFF_ON, 2, 0},
     {NULL, "Pop-up style", "Banner: top right. Compact: a small line at the top. Big trophy: in the middle, like the PS5's.",
@@ -1100,6 +1103,10 @@ static void activate(const Row *r)
     case SP_MEMCARDS:
         sfx_play(SFX_SELECT);
         memcards_open(SCREEN_SETTINGS);
+        return;
+    case SP_PROFILE:
+        sfx_play(SFX_SELECT);
+        profile_open(SCREEN_SETTINGS);
         return;
     case SP_PLAYERS:
         S.players = true;

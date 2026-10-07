@@ -1,0 +1,9 @@
+wait 60
+wait 3700
+shot s1-slideshow
+wait 200
+shot s2-slideshow
+press cross
+wait 30
+shot s3-back
+quit

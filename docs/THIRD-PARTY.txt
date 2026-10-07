@@ -25,8 +25,9 @@ rcheevos (RetroAchievements)
 SDL 2 - zlib License - https://www.libsdl.org
 Fonts in assets/fonts - SIL Open Font License 1.1 (notices beside them): Inter, Noto Sans JP,
   Chakra Petch, IBM Plex Sans, IBM Plex Mono, Fraunces, Work Sans; Tabler Icons - MIT License
-Game artwork borders are downloaded on the console from The Bezel Project
-  (https://github.com/thebezelproject), as covers are; PSXS5 doesn't include them.
+Game artwork borders (The Bezel Project, https://github.com/thebezelproject), title
+  screens and gameplay pictures (libretro-thumbnails, https://github.com/libretro-thumbnails)
+  are downloaded on the console, as covers are; PSXS5 doesn't include them.
 dlmalloc (Doug Lea) - public domain (CC0)
 miniz - MIT License - https://github.com/richgel999/miniz
 QR Code generator (Nayuki) - MIT License - https://github.com/nayuki/QR-Code-generator

@@ -22,6 +22,7 @@ enum Screen
     SCREEN_MANUAL,
     SCREEN_CHEAT_SEARCH,
     SCREEN_GUIDE,
+    SCREEN_PROFILE,
     SCREEN_COUNT
 };
 
@@ -86,6 +87,9 @@ void cheat_search_open(void);
 int guide_count(void);
 void guide_open(void);
 void guide_screen(uint32_t pressed);
+/* Your RetroAchievements profile. */
+void profile_open(enum Screen back_to);
+void profile_screen(uint32_t pressed);
 void cheat_search_screen(uint32_t pressed);
 void menu_open(void);
 void settings_opened(void);
