@@ -146,7 +146,7 @@ void library_stats_screen(uint32_t pressed)
         char rank[8];
         snprintf(rank, sizeof(rank), "%d", k + 1);
         draw_rrect(x + 12, cy + 12, 40, 40, 20, TH_GOLD);
-        text_draw(x + 32, cy + 18, 22, FONT_BOLD, 0xff0f1330u, ALIGN_CENTER, rank);
+        text_draw(x + 32, cy + 18, 22, FONT_BOLD, TH_BG, ALIGN_CENTER, rank);
         text_draw_fit(x + 16, cy + ch + 12, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, cw - 32, g->title);
         GameStats *st = stats_get(g->id);
         char played[48] = "";

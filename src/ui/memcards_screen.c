@@ -350,12 +350,12 @@ void memcards_screen(uint32_t pressed)
         text_draw_fit(px + 32, top + 20, 28, FONT_BOLD, TH_TEXT, ALIGN_LEFT, pw - 64, c->title);
         float bx = px + 32, by = top + 80, bs = (pw - 64 - 14 * 8) / 15.0f;
         int block = 0;
-        static const uint32_t hues[] = {0xff5b7cffu, 0xfff0b429u, 0xff5fd38au, 0xffff8f8fu, 0xffc07cffu};
+        const uint32_t hues[] = {TH_SWITCH_ON, TH_GOLD, TH_GOOD, 0xffff8f8fu, 0xffc07cffu};
         for (int s = 0; s < c->save_count; ++s)
             for (int k = 0; k < c->save_blocks[s] && block < 15; ++k, ++block)
                 draw_rrect(bx + block * (bs + 8), by, bs, bs, 6, hues[s % 5]);
         for (; block < 15; ++block)
-            draw_rrect(bx + block * (bs + 8), by, bs, bs, 6, 0xff1c2250u);
+            draw_rrect(bx + block * (bs + 8), by, bs, bs, 6, TH_PILL);
         for (int s = 0; s < c->save_count && s < 12; ++s)
         {
             float sy = by + bs + 40 + s * 46;
@@ -374,7 +374,7 @@ void memcards_screen(uint32_t pressed)
     {
         draw_rect(0, 0, plat_width(), plat_height(), 0xc0000000u);
         const float dw = 900, dh = 600, dx = (plat_width() - dw) * 0.5f, dy = 220;
-        draw_rrect(dx, dy, dw, dh, TH_RADIUS, 0xff151a3du);
+        draw_rrect(dx, dy, dw, dh, TH_RADIUS, TH_CARD);
         text_draw(dx + 40, dy + 30, 30, FONT_BOLD, TH_TEXT, ALIGN_LEFT, tr("Import a memory card"));
         if (!C.import_count)
         {

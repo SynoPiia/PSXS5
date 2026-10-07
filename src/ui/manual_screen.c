@@ -161,7 +161,7 @@ void manual_screen(uint32_t pressed)
     }
     load_page();
 
-    draw_rect(0, 0, plat_width(), plat_height(), 0xff0a0d24u);
+    draw_rect(0, 0, plat_width(), plat_height(), TH_BG_DEEP);
     const float top = 24, bottom = 90, avail_h = plat_height() - top - bottom, avail_w = plat_width() - 48;
     if (N.texture)
     {

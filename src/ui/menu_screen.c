@@ -173,7 +173,7 @@ static void draw_slots(float x, float y, float w, bool active)
         char age[48];
         slot_age(s, age, sizeof(age));
         bool on = s == slot;
-        draw_rrect(cx, y, cw, ch, TH_RADIUS_SMALL, on ? 0xff24305cu : age[0] ? 0xff1a2147u : 0xff141938u);
+        draw_rrect(cx, y, cw, ch, TH_RADIUS_SMALL, on ? TH_ROW_SELECTED : age[0] ? TH_CARD : TH_BG_DEEP);
         PlatTexture *thumb = age[0] ? slot_thumb(s) : NULL;
         if (thumb)
         {
@@ -182,7 +182,7 @@ static void draw_slots(float x, float y, float w, bool active)
             draw_rect(cx + 4, y + ch - 52, cw - 8, 48, 0xc0000000u);
         }
         if (on)
-            draw_rrect_outline(cx, y, cw, ch, TH_RADIUS_SMALL, 3, active ? TH_FOCUS : 0xff4a5590u);
+            draw_rrect_outline(cx, y, cw, ch, TH_RADIUS_SMALL, 3, active ? TH_FOCUS : TH_SWITCH_OFF);
         char name[32];
         snprintf(name, sizeof(name), tr("Slot %d"), s);
         const char *note = age[0] ? slot_note(s) : "";
@@ -198,7 +198,7 @@ static void draw_slots(float x, float y, float w, bool active)
             text_draw_fit(cx + 16, y + ch - 40, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, cw - 24,
                           age[0] ? age : tr("Empty"));
             icon_draw(age[0] ? ICON_DEVICE_FLOPPY : ICON_X, cx + cw - 44, y + 12, 28,
-                      age[0] ? TH_FOCUS : 0xff3a4280u);
+                      age[0] ? TH_FOCUS : TH_SWITCH_OFF);
         }
     }
     plat_set_clip(0, 0, 0, 0);
@@ -683,7 +683,7 @@ void achievements_screen(uint32_t pressed)
     if (A.count)
     {
         float bw = 420, bx = plat_width() - TH_MARGIN - bw;
-        draw_rrect(bx, 62, bw, 10, 5, 0xff1c2250u);
+        draw_rrect(bx, 62, bw, 10, 5, TH_PILL);
         draw_rrect(bx, 62, bw * unlocked / A.count, 10, 5, TH_GOLD);
     }
     /* the two tabs */
@@ -696,8 +696,8 @@ void achievements_screen(uint32_t pressed)
         {
             float tw = text_width(22, FONT_REGULAR, label[t]) + 44;
             bool on = t == ach_tab;
-            draw_rrect(tx, 146, tw, 46, 23, on ? 0xffe8ebffu : 0xff1c2250u);
-            text_draw(tx + tw * 0.5f, 156, 22, on ? FONT_BOLD : FONT_REGULAR, on ? 0xff0f1330u : TH_TEXT_DIM,
+            draw_rrect(tx, 146, tw, 46, 23, on ? TH_TEXT : TH_PILL);
+            text_draw(tx + tw * 0.5f, 156, 22, on ? FONT_BOLD : FONT_REGULAR, on ? TH_BG : TH_TEXT_DIM,
                       ALIGN_CENTER, label[t]);
             tx += tw + 12;
         }
@@ -745,7 +745,7 @@ void achievements_screen(uint32_t pressed)
             plat_draw_texture(A.badge[i], x + 14, y + 10, 64, 64, a->unlocked ? 0xffffffffu : 0xff707070u, false);
         else
         {
-            draw_rrect(x + 14, y + 10, 64, 64, 10, a->unlocked ? 0xff2a2410u : 0xff1c2250u);
+            draw_rrect(x + 14, y + 10, 64, 64, 10, a->unlocked ? 0xff2a2410u : TH_PILL);
             icon_draw(a->unlocked ? ICON_TROPHY : ICON_LOCK, x + 26, y + 22, 40,
                       a->unlocked ? TH_GOLD : TH_TEXT_DIM);
         }
@@ -764,7 +764,7 @@ void achievements_screen(uint32_t pressed)
             snprintf(pc, sizeof(pc), "%s  \xc2\xb7  %d%%", a->progress, (int)(a->percent + 0.5f));
             text_draw(x + w - 24, y + 46, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, pc);
             float bx = x + 100, bw = w - 324, k = a->percent < 0 ? 0 : a->percent > 100 ? 1 : a->percent / 100.0f;
-            draw_rrect(bx, y + 80, bw, 8, 4, 0xff1c2250u);
+            draw_rrect(bx, y + 80, bw, 8, 4, TH_PILL);
             if (k > 0)
                 draw_rrect(bx, y + 80, bw * k < 8 ? 8 : bw * k, 8, 4, TH_GOLD);
         }

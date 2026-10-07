@@ -208,37 +208,80 @@ void shelf_select_game(int library_index)
 
 /* A neutral vertical gradient, built once and blitted tinted each frame:
  * a full-screen gradient mesh per frame would be costly here. */
+/* The theme's background as a grey picture; plat_draw_backdrop colours it
+ * (the cover's colour for Classic, the theme's otherwise). */
+static void make_backdrop(uint8_t *grey, int W, int H, int style, bool light)
+{
+    for (int y = 0; y < H; ++y)
+        for (int x = 0; x < W; ++x)
+        {
+            float t = (float)y / (H - 1), dx = (x - W * 0.5f) / (W * 0.5f), v;
+            switch (style)
+            {
+            case BACKDROP_GRID:
+            {
+                /* a dark room, a glowing horizon and a grid floor running away */
+                const float horizon = 0.50f;
+                v = 0.05f + 0.05f * (1.0f - t);
+                float d = (t - horizon) * H;
+                v += 0.85f * expf(-d * d / 18.0f) + 0.18f * expf(-d * d / 900.0f);
+                if (t > horizon + 0.004f)
+                {
+                    float depth = 60.0f / (t - horizon);          /* far rows bunch up */
+                    float wx = dx * depth * 0.5f;                  /* columns converge */
+                    float fz = depth / 12.0f - floorf(depth / 12.0f), fx = wx / 6.0f - floorf(wx / 6.0f);
+                    float line = fminf(fminf(fz, 1.0f - fz) * 12.0f, fminf(fx, 1.0f - fx) * 40.0f / (1.0f + depth * 0.02f));
+                    float glow = line < 1.0f ? (1.0f - line) : 0.0f;
+                    v += glow * 0.75f * fminf(1.0f, (t - horizon) * 6.0f);
+                }
+                break;
+            }
+            case BACKDROP_FLAT:
+                v = light ? 0.99f - t * 0.05f : 0.42f - t * 0.08f;
+                v *= 1.0f - dx * dx * (light ? 0.02f : 0.12f);
+                break;
+            case BACKDROP_LAMP:
+            {
+                /* a warm pool of light from a lamp above the shelf */
+                float lx = (x - W * 0.5f) / 760.0f, ly = (y - H * 0.24f) / 470.0f;
+                v = 0.12f + 0.62f * expf(-(lx * lx + ly * ly));
+                break;
+            }
+            default:
+            {
+                /* dark top, brighter band behind the covers, dark floor, soft vignette */
+                float l = t < 0.42f ? 0.30f + t / 0.42f * 0.42f
+                                    : t < 0.64f ? 0.72f - (t - 0.42f) / 0.22f * 0.30f
+                                                : 0.42f - (t - 0.64f) / 0.36f * 0.30f;
+                v = l * (1.0f - dx * dx * 0.35f);
+            }
+            }
+            grey[(size_t)y * W + x] = (uint8_t)(fminf(fmaxf(v, 0.0f), 1.0f) * 255.0f);
+        }
+}
+
 void shelf_backdrop(void)
 {
-    /* dark top, a brighter band behind the covers, a dark floor, a soft
-     * vignette; tinted by the theme or the cover (update_tint) */
     enum { W = 1920, H = 1080 };
     static uint8_t *grey;
-    static bool tried;
-    if (!grey && !tried)
-    {
-        tried = true;
+    static int made = -1; /* style * 2 + light */
+    int key = theme.backdrop * 2 + (theme.light ? 1 : 0);
+    if (!grey)
         grey = malloc((size_t)W * H);
-        for (int y = 0; grey && y < H; ++y)
-        {
-            float t = (float)y / (H - 1);
-            float l = t < 0.42f ? 0.30f + t / 0.42f * 0.42f
-                                : t < 0.64f ? 0.72f - (t - 0.42f) / 0.22f * 0.30f
-                                            : 0.42f - (t - 0.64f) / 0.36f * 0.30f;
-            for (int x = 0; x < W; ++x)
-            {
-                float dx = (x - W * 0.5f) / (W * 0.5f);
-                grey[(size_t)y * W + x] = (uint8_t)(l * (1.0f - dx * dx * 0.35f) * 255.0f);
-            }
-        }
-    }
     if (!grey)
     {
         draw_rect(0, 0, plat_width(), plat_height(), TH_BG);
         return;
     }
-    uint32_t tint = 0xff000000u | (uint32_t)(S.tint[0] * 255) << 16 |
-                    (uint32_t)(S.tint[1] * 255) << 8 | (uint32_t)(S.tint[2] * 255);
+    if (made != key)
+    {
+        make_backdrop(grey, W, H, theme.backdrop, theme.light);
+        made = key;
+    }
+    uint32_t tint = theme.backdrop_tint
+                        ? theme.backdrop_tint
+                        : 0xff000000u | (uint32_t)(S.tint[0] * 255) << 16 | (uint32_t)(S.tint[1] * 255) << 8 |
+                              (uint32_t)(S.tint[2] * 255);
     plat_draw_backdrop(grey, W, H, tint);
 }
 
@@ -282,7 +325,9 @@ static void draw_cover(PlatTexture *tex, const Game *g, float cx, float cy, floa
     if (selected)
     {
         draw_rrect(x - 10, y + 14, w + 20, h + 6, 18, 0x60000000u); /* shadow */
-        draw_rrect_outline(x - 7, y - 7, w + 14, h + 14, 14, 4, 0xffe8ebffu);
+        if (theme.backdrop == BACKDROP_GRID) /* a neon glow */
+            draw_rrect_outline(x - 14, y - 14, w + 28, h + 28, 20, 6, (theme.cover_outline & 0xffffffu) | 0x50000000u);
+        draw_rrect_outline(x - 7, y - 7, w + 14, h + 14, 14, 4, theme.cover_outline);
     }
     if (tex) /* flat covers are opaque: a plain copy is much cheaper than blending */
         plat_draw_texture(tex, x, y, w, h, tint, app.global.cover_style == COVER_BOX3D);
@@ -299,7 +344,7 @@ static void draw_details(const Game *g, float t)
         return;
     float ease = 1.0f - (1.0f - t) * (1.0f - t);
     float w = 620, x = plat_width() - (w + 48) * ease, y = 140, h = 800;
-    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xf2151a3du, t));
+    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(TH_CARD_A(theme.light ? 0xff : 0xf2), t));
     text_draw_fit(x + 40, y + 34, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80, g->title);
     GameStats *st = stats_get(g->id);
     char played[48] = "", when[48] = "", ach[48] = "", discs[16];
@@ -450,7 +495,7 @@ static void draw_info(const Game *g, float alpha)
     float x = CENTER_X - (total - 10) * 0.5f, ty = y + 84;
     for (int i = 0; i < 5; ++i)
         if (widths[i] > 0)
-            x += draw_pill(x, ty, 40, 22, argb_alpha(0xc01c2250u, alpha),
+            x += draw_pill(x, ty, 40, 22, argb_alpha(TH_PILL_A(0xc0), alpha),
                            argb_alpha(TH_TEXT_SOFT, alpha), tags[i]) + 10;
 
     /* achievement progress, when known */
@@ -458,7 +503,7 @@ static void draw_info(const Game *g, float alpha)
     {
         float bw = 340, bx = CENTER_X - bw * 0.5f + 20, by = ty + 70;
         icon_draw(ICON_TROPHY, bx - 46, by - 12, 30, argb_alpha(TH_GOLD, alpha));
-        draw_rrect(bx, by, bw, 8, 4, argb_alpha(0xff1c2250u, alpha));
+        draw_rrect(bx, by, bw, 8, 4, argb_alpha(TH_PILL, alpha));
         float f = (float)st->ach_unlocked / st->ach_total;
         draw_rrect(bx, by, bw * (f > 1 ? 1 : f), 8, 4, argb_alpha(TH_GOLD, alpha));
         char a[32];
@@ -633,7 +678,7 @@ static void picker_draw(void)
     float t = P.t, e = 1.0f - (1.0f - t) * (1.0f - t);
     draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xc0000000u, t));
     const float w = 1400, h = 800, x = CENTER_X - w * 0.5f, y = 130 + (1.0f - e) * 40;
-    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xff151a3du, t));
+    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(TH_CARD, t));
     text_draw(x + 40, y + 30, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, tr("Choose a cover"));
     text_draw_fit(x + 40, y + 76, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, 760,
                   app.library.games[P.game].title);
@@ -671,7 +716,7 @@ static void picker_draw(void)
 
     /* the preview, decoded once per selected file */
     const float px = x + 860, py = y + 130, pw = 500, ph = 560;
-    draw_rrect(px, py, pw, ph, TH_RADIUS_SMALL, argb_alpha(0xff1c2250u, t));
+    draw_rrect(px, py, pw, ph, TH_RADIUS_SMALL, argb_alpha(TH_PILL, t));
     if (P.open && P.preview_for != P.cursor)
     {
         plat_texture_free(P.preview);
@@ -884,6 +929,13 @@ void shelf_screen(uint32_t pressed)
 
     /* ------------------------------------------------ shelf */
     shelf_backdrop();
+    if (theme.shelf_plank)
+    {
+        const float py = CENTER_Y + COVER_H * 0.5f + 8;
+        draw_rect(180, py + 30, plat_width() - 360, 22, 0x60000000u);  /* its shadow */
+        draw_rrect(160, py, plat_width() - 320, 34, 4, 0xff7a4e2eu);
+        draw_rect(160, py + 22, plat_width() - 320, 12, 0xff5e3a22u);
+    }
     plat_profile("backdrop");
     float launch = S.launch_t > 0.0f ? S.launch_t / LAUNCH_TIME : 0.0f;
     if (S.view_count > 0)
@@ -973,7 +1025,7 @@ void shelf_screen(uint32_t pressed)
         float t = S.dialog_t, e = 1.0f - (1.0f - t) * (1.0f - t);
         draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xc0000000u, t));
         const float w = 1000, h = 420, x = CENTER_X - w * 0.5f, y = 330 + (1.0f - e) * 40;
-        draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xff151a3du, t));
+        draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(TH_CARD, t));
         text_draw_fit(x + 40, y + 30, 32, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 80,
                       app.library.games[game].title);
         const char *labels[2] = {tr("Continue"), tr("Start over")};
@@ -995,7 +1047,7 @@ void shelf_screen(uint32_t pressed)
         {
             float bx = x + 40 + i * (w - 80) * 0.5f, bw = (w - 80) * 0.5f - 12, by = y + 100, bh = 280;
             bool on = i == S.dialog_choice;
-            draw_rrect(bx, by, bw, bh, TH_RADIUS_SMALL, argb_alpha(on ? TH_ROW_SELECTED : 0xff1c2250u, t));
+            draw_rrect(bx, by, bw, bh, TH_RADIUS_SMALL, argb_alpha(on ? TH_ROW_SELECTED : TH_PILL, t));
             if (on)
                 draw_rrect_outline(bx, by, bw, bh, TH_RADIUS_SMALL, 3, argb_alpha(TH_FOCUS, t));
             if (i == 0 && S.resume_thumb)

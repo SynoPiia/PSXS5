@@ -1,28 +1,73 @@
 /*
- * PSXS5 - the interface's colours, sizes and timings (1.1 redesign).
+ * PSXS5 - the interface's colours, sizes and timings, and its themes.
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * The TH_* colours come from the active theme (theme.c), so a theme change
+ * shows on the next frame everywhere.
  */
 #ifndef PSXS5_THEME_H
 #define PSXS5_THEME_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
+enum ThemeId
+{
+    THEME_CLASSIC,     /* deep navy, the 1.1 look */
+    THEME_NEON,        /* Neon Arcade */
+    THEME_MEMORY,      /* Memory Card, light */
+    THEME_MEMORY_DARK, /* Memory Card, dark */
+    THEME_RECORD,      /* Record Shelf */
+    THEME_COUNT
+};
+
+enum ThemeBackdrop
+{
+    BACKDROP_STAGE, /* a lit band behind the covers, the 1.1 backdrop */
+    BACKDROP_GRID,  /* a dark room and a glowing grid floor */
+    BACKDROP_FLAT,  /* an even ground, lighter at the top */
+    BACKDROP_LAMP   /* a warm pool of light from above */
+};
+
+typedef struct
+{
+    uint32_t bg, bg_deep, card, card_soft, row_selected, focus, pill, switch_on, switch_off;
+    uint32_t text, text_dim, text_soft, hint, gold, danger, good, divider;
+    uint32_t cover_outline; /* around the selected cover */
+    uint32_t backdrop_tint; /* 0: the cover's colour (Classic) */
+    int backdrop;           /* enum ThemeBackdrop */
+    bool shelf_plank;       /* a wooden shelf under the covers */
+    bool light;             /* dark text on a light ground */
+    const char *font_regular, *font_bold; /* assets/fonts/... */
+} Theme;
+
+extern Theme theme;
+extern const char *const THEME_NAMES[THEME_COUNT];
+/* Colours, fonts and backdrop of a theme; reloads the fonts when they change. */
+void theme_apply(int id);
+int theme_current(void);
+
 /* colours, ARGB */
-#define TH_BG 0xff0f1330u          /* screen background */
-#define TH_BG_DEEP 0xff0a0d24u
-#define TH_CARD 0xff151a3du        /* grouped settings, panels */
-#define TH_CARD_SOFT 0xd8151a3du   /* panels over the game */
-#define TH_ROW_SELECTED 0xff2a3370u
-#define TH_FOCUS 0xff8fb0ffu       /* focus outline, accents */
-#define TH_PILL 0xff1c2250u
-#define TH_SWITCH_ON 0xff5b7cffu
-#define TH_SWITCH_OFF 0xff3a4280u
-#define TH_TEXT 0xffe8ebffu
-#define TH_TEXT_DIM 0xff8f97c8u
-#define TH_TEXT_SOFT 0xffcfd6ffu
-#define TH_HINT 0xff9aa3d6u
-#define TH_GOLD 0xfff0b429u
-#define TH_DANGER 0xffff9c9cu
-#define TH_GOOD 0xff5fd38au
-#define TH_DIVIDER 0xff222a5cu
+#define TH_BG (theme.bg)                 /* screen background */
+#define TH_BG_DEEP (theme.bg_deep)
+#define TH_CARD (theme.card)             /* grouped settings, panels */
+#define TH_CARD_SOFT (theme.card_soft)   /* panels over the game */
+#define TH_ROW_SELECTED (theme.row_selected)
+#define TH_FOCUS (theme.focus)           /* focus outline, accents */
+#define TH_PILL (theme.pill)
+#define TH_SWITCH_ON (theme.switch_on)
+#define TH_SWITCH_OFF (theme.switch_off)
+#define TH_TEXT (theme.text)
+#define TH_TEXT_DIM (theme.text_dim)
+#define TH_TEXT_SOFT (theme.text_soft)
+#define TH_HINT (theme.hint)
+#define TH_GOLD (theme.gold)
+#define TH_DANGER (theme.danger)
+#define TH_GOOD (theme.good)
+#define TH_DIVIDER (theme.divider)
+/* the card or pill colour with another alpha (0..255) */
+#define TH_CARD_A(a) (((uint32_t)(a) << 24) | (theme.card & 0xffffffu))
+#define TH_PILL_A(a) (((uint32_t)(a) << 24) | (theme.pill & 0xffffffu))
 
 /* sizes, in 1920x1080 screen pixels */
 #define TH_RADIUS 16.0f

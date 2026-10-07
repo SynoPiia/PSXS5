@@ -68,31 +68,63 @@ static unsigned char *read_file(const char *path)
     return data;
 }
 
-bool text_init(void)
+static void free_atlases(void);
+
+/* The interface's two weights (the theme's); Inter when a file is missing. */
+static bool load_fonts(const char *regular, const char *bold)
 {
-    static const char *files[2] = {"fonts/Inter-400.ttf", "fonts/Inter-600.ttf"};
+    const char *files[2] = {regular, bold};
     for (int w = 0; w < 2; ++w)
     {
         char path[PSXS5_PATH_MAX];
         plat_asset_path(path, sizeof(path), files[w]);
-        font_data[w] = read_file(path);
-        font_ok[w] = font_data[w] &&
-                     stbtt_InitFont(&font_info[w], font_data[w],
-                                    stbtt_GetFontOffsetForIndex(font_data[w], 0));
-        if (!font_ok[w])
+        unsigned char *data = read_file(path);
+        stbtt_fontinfo info;
+        bool ok = data && stbtt_InitFont(&info, data, stbtt_GetFontOffsetForIndex(data, 0));
+        if (!ok)
+        {
             psxs5_log("font missing or invalid: %s", path);
+            free(data);
+            if (font_ok[w])
+                continue; /* keep the current one */
+            plat_asset_path(path, sizeof(path), w ? "fonts/Inter-600.ttf" : "fonts/Inter-400.ttf");
+            data = read_file(path);
+            ok = data && stbtt_InitFont(&info, data, stbtt_GetFontOffsetForIndex(data, 0));
+            if (!ok)
+            {
+                free(data);
+                continue;
+            }
+        }
+        free(font_data[w]);
+        font_data[w] = data;
+        font_info[w] = info;
+        font_ok[w] = true;
     }
+    if (!font_ok[FONT_BOLD] && font_ok[FONT_REGULAR])
+    {
+        font_info[FONT_BOLD] = font_info[FONT_REGULAR];
+        font_ok[FONT_BOLD] = true;
+    }
+    return font_ok[FONT_REGULAR];
+}
+
+void text_set_fonts(const char *regular, const char *bold)
+{
+    load_fonts(regular, bold);
+    free_atlases(); /* glyphs are packed again with the new faces */
+    extra_dirty = true;
+}
+
+bool text_init(void)
+{
+    load_fonts("fonts/Inter-400.ttf", "fonts/Inter-600.ttf");
     char jp_path[PSXS5_PATH_MAX];
     plat_asset_path(jp_path, sizeof(jp_path), "fonts/NotoSansJP-PSXS5.ttf");
     jp_data = read_file(jp_path);
     jp_ok = jp_data && stbtt_InitFont(&jp_info, jp_data, stbtt_GetFontOffsetForIndex(jp_data, 0));
     if (!jp_ok)
         psxs5_log("font missing or invalid: %s (Japanese will show as ?)", jp_path);
-    if (!font_ok[FONT_BOLD] && font_ok[FONT_REGULAR])
-    {
-        font_info[FONT_BOLD] = font_info[FONT_REGULAR];
-        font_ok[FONT_BOLD] = true;
-    }
     return font_ok[FONT_REGULAR];
 }
 

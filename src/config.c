@@ -114,6 +114,8 @@ static bool config_apply(Settings *s, const char *path)
             s->emulator = atoi(value) % EMU_COUNT;
         else if (strcmp(key, "pgxp") == 0)
             s->pgxp = as_bool(value);
+        else if (strcmp(key, "theme") == 0)
+            s->theme = atoi(value) % 5;
         else if (strcmp(key, "hd_textures") == 0)
             s->hd_textures = as_bool(value);
         else if (strcmp(key, "shader") == 0)
@@ -211,8 +213,8 @@ bool config_save(const Settings *s, const char *path)
             s->update_check);
     fprintf(f, "emulator=%d\npgxp=%d\nra_popups=%d\nra_tracker=%d\ncrop_edges=%d\n", s->emulator, s->pgxp,
             s->ra_popups, s->ra_tracker, s->crop_edges);
-    fprintf(f, "ra_popup_style=%d\nlightbar=%d\nshader=%d\nhd_textures=%d\n", s->ra_popup_style, s->lightbar,
-            s->shader, s->hd_textures);
+    fprintf(f, "ra_popup_style=%d\nlightbar=%d\nshader=%d\nhd_textures=%d\ntheme=%d\n", s->ra_popup_style,
+            s->lightbar, s->shader, s->hd_textures, s->theme);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

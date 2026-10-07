@@ -1,0 +1,16 @@
+wait 70
+shot t3a-shelf
+press triangle
+wait 30
+shot t3b-details
+press circle
+press square
+wait 30
+press r1
+press r1
+press r1
+press r1
+press r1
+wait 20
+shot t3c-settings
+quit

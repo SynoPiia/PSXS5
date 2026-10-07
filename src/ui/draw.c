@@ -315,8 +315,8 @@ float draw_pad_glyph(enum PadGlyph glyph, float cx, float cy, float size)
     {
         /* shoulder buttons and OPTIONS/SELECT: a labelled chip */
         float h = size * 0.92f;
-        draw_rrect(cx - w * 0.5f, cy - h * 0.5f, w, h, h * 0.3f, 0xff2a3370u);
-        text_draw(cx, cy - size * 0.6f * 0.62f, size * 0.6f, FONT_BOLD, 0xffe8ebffu, ALIGN_CENTER,
+        draw_rrect(cx - w * 0.5f, cy - h * 0.5f, w, h, h * 0.3f, TH_ROW_SELECTED);
+        text_draw(cx, cy - size * 0.6f * 0.62f, size * 0.6f, FONT_BOLD, TH_TEXT, ALIGN_CENTER,
                   label);
         return w;
     }
@@ -349,19 +349,19 @@ float draw_pad_glyph(enum PadGlyph glyph, float cx, float cy, float size)
         static const int icons[] = {ICON_CHEVRON_UP, ICON_CHEVRON_DOWN, ICON_CHEVRON_LEFT,
                                     ICON_CHEVRON_RIGHT};
         float h = size * 0.92f;
-        draw_rrect(cx - h * 0.5f, cy - h * 0.5f, h, h, h * 0.22f, 0xff2a3370u);
-        icon_draw(icons[glyph - GLYPH_UP], cx - h * 0.4f, cy - h * 0.4f, h * 0.8f, 0xffe8ebffu);
+        draw_rrect(cx - h * 0.5f, cy - h * 0.5f, h, h, h * 0.22f, TH_ROW_SELECTED);
+        icon_draw(icons[glyph - GLYPH_UP], cx - h * 0.4f, cy - h * 0.4f, h * 0.8f, TH_TEXT);
         break;
     }
     case GLYPH_TOUCHPAD:
     {
         float h = size * 0.8f;
         draw_rrect_outline(cx - w * 0.5f, cy - h * 0.5f, w, h, h * 0.25f, size * 0.08f,
-                           0xffcfd6ffu);
+                           TH_TEXT_SOFT);
         break;
     }
     case GLYPH_NONE:
-        draw_rect(cx - r, cy - t * 0.5f, 2 * r, t, 0xff8f97c8u);
+        draw_rect(cx - r, cy - t * 0.5f, 2 * r, t, TH_TEXT_DIM);
         break;
     default:
         break;

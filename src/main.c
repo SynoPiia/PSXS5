@@ -242,14 +242,14 @@ static void draw_tracker(void)
     if (!ra_tracker(title, sizeof(title), progress, sizeof(progress), &percent))
         return;
     const float w = 440, h = 92, x = plat_width() - w - 48, y = plat_height() - h - 48;
-    draw_rrect(x, y, w, h, TH_RADIUS, 0xe8151a3du);
+    draw_rrect(x, y, w, h, TH_RADIUS, TH_CARD_A(0xe8));
     icon_draw(ICON_TROPHY, x + 18, y + 18, 32, TH_GOLD);
     text_draw_fit(x + 62, y + 16, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, w - 180, title);
     char right[48];
     snprintf(right, sizeof(right), "%s  %d%%", progress, (int)(percent + 0.5f));
     text_draw(x + w - 20, y + 18, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, right);
     float bw = w - 40, k = percent < 0 ? 0 : percent > 100 ? 1 : percent / 100.0f;
-    draw_rrect(x + 20, y + 62, bw, 10, 5, 0xff1c2250u);
+    draw_rrect(x + 20, y + 62, bw, 10, 5, TH_PILL);
     if (k > 0)
         draw_rrect(x + 20, y + 62, bw * k < 10 ? 10 : bw * k, 10, 5, TH_GOLD);
 }
@@ -289,7 +289,7 @@ static void draw_achievement(void)
         if (lw > plat_width() - 200)
             lw = plat_width() - 200;
         float lx = (plat_width() - lw) * 0.5f, ly = 24 - slide * 0.5f;
-        draw_rrect(lx, ly, lw, 52, 26, argb_alpha(0xf0151a3du, a));
+        draw_rrect(lx, ly, lw, 52, 26, argb_alpha(TH_CARD_A(0xf0), a));
         icon_draw(ICON_TROPHY, lx + 18, ly + 11, 30, argb_alpha(TH_GOLD, a));
         text_draw_fit(lx + 60, ly + 13, 22, FONT_REGULAR, argb_alpha(TH_TEXT, a), ALIGN_LEFT, lw - 80, line);
         return;
@@ -298,7 +298,7 @@ static void draw_achievement(void)
     {
         /* big trophy, in the middle */
         float bw = 760, bh = 300, bx = (plat_width() - bw) * 0.5f, by = (plat_height() - bh) * 0.5f - 40 + slide * 0.4f;
-        draw_rrect(bx, by, bw, bh, TH_RADIUS, argb_alpha(0xf0151a3du, a));
+        draw_rrect(bx, by, bw, bh, TH_RADIUS, argb_alpha(TH_CARD_A(0xf0), a));
         draw_circle(bx + bw * 0.5f, by + 92, 62, argb_alpha(0xff2a2410u, a));
         icon_draw(ICON_TROPHY, bx + bw * 0.5f - 44, by + 48, 88, argb_alpha(TH_GOLD, a));
         text_draw_fit(bx + bw * 0.5f, by + 176, 34, FONT_BOLD, argb_alpha(TH_TEXT, a), ALIGN_CENTER, bw - 60, title);
@@ -307,7 +307,7 @@ static void draw_achievement(void)
         return;
     }
     const float w = 660, h = 116, x = plat_width() - w - 48 + slide, y = 48;
-    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xf0151a3du, a));
+    draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(TH_CARD_A(0xf0), a));
     draw_rrect(x + 18, y + 18, 80, 80, TH_RADIUS_SMALL, argb_alpha(0xff2a2410u, a));
     icon_draw(ICON_TROPHY, x + 30, y + 30, 56, argb_alpha(TH_GOLD, a));
     text_draw_fit(x + 120, y + 20, 30, FONT_BOLD, argb_alpha(TH_TEXT, a), ALIGN_LEFT, w - 140, title);
@@ -792,6 +792,7 @@ int main(void)
     config_load(&app.global, app.paths.config);
     app.settings = app.global;
     i18n_set(app.global.language);
+    theme_apply(app.global.theme);
     stats_load(app.paths.root);
     plat_audio_open(UI_RATE);
     sfx_init(UI_RATE);

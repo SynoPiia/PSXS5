@@ -65,6 +65,7 @@ enum Special
     SP_HOTKEYS,
     SP_WHITELIST,
     SP_STATS,
+    SP_THEME,
 };
 
 typedef struct
@@ -184,11 +185,13 @@ static const Row ACHIEVEMENTS[] = {
 };
 
 static const Row LIBRARY[] = {
-    {"Shelf", "Cover art", "Flat front covers, or 3D boxes.", K_CHOICE, APPLY_NOW, SP_NONE, true,
+    {"Shelf", "Theme", "The look of PSXS5: colours, fonts and the shelf's background.", K_CHOICE, APPLY_NOW, SP_THEME,
+     true, INT_FIELD(theme), THEME_NAMES, THEME_COUNT, 0},
+    {NULL, "Cover art", "Flat front covers, or 3D boxes.", K_CHOICE, APPLY_NOW, SP_NONE, true,
      INT_FIELD(cover_style), COVER_STYLES, 2, 0},
     {NULL, "Download missing covers", "Fetches covers for new games over the internet.", K_TOGGLE,
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(cover_download), OFF_ON, 2, 0},
-    {NULL, "Background", "Dark keeps the screen deep navy; Cover colour tints it with the selected game.",
+    {NULL, "Background", "Classic theme: Dark keeps the screen deep navy; Cover colour tints it with the selected game.",
      K_CHOICE, APPLY_NOW, SP_NONE, true, INT_FIELD(background), BACKGROUNDS, 2, 0},
     {NULL, "Sort by", "The order of games on the shelf (OPTIONS on the shelf changes it too).", K_CHOICE,
      APPLY_NOW, SP_NONE, true, INT_FIELD(sort_mode), SORTS, 4, 0},
@@ -362,6 +365,8 @@ static void write_value(const Row *r, int v)
     }
     if (r->special == SP_LANGUAGE)
         i18n_set(app.global.language);
+    if (r->special == SP_THEME)
+        theme_apply(app.global.theme);
     if (r->special == SP_REMOTE)
         remote_update(app.global.remote);
     if (r->special == SP_SOUND)
@@ -507,7 +512,7 @@ static void apply_preset(int preset)
 static void draw_controller(float cx, float cy, int highlight)
 {
     /* a DualSense, simplified: body, grips, touchpad, sticks */
-    const uint32_t body = 0xff1c2250u, edge = 0xff2f3a80u;
+    const uint32_t body = TH_PILL, edge = theme.light ? TH_DIVIDER : 0xff2f3a80u;
     draw_rrect(cx - 360, cy - 130, 720, 250, 120, edge);
     draw_rrect(cx - 354, cy - 124, 708, 238, 116, body);
     draw_circle(cx - 250, cy + 140, 92, edge);
@@ -515,11 +520,11 @@ static void draw_controller(float cx, float cy, int highlight)
     draw_circle(cx - 250, cy + 140, 86, body);
     draw_circle(cx + 250, cy + 140, 86, body);
     draw_rrect(cx - 354, cy - 60, 708, 170, 60, body);
-    draw_rrect(cx - 110, cy - 118, 220, 110, 18, 0xff141938u); /* touchpad */
+    draw_rrect(cx - 110, cy - 118, 220, 110, 18, TH_BG_DEEP); /* touchpad */
     text_draw(cx, cy - 80, 18, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER, tr("Touchpad: tap = Select, hold = menu"));
     for (int s = -1; s <= 1; s += 2)
     {
-        draw_circle(cx + s * 110, cy + 110, 46, 0xff0f1330u);
+        draw_circle(cx + s * 110, cy + 110, 46, TH_BG);
         draw_circle(cx + s * 110, cy + 110, 34, edge);
     }
     for (int i = 0; i < PAD_COUNT; ++i)
@@ -655,7 +660,7 @@ static void draw_filter_preview(float x, float y, float size, int filter)
             {
                 float dx = i - 11.5f, dy = j - 11.5f;
                 bool disc = dx * dx + dy * dy < 90.0f, stripe = (i + j) % 8 < 3 && !disc;
-                src[j * N + i] = disc ? 0xff8fb0ffu : stripe ? 0xfff0b429u : 0xff1c2250u;
+                src[j * N + i] = disc ? TH_FOCUS : stripe ? TH_GOLD : TH_PILL;
             }
         uint8_t rgba[N * N * 4 * 4];
         for (int k = 0; k < N * N; ++k)
@@ -835,7 +840,7 @@ static void draw_header(void)
     if (S.scope_x == 0)
         S.scope_x = target;
     anim_approach(&S.scope_x, target, app.dt, TH_SNAP);
-    draw_rrect(xa - 6, y - 6, wa + wb + 18, 58, 29, 0xc01c2250u);
+    draw_rrect(xa - 6, y - 6, wa + wb + 18, 58, 29, TH_PILL_A(0xc0));
     draw_rrect(S.scope_x, y, S.game_scope ? wa : wb, 46, 23, TH_TEXT);
     text_draw(xa + 20, y + 11, 22, FONT_REGULAR, S.game_scope ? TH_BG : TH_HINT, ALIGN_LEFT, a);
     text_draw(xb + 20, y + 11, 22, FONT_REGULAR, S.game_scope ? TH_HINT : TH_BG, ALIGN_LEFT, b);
@@ -934,7 +939,7 @@ static void draw_rows(void)
         switch (r->kind)
         {
         case K_CHOICE:
-            draw_choice(right, ry + 15, 46, 24, sel ? 0xff3a4590u : TH_PILL, TH_TEXT_SOFT,
+            draw_choice(right, ry + 15, 46, 24, sel ? (theme.light ? TH_BG : 0xff3a4590u) : TH_PILL, TH_TEXT_SOFT,
                         value_label(r, buf, sizeof(buf)));
             break;
         case K_TOGGLE:
