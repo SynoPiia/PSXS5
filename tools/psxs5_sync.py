@@ -339,13 +339,14 @@ def sync(games: list[Source], staging: Path, host: str, port: int, only: str | N
         print(f"[{n}/{len(todo)}] {g.title}", flush=True)
         out = prepare_one(g, staging)
         upload_tree(out, f"{REMOTE_ROOT}/games/{out.name}", host, port)
-        if g.archives:  # extracted copies take real space; hardlinks don't
-            entry = game_entry(out)
-            if entry:  # remember what was uploaded, so the index still lists it
-                (out / "uploaded.txt").write_text("\t".join(map(str, entry)) + "\n", encoding="utf-8")
-            for p in out.iterdir():
-                if p.suffix.lower() in DISC_DATA:
-                    p.unlink()
+        # the disc images are on the PS5 now: drop them here (copies and extracted
+        # archives take real space; removing a hard link leaves the original alone)
+        entry = game_entry(out)
+        if entry:  # remember what was uploaded, so the index still lists it
+            (out / "uploaded.txt").write_text("\t".join(map(str, entry)) + "\n", encoding="utf-8")
+        for p in out.iterdir():
+            if p.suffix.lower() in DISC_DATA:
+                p.unlink()
     index = write_index(staging)
     tmp = Path(tempfile.mkdtemp())
     shutil.copyfile(index, tmp / "library.txt")
@@ -793,12 +794,16 @@ def main() -> None:
                     help="covers --all: comma-separated subset of usa,europe,japan")
     ap.add_argument("files", nargs="*", help="BIOS file(s) for the bios command")
     ap.add_argument("--source", type=Path, help="the folder with your PS1 games")
-    ap.add_argument("--staging", type=Path, default=Path.home() / "PSXS5_ready",
-                    help="where prepared games go before the upload (default: PSXS5_ready in your user folder)")
+    ap.add_argument("--staging", type=Path,
+                    help="where prepared games go before the upload (default: PSXS5_ready next to --source, "
+                         "on the same drive, so games are linked there rather than copied)")
     ap.add_argument("--host", help="PS5 IP address")
     ap.add_argument("--port", type=int, default=2121, help="etaHEN FTP port")
     ap.add_argument("--only", help="limit prepare to titles containing this text")
     args = ap.parse_args()
+    if args.staging is None:
+        # beside the games: same drive, so place() hard-links instead of copying
+        args.staging = (args.source.resolve().parent if args.source else Path.home()) / "PSXS5_ready"
 
     if args.command == "index":
         if not args.host:
