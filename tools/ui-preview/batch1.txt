@@ -1,0 +1,28 @@
+# Batch 1: hide, surprise, library stats
+wait 60
+press triangle
+wait 30
+shot b01-details-hide
+press l3
+wait 30
+shot b02-hidden
+press menu
+wait 30
+shot b03-surprise
+press square
+wait 30
+press r1
+press r1
+press r1
+press r1
+press r1
+wait 20
+press down
+press down
+press down
+press down
+wait 10
+press cross
+wait 30
+shot b04-library-stats
+quit

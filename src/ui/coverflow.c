@@ -61,7 +61,7 @@ static struct
 } S;
 
 static const char *const CATEGORY_NAMES[CAT_COUNT] = {
-    "All games", "Recently played", "Favorites", "Multi-disc", "USA", "Europe", "Japan"};
+    "All games", "Recently played", "Favorites", "Multi-disc", "USA", "Europe", "Japan", "Hidden"};
 static const char *const SORT_NAMES[SORT_COUNT] = {"Title", "Recently played", "Most played",
                                                    "Region"};
 
@@ -93,8 +93,11 @@ const char *shelf_region_name(const char *serial)
 static bool in_category(const Game *g, int category)
 {
     GameStats *st = stats_get(g->id);
+    if (st && st->hidden) /* hidden games are only under Hidden */
+        return category == CAT_HIDDEN;
     switch (category)
     {
+    case CAT_HIDDEN: return false;
     case CAT_RECENT: return st && st->last_played > 0;
     case CAT_FAVORITES: return st && st->favorite;
     case CAT_MULTI_DISC: return g->discs > 1;
@@ -183,6 +186,7 @@ static int selected_game(void)
 void shelf_init(int last_game)
 {
     S.last_cursor_game = last_game;
+    srand((unsigned)time(NULL)); /* Surprise me */
     S.tint[0] = 0x3a / 255.0f;
     S.tint[1] = 0x50 / 255.0f;
     S.tint[2] = 0xc8 / 255.0f;
@@ -766,6 +770,36 @@ void shelf_screen(uint32_t pressed)
                     build_view(game);
             }
         }
+        if ((pressed & BIT(BTN_L3)) && S.details && game >= 0)
+        {
+            /* hide / show again: the cursor stays where the game was */
+            GameStats *st = stats_get(app.library.games[game].id);
+            if (st)
+            {
+                st->hidden = !st->hidden;
+                stats_save();
+                app_toast(st->hidden ? "Hidden: find it under Hidden" : "Back on the shelf");
+                sfx_play(SFX_SELECT);
+                S.details = false;
+                int keep_pos = S.cursor;
+                build_view(-1);
+                S.cursor = keep_pos < S.view_count ? keep_pos : (S.view_count ? S.view_count - 1 : 0);
+                S.pos = (float)S.cursor;
+                game = selected_game();
+            }
+        }
+        if ((pressed & BIT(BTN_MENU)) && S.view_count > 1 && !S.details)
+        {
+            /* Surprise me: another game of this category; the shelf glides there */
+            int pick = S.cursor;
+            while (pick == S.cursor)
+                pick = rand() % S.view_count;
+            S.cursor = pick;
+            S.title_fade = 0.35f;
+            app_toast("Surprise!");
+            sfx_play(SFX_SELECT);
+            game = selected_game();
+        }
         if (pressed & BIT(BTN_TRIANGLE) && game >= 0)
         {
             S.details = !S.details;
@@ -901,12 +935,17 @@ void shelf_screen(uint32_t pressed)
         snprintf(dl, sizeof(dl), tr("Getting covers (%d)"), pending);
         text_draw(plat_width() - TH_MARGIN, 104, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_RIGHT, dl);
     }
-    static const int glyphs[] = {GLYPH_CROSS, GLYPH_TRIANGLE, GLYPH_SQUARE, GLYPH_R3};
-    const char *const labels[] = {"Play", "Details", S.details ? "Choose a cover" : "Settings", "Favorite"};
+    const int glyphs[] = {GLYPH_CROSS, GLYPH_TRIANGLE, GLYPH_SQUARE, S.details ? GLYPH_L3 : GLYPH_R3,
+                          GLYPH_TOUCHPAD};
+    GameStats *hint_st = game >= 0 ? stats_get(app.library.games[game].id) : NULL;
+    const char *const labels[] = {"Play", "Details", S.details ? "Choose a cover" : "Settings",
+                                  S.details ? (hint_st && hint_st->hidden ? "Unhide" : "Hide") : "Favorite",
+                                  "Surprise me"};
     char right[128];
     snprintf(right, sizeof(right), "%s   \xc2\xb7   %s: %s", tr("L1 / R1  Category"), tr("OPTIONS  Sort"),
              shelf_sort_name(app.global.sort_mode));
-    app_draw_hints(glyphs, labels, S.view_count ? 4 : 1, S.view_count ? right : NULL);
+    app_draw_hints(glyphs, labels, S.view_count ? (S.view_count > 1 && !S.details ? 5 : 4) : 1,
+                   S.view_count ? right : NULL);
 
     /* the continue dialog */
     S.dialog_t = fminf(fmaxf(S.dialog_t + (S.dialog ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);

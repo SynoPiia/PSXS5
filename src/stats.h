@@ -15,6 +15,7 @@ typedef struct
     uint32_t seconds;     /* total play time */
     int64_t last_played;  /* unix time, 0 = never */
     bool favorite;
+    bool hidden;          /* kept off the shelf, under "Hidden" */
     int ach_unlocked;     /* RetroAchievements progress, -1 = unknown */
     int ach_total;
 } GameStats;

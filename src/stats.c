@@ -2,7 +2,7 @@
  * PSXS5 - per-game records: play time, last played, favorite, achievements.
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * stats.txt: id<TAB>seconds<TAB>last played (unix)<TAB>favorite<TAB>unlocked<TAB>total
+ * stats.txt: id<TAB>seconds<TAB>last played (unix)<TAB>favorite<TAB>unlocked<TAB>total<TAB>hidden
  */
 #include "stats.h"
 
@@ -53,7 +53,7 @@ void stats_load(const char *root)
             continue;
         char *fields[6] = {0};
         int n = 0;
-        for (char *p = line; p && n < 6;)
+        for (char *p = line; p && n < 7;)
         {
             fields[n++] = p;
             p = strchr(p, '\t');
@@ -74,6 +74,7 @@ void stats_load(const char *root)
             g->ach_unlocked = atoi(fields[4]);
             g->ach_total = atoi(fields[5]);
         }
+        g->hidden = n >= 7 && atoi(fields[6]) != 0;
     }
     fclose(f);
 }
@@ -91,10 +92,10 @@ void stats_save(void)
     for (int i = 0; i < count; ++i)
     {
         const GameStats *g = &records[i];
-        if (!g->seconds && !g->last_played && !g->favorite && g->ach_unlocked < 0)
+        if (!g->seconds && !g->last_played && !g->favorite && !g->hidden && g->ach_unlocked < 0)
             continue;
-        fprintf(f, "%s\t%u\t%lld\t%d\t%d\t%d\n", g->id, g->seconds, (long long)g->last_played,
-                g->favorite ? 1 : 0, g->ach_unlocked, g->ach_total);
+        fprintf(f, "%s\t%u\t%lld\t%d\t%d\t%d\t%d\n", g->id, g->seconds, (long long)g->last_played,
+                g->favorite ? 1 : 0, g->ach_unlocked, g->ach_total, g->hidden ? 1 : 0);
     }
     if (fclose(f) == 0)
         rename(temp, path);

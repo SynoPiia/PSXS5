@@ -16,6 +16,7 @@ enum ShelfCategory
     CAT_USA,
     CAT_EUROPE,
     CAT_JAPAN,
+    CAT_HIDDEN, /* games hidden from the shelf (only shown when there are some) */
     CAT_COUNT
 };
 

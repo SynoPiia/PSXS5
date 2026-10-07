@@ -18,6 +18,7 @@ enum Screen
     SCREEN_CHEATS,
     SCREEN_ACHIEVEMENTS,
     SCREEN_MEMCARDS,
+    SCREEN_STATS,
     SCREEN_COUNT
 };
 
@@ -69,6 +70,8 @@ void achievements_screen(uint32_t pressed);
 void achievements_open(void);
 void memcards_screen(uint32_t pressed);
 void memcards_open(enum Screen back_to);
+void library_stats_screen(uint32_t pressed);
+void library_stats_open(enum Screen back_to);
 void menu_open(void);
 void settings_opened(void);
 void shelf_init(int last_game);

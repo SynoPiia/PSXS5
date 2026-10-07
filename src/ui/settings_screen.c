@@ -64,6 +64,7 @@ enum Special
     SP_UPDATE,
     SP_HOTKEYS,
     SP_WHITELIST,
+    SP_STATS,
 };
 
 typedef struct
@@ -180,7 +181,9 @@ static const Row LIBRARY[] = {
      K_CHOICE, APPLY_NOW, SP_NONE, true, INT_FIELD(background), BACKGROUNDS, 2, 0},
     {NULL, "Sort by", "The order of games on the shelf (OPTIONS on the shelf changes it too).", K_CHOICE,
      APPLY_NOW, SP_NONE, true, INT_FIELD(sort_mode), SORTS, 4, 0},
-    {"Games", "Memory cards", "Every game's memory card: see the saves, export a card, import one.", K_ACTION,
+    {"Games", "Your library", "How much you've played: games, hours, achievements and your most played.", K_ACTION,
+     APPLY_NOW, SP_STATS, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Memory cards", "Every game's memory card: see the saves, export a card, import one.", K_ACTION,
      APPLY_NOW, SP_MEMCARDS, true, NO_FIELD, NULL, 0, 0},
     {NULL, "Rescan library", "Looks for games added to /data/PSXS5/games or a USB drive.", K_ACTION,
      APPLY_NOW, SP_RESCAN, true, NO_FIELD, NULL, 0, 0},
@@ -958,6 +961,10 @@ static void activate(const Row *r)
     case SP_MEMCARDS:
         sfx_play(SFX_SELECT);
         memcards_open(SCREEN_SETTINGS);
+        return;
+    case SP_STATS:
+        sfx_play(SFX_SELECT);
+        library_stats_open(SCREEN_SETTINGS);
         return;
     case SP_UPDATE:
         sfx_play(SFX_SELECT);
