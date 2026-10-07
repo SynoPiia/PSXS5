@@ -429,9 +429,9 @@ def upload_tree(local: Path, remote: str, host: str, port: int, force: bool = Fa
 
         def show(final: bool = False) -> None:
             elapsed = max(time.monotonic() - file_start, 0.001)
-            speed = sent / elapsed / (1 << 20)
+            speed = f"{sent / elapsed / (1 << 20):.1f} MB/s" if elapsed >= 0.5 else ""  # too early to tell
             line = (f"  [{(done + sent) * 100 // max(total, 1):3d}%] {rel}  "
-                    f"{sent >> 20}/{size >> 20} MB  {speed:.1f} MB/s")
+                    f"{sent >> 20}/{size >> 20} MB  {speed}")
             print("\r" + line.ljust(100), end="\n" if final else "", flush=True)
 
         def block(data: bytes) -> None:
