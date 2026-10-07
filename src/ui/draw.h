@@ -66,5 +66,8 @@ float draw_choice(float right_x, float y, float h, float text_size, uint32_t fil
                   const char *text);
 /* Animated value: v moves towards target at TH_SNAP-like `speed` per second. */
 void anim_approach(float *v, float target, float dt, float speed);
+/* A scrolling list's first row: moved only as far as needed to show `cursor`,
+ * never past the end. Keep it as a whole number and animate towards it. */
+int list_top_row(int top, int cursor, int rows, int count);
 
 #endif

@@ -10,5 +10,7 @@ press down
 wait 10
 press cross
 wait 30
-shot k1-cheats
+press up
+wait 400
+shot k2-cheats-last
 quit

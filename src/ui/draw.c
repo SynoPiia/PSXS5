@@ -61,6 +61,17 @@ void anim_approach(float *v, float target, float dt, float speed)
         *v = target;
 }
 
+int list_top_row(int top, int cursor, int rows, int count)
+{
+    if (cursor < top)
+        top = cursor;
+    if (cursor >= top + rows)
+        top = cursor - rows + 1;
+    if (top > count - rows)
+        top = count - rows;
+    return top < 0 ? 0 : top;
+}
+
 /* ---------------------------------------------------------------- rounded shapes */
 
 /* A white anti-aliased disc (128 px): its quarters are the corners of every

@@ -308,12 +308,9 @@ void memcards_screen(uint32_t pressed)
     const int rows = 10;
     const float x = TH_MARGIN, w = 760, top = 170, row_h = 76;
     draw_rrect(x - 8, top - 8, w + 16, rows * row_h + 16, TH_RADIUS, TH_CARD);
-    float want = C.scroll;
-    if (C.cursor < want)
-        want = (float)C.cursor;
-    if (C.cursor >= want + rows)
-        want = (float)(C.cursor - rows + 1);
-    anim_approach(&C.scroll, want, app.dt, TH_SNAP);
+    static int top_row;
+    top_row = list_top_row(top_row, C.cursor, rows, C.count);
+    anim_approach(&C.scroll, (float)top_row, app.dt, TH_SNAP);
     plat_set_clip((int)x - 4, (int)top - 4, (int)w + 8, (int)(rows * row_h) + 4);
     if (C.count)
     {

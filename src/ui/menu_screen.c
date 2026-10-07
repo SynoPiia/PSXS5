@@ -604,12 +604,11 @@ void cheats_screen(uint32_t pressed)
     }
     else
     {
-        float want = M.cheat_scroll;
-        if (M.cheat_cursor < want)
-            want = (float)M.cheat_cursor;
-        if (M.cheat_cursor >= want + rows)
-            want = (float)(M.cheat_cursor - rows + 1);
-        anim_approach(&M.cheat_scroll, want, app.dt, TH_SNAP);
+        /* a whole first row: animating towards the animated value stopped the
+         * list a fraction short of the last row */
+        static int top_row;
+        top_row = list_top_row(top_row, M.cheat_cursor, rows, cl->count);
+        anim_approach(&M.cheat_scroll, (float)top_row, app.dt, TH_SNAP);
         draw_rrect(x - 16, top - 16, w + 32, rows * row_h + 24, TH_RADIUS, TH_CARD);
         plat_set_clip((int)x - 8, (int)top - 8, (int)w + 16, (int)(rows * row_h) + 8);
         float target = top + (M.cheat_cursor - M.cheat_scroll) * row_h;
@@ -800,12 +799,9 @@ void achievements_screen(uint32_t pressed)
         }
     }
 
-    float want = A.scroll;
-    if (A.cursor < want)
-        want = (float)A.cursor;
-    if (A.cursor >= want + rows)
-        want = (float)(A.cursor - rows + 1);
-    anim_approach(&A.scroll, want, app.dt, TH_SNAP);
+    static int top_row;
+    top_row = list_top_row(top_row, A.cursor, rows, count);
+    anim_approach(&A.scroll, (float)top_row, app.dt, TH_SNAP);
     draw_rrect(x - 16, top - 16, w + 32, rows * row_h + 24, TH_RADIUS, TH_CARD);
     plat_set_clip((int)x - 8, (int)top - 8, (int)w + 16, (int)(rows * row_h) + 8);
     if (count)
