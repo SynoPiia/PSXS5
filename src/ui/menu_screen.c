@@ -547,10 +547,38 @@ static void stop_fetcher(void)
     }
 }
 
+/* The list for the tab: "Achievable" (still locked, the closest first) or
+ * "Achieved". view[] holds indices into A.list. */
+static int ach_view[MAX_ACH], ach_view_count, ach_tab;
+
+static void build_ach_view(void)
+{
+    ach_view_count = 0;
+    for (int i = 0; i < A.count; ++i)
+        if (A.list[i].unlocked == (ach_tab == 1))
+            ach_view[ach_view_count++] = i;
+    if (ach_tab == 0) /* insertion sort: furthest along first, list order otherwise */
+        for (int i = 1; i < ach_view_count; ++i)
+        {
+            int v = ach_view[i], j = i;
+            while (j > 0 && A.list[ach_view[j - 1]].percent < A.list[v].percent)
+            {
+                ach_view[j] = ach_view[j - 1];
+                --j;
+            }
+            ach_view[j] = v;
+        }
+    A.cursor = 0;
+    A.scroll = 0;
+    A.sel_y = 0;
+}
+
 void achievements_open(void)
 {
     stop_fetcher();
     A.count = ra_list(A.list, MAX_ACH);
+    ach_tab = 0;
+    build_ach_view();
     A.cursor = 0;
     A.scroll = 0;
     A.sel_y = 0;
@@ -561,19 +589,26 @@ void achievements_open(void)
 
 void achievements_screen(uint32_t pressed)
 {
-    const int rows = 8;
-    const float row_h = 92, top = 190, x = 260, w = plat_width() - 520.0f;
-    if (A.count)
+    const int rows = 7;
+    const float row_h = 104, top = 214, x = 260, w = plat_width() - 520.0f;
+    if (pressed & (BIT(BTN_L1) | BIT(BTN_R1) | BIT(BTN_LEFT) | BIT(BTN_RIGHT)))
+    {
+        ach_tab ^= 1;
+        build_ach_view();
+        sfx_play(SFX_CLICK);
+    }
+    const int count = ach_view_count;
+    if (count)
     {
         int before = A.cursor;
         if (pressed & BIT(BTN_UP))
-            A.cursor = (A.cursor + A.count - 1) % A.count;
+            A.cursor = (A.cursor + count - 1) % count;
         if (pressed & BIT(BTN_DOWN))
-            A.cursor = (A.cursor + 1) % A.count;
-        if (pressed & BIT(BTN_L1))
+            A.cursor = (A.cursor + 1) % count;
+        if (pressed & BIT(BTN_L2))
             A.cursor = A.cursor > rows ? A.cursor - rows : 0;
-        if (pressed & BIT(BTN_R1))
-            A.cursor = A.cursor + rows < A.count ? A.cursor + rows : A.count - 1;
+        if (pressed & BIT(BTN_R2))
+            A.cursor = A.cursor + rows < count ? A.cursor + rows : count - 1;
         if (A.cursor != before)
             sfx_play(SFX_CLICK);
     }
@@ -605,6 +640,22 @@ void achievements_screen(uint32_t pressed)
         draw_rrect(bx, 62, bw, 10, 5, 0xff1c2250u);
         draw_rrect(bx, 62, bw * unlocked / A.count, 10, 5, TH_GOLD);
     }
+    /* the two tabs */
+    {
+        char label[2][64];
+        snprintf(label[0], sizeof(label[0]), "%s  %d", tr("Achievable"), A.count - unlocked);
+        snprintf(label[1], sizeof(label[1]), "%s  %d", tr("Achieved"), unlocked);
+        float tx = x;
+        for (int t = 0; t < 2; ++t)
+        {
+            float tw = text_width(22, FONT_REGULAR, label[t]) + 44;
+            bool on = t == ach_tab;
+            draw_rrect(tx, 146, tw, 46, 23, on ? 0xffe8ebffu : 0xff1c2250u);
+            text_draw(tx + tw * 0.5f, 156, 22, on ? FONT_BOLD : FONT_REGULAR, on ? 0xff0f1330u : TH_TEXT_DIM,
+                      ALIGN_CENTER, label[t]);
+            tx += tw + 12;
+        }
+    }
 
     float want = A.scroll;
     if (A.cursor < want)
@@ -614,7 +665,7 @@ void achievements_screen(uint32_t pressed)
     anim_approach(&A.scroll, want, app.dt, TH_SNAP);
     draw_rrect(x - 16, top - 16, w + 32, rows * row_h + 24, TH_RADIUS, TH_CARD);
     plat_set_clip((int)x - 8, (int)top - 8, (int)w + 16, (int)(rows * row_h) + 8);
-    if (A.count)
+    if (count)
     {
         float target = top + (A.cursor - A.scroll) * row_h;
         if (A.sel_y == 0)
@@ -624,10 +675,11 @@ void achievements_screen(uint32_t pressed)
         draw_rrect_outline(x, A.sel_y, w, row_h - 8, TH_RADIUS_SMALL, 3, TH_FOCUS);
     }
     int first = (int)floorf(A.scroll);
-    for (int i = first; i < A.count && i <= first + rows; ++i)
+    for (int k = first; k < count && k <= first + rows; ++k)
     {
+        const int i = ach_view[k];
         const RaAchievement *a = &A.list[i];
-        float y = top + (i - A.scroll) * row_h;
+        float y = top + (k - A.scroll) * row_h;
         /* the badge, once downloaded; a trophy or a lock until then */
         if (!A.badge[i] && SDL_AtomicGet(&A.badge_ready[i]) == 1)
         {
@@ -660,14 +712,26 @@ void achievements_screen(uint32_t pressed)
         if (a->unlocked)
             icon_draw(ICON_CIRCLE_CHECK, x + w - 54, y + 46, 30, TH_GOOD);
         else if (a->progress[0])
-            text_draw(x + w - 24, y + 48, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, a->progress);
+        {
+            /* counted: 18/80 dragons, as a bar */
+            char pc[48];
+            snprintf(pc, sizeof(pc), "%s  \xc2\xb7  %d%%", a->progress, (int)(a->percent + 0.5f));
+            text_draw(x + w - 24, y + 46, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, pc);
+            float bx = x + 100, bw = w - 324, k = a->percent < 0 ? 0 : a->percent > 100 ? 1 : a->percent / 100.0f;
+            draw_rrect(bx, y + 80, bw, 8, 4, 0xff1c2250u);
+            if (k > 0)
+                draw_rrect(bx, y + 80, bw * k < 8 ? 8 : bw * k, 8, 4, TH_GOLD);
+        }
     }
     plat_set_clip(0, 0, 0, 0);
     if (!A.count)
         text_draw(plat_width() * 0.5f, top + 200, 28, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
                   tr("No achievements loaded for this game"));
+    else if (!count)
+        text_draw(plat_width() * 0.5f, top + 200, 28, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
+                  tr(ach_tab ? "None unlocked yet" : "All unlocked!"));
     static const int glyphs[] = {GLYPH_CIRCLE};
     static const char *const labels[] = {"Back"};
-    app_draw_hints(glyphs, labels, 1, A.count ? "L1 / R1  Page" : NULL);
+    app_draw_hints(glyphs, labels, 1, A.count ? "L1 / R1  Tab   \xc2\xb7   L2 / R2  Page" : NULL);
     app_draw_toast();
 }

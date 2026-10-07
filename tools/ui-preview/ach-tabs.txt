@@ -1,0 +1,23 @@
+# Achievements: the two tabs and the in-game tracker
+wait 60
+press cross
+wait 30
+press right
+wait 15
+press cross
+wait 40
+hold menu 40
+wait 30
+press down
+press down
+press down
+press down
+press down
+wait 10
+press cross
+wait 40
+shot a01-achievable
+press r1
+wait 30
+shot a02-achieved
+quit
