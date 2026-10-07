@@ -9,6 +9,8 @@ psxs5_sync.py - get your PS1 games onto PSXS5.
   python tools/psxs5_sync.py upload  --staging E:\\PSXS5_ready --host 192.168.1.50
   python tools/psxs5_sync.py cheats  --host 192.168.1.50      (libretro .cht library)
   python tools/psxs5_sync.py bios    scph5501.bin --host 192.168.1.50
+  python tools/psxs5_sync.py index   --host 192.168.1.50 [--fix-cues]
+                                      (games copied another way: list them for PSXS5)
   python tools/psxs5_sync.py ra-login --host 192.168.1.50    (RetroAchievements)
 
 prepare builds one clean folder per game:
@@ -25,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import ftplib
+import io
 import os
 import re
 import shutil
@@ -632,10 +635,91 @@ def bios_upload_name(path):
     return path.name.lower()
 
 
+# What PSXS5 loads from a game folder, best first.
+INDEX_PICK = [".m3u", ".cue", ".chd", ".pbp", ".iso", ".img", ".mdf", ".ccd", ".bin"]
+
+
+def ftp_list(ftp, path):
+    """(name, is_dir) of a folder. LIST, not NLST: the PS5's servers lack NLST."""
+    lines = []
+    ftp.retrlines(f"LIST {path}", lines.append)
+    out = []
+    for line in lines:
+        parts = line.split(None, 8)
+        if len(parts) == 9 and parts[8] not in (".", ".."):
+            out.append((parts[8], line.startswith("d")))
+    return out
+
+
+def ftp_read_text(ftp, path):
+    chunks = []
+    ftp.retrbinary(f"RETR {path}", chunks.append)
+    return b"".join(chunks).decode("utf-8", "replace")
+
+
+def check_cue(ftp, folder, cue, files, fix):
+    """A .cue whose FILE lines name a missing .bin (shortened names such as
+    BREATH~1.BIN after a FAT32 copy) can't boot. With fix, a sheet with one
+    FILE line is pointed at the folder's only .bin."""
+    text = ftp_read_text(ftp, f"{folder}/{cue}")
+    named = re.findall(r'^\s*FILE\s+"?([^"\r\n]+?)"?\s+\w+\s*$', text, re.M | re.I)
+    missing = [n for n in named if n not in files]
+    if not missing:
+        return True
+    bins = [f for f in files if f.lower().endswith(".bin")]
+    if fix and len(named) == 1 and len(bins) == 1:
+        fixed = re.sub(r'^(\s*FILE\s+)"?[^"\r\n]+?"?(\s+\w+\s*)$', lambda m: f'{m.group(1)}"{bins[0]}"{m.group(2)}',
+                       text, count=1, flags=re.M | re.I)
+        ftp.storbinary(f"STOR {folder}/{cue}", io.BytesIO(fixed.encode("utf-8")))
+        print(f"    fixed {cue}: now points at {bins[0]}")
+        return True
+    print(f"    {cue} names {', '.join(missing)}, which isn't in the folder"
+          + (" (run again with --fix-cues)" if len(named) == 1 and len(bins) == 1 else ""))
+    return False
+
+
+def index_remote(host, port, fix_cues):
+    """library.txt for games already on the PS5, however they got there."""
+    ftp = ftp_connect(host, port)
+    games_dir = f"{REMOTE_ROOT}/games"
+    lines = ["# PSXS5 library index - written by tools/psxs5_sync.py index; one game per line:",
+             "# title<TAB>serial<TAB>discs<TAB>path<TAB>first disc name"]
+    for name, is_dir in sorted(ftp_list(ftp, games_dir), key=lambda e: e[0].lower()):
+        if not is_dir:
+            continue
+        folder = f"{games_dir}/{name}"
+        files = [f for f, d in ftp_list(ftp, folder) if not d]
+        by_ext = {}
+        for f in sorted(files, key=str.lower):
+            by_ext.setdefault(Path(f).suffix.lower(), []).append(f)
+        pick = next((by_ext[e][0] for e in INDEX_PICK if e in by_ext), None)
+        if not pick:
+            print(f"  {name}: no game file, skipped")
+            continue
+        print(f"  {name}: {pick}")
+        for cue in by_ext.get(".cue", []):
+            check_cue(ftp, folder, cue, files, fix_cues)
+        discs = 1
+        if pick.lower().endswith(".m3u"):
+            entries = [l.strip() for l in ftp_read_text(ftp, f"{folder}/{pick}").splitlines()
+                       if l.strip() and not l.startswith("#")]
+            discs = max(1, len(entries))
+            first = Path(entries[0]).stem if entries else Path(pick).stem
+        else:
+            first = Path(pick).stem
+        # serial left empty: PSXS5 reads it from the disc (or serial.txt)
+        lines.append("\t".join([name, "", str(discs), f"{folder}/{pick}", first]))
+    ftp.storbinary(f"STOR {REMOTE_ROOT}/library.txt", io.BytesIO(("\n".join(lines) + "\n").encode("utf-8")))
+    ftp.quit()
+    print(f"  library.txt: {len(lines) - 2} games. Restart PSXS5 to see them.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app",
-                                        "ra-login"])
+                                        "ra-login", "index"])
+    ap.add_argument("--fix-cues", action="store_true",
+                    help="index: point .cue sheets at the folder's .bin when the name they give is missing")
     ap.add_argument("--user", help="ra-login: RetroAchievements user name")
     ap.add_argument("--hardcore", action="store_true", help="ra-login: start in hardcore mode")
     ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA97510",
@@ -652,6 +736,12 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=2121, help="etaHEN FTP port")
     ap.add_argument("--only", help="limit prepare to titles containing this text")
     args = ap.parse_args()
+
+    if args.command == "index":
+        if not args.host:
+            sys.exit("--host is required (your PS5's IP address)")
+        index_remote(args.host, args.port, args.fix_cues)
+        return
 
     if args.command == "sync":
         if not args.host:

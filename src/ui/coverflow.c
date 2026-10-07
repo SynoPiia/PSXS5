@@ -880,8 +880,17 @@ void shelf_screen(uint32_t pressed)
         text_draw(CENTER_X, y + 166, 24, FONT_REGULAR, TH_TEXT, ALIGN_CENTER, line);
         snprintf(line, sizeof(line), tr("BIOS (optional): %s/"), app.paths.bios);
         text_draw(CENTER_X, y + 206, 24, FONT_REGULAR, TH_TEXT, ALIGN_CENTER, line);
-        text_draw(CENTER_X, y + 262, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
-                  tr("On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>"));
+        if (app.sandboxed)
+        {
+            /* games copied another way can't be found without listing /data */
+            text_draw(CENTER_X, y + 252, 22, FONT_REGULAR, TH_GOLD, ALIGN_CENTER,
+                      tr("etaHEN didn't unlock /data, so PSXS5 can't look into the games folder."));
+            text_draw(CENTER_X, y + 286, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
+                      tr("On your PC:  python tools/psxs5_sync.py index --host <PS5 IP>"));
+        }
+        else
+            text_draw(CENTER_X, y + 262, 22, FONT_REGULAR, TH_TEXT_DIM, ALIGN_CENTER,
+                      tr("On your PC:  python tools/psxs5_sync.py upload --host <PS5 IP>"));
     }
 
     draw_header();
