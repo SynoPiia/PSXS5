@@ -28,9 +28,10 @@ enum
     GDB_DEINTERLACE = 1u << 14, /* needs deinterlacing */
     GDB_NO_MULTITAP = 1u << 15,
     GDB_NO_AUTO_ANALOG = 1u << 16, /* must start in digital mode */
+    GDB_NO_CD_SPEEDUP = 1u << 17,  /* breaks with Fast CD loading */
 };
 #define GDB_FIXES (GDB_NO_WIDESCREEN | GDB_NO_PGXP | GDB_PGXP_CPU | GDB_NO_UPSCALING | GDB_NO_TEXTURE_FILTER | \
-                   GDB_NO_SPRITE_FILTER | GDB_DEINTERLACE | GDB_NO_MULTITAP)
+                   GDB_NO_SPRITE_FILTER | GDB_DEINTERLACE | GDB_NO_MULTITAP | GDB_NO_CD_SPEEDUP)
 
 typedef struct
 {

@@ -229,7 +229,7 @@ static void apply_beetle_options(const Settings *s)
     /* read as it plays: "precache" loads every disc of a game into memory,
      * and two discs already pass PSXS5's 1 GB */
     set_option("beetle_psx_hw_cd_access_method", "async");
-    set_option("beetle_psx_hw_cd_fastload", s->cd_fast ? "4x" : "2x(native)");
+    set_option("beetle_psx_hw_cd_fastload", s->cd_fast && !(game_fixes & GDB_NO_CD_SPEEDUP) ? "4x" : "2x(native)");
     set_option("beetle_psx_hw_skip_bios", s->boot_intro ? "disabled" : "enabled");
     bool pgxp = s->pgxp && !(game_fixes & GDB_NO_PGXP);
     set_option("beetle_psx_hw_pgxp_mode", !pgxp ? "disabled" : (game_fixes & GDB_PGXP_CPU) ? "memory + CPU" : "memory only");
@@ -290,7 +290,7 @@ static void apply_settings_to_options(const Settings *s)
     set_option("pcsx_rearmed_region", regions[s->region % REGION_COUNT]);
     set_option("pcsx_rearmed_bios", s->force_hle ? "HLE" : "auto");
     set_option("pcsx_rearmed_dithering", s->dithering ? "enabled" : "disabled");
-    set_option("pcsx_rearmed_cd_turbo", s->cd_fast ? "enabled" : "disabled");
+    set_option("pcsx_rearmed_cd_turbo", s->cd_fast && !(game_fixes & GDB_NO_CD_SPEEDUP) ? "enabled" : "disabled");
     set_option("pcsx_rearmed_rgb32_output", "enabled");
     set_option("pcsx_rearmed_memcard1", "serial");   /* one card per game, managed by the core */
     set_option("pcsx_rearmed_show_bios_bootlogo", s->boot_intro ? "enabled" : "disabled");

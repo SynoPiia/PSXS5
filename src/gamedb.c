@@ -6,7 +6,7 @@
  *
  * The database (data/resources/gamedb.yaml in github.com/stenzek/duckstation)
  * isn't part of PSXS5: the console downloads it once and keeps a compact
- * index, <root>/cache/gamedb-2.txt (one line per serial, sorted), refreshed
+ * index, <root>/cache/gamedb-3.txt (one line per serial, sorted), refreshed
  * after a month. Until it's there, every lookup simply finds nothing.
  */
 #include "gamedb.h"
@@ -54,6 +54,8 @@ static const struct
     {"ForceDeinterlacing", GDB_DEINTERLACE},
     {"DisableMultitap", GDB_NO_MULTITAP},
     {"DisableAutoAnalogMode", GDB_NO_AUTO_ANALOG},
+    {"DisableCDROMReadSpeedup", GDB_NO_CD_SPEEDUP},
+    {"DisableCDROMSpeedupOnMDEC", GDB_NO_CD_SPEEDUP},
 };
 
 typedef struct
@@ -318,7 +320,7 @@ static void load(void)
 
 void gamedb_start(void)
 {
-    path_join(index_path, sizeof(index_path), app.paths.root, "cache/gamedb-2.txt");
+    path_join(index_path, sizeof(index_path), app.paths.root, "cache/gamedb-3.txt");
     path_join(yaml_path, sizeof(yaml_path), app.paths.root, "cache/gamedb.yaml");
     char dir[PSXS5_PATH_MAX];
     path_join(dir, sizeof(dir), app.paths.root, "cache");
