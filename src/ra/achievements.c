@@ -190,9 +190,11 @@ static uint32_t RC_CCONV read_memory(uint32_t address, uint8_t *buffer, uint32_t
  * itself (bin/cue, iso). A handle of (void *)1 means the core's disc. */
 static rc_hash_cdreader_t file_reader;
 
+static bool use_core_disc; /* sectors from host_read_sector, during the hash */
+
 static bool core_disc(void)
 {
-    return strcmp(host_core_name(), "PCSX-ReARMed") == 0;
+    return use_core_disc;
 }
 
 static void *RC_CCONV cd_open_track(const char *path, uint32_t track)
@@ -468,11 +470,15 @@ void ra_game_loaded(const char *game_path)
     regions_ready = rc_libretro_memory_init(&regions, host_memory_map(), core_memory_info,
                                             RC_CONSOLE_PLAYSTATION) != 0;
     char hash[33] = "", disc[PSXS5_PATH_MAX];
-    if (core_disc())
-        str_copy(disc, sizeof(disc), "disc.cue"); /* any .cue name: sectors come from the core */
-    else
-        first_disc(game_path, disc, sizeof(disc));
-    if (!rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, disc))
+    /* Sectors through PCSX-ReARMed's CD layer, which reads every image
+     * format, whichever core runs the game; rcheevos' own reader (bin/cue,
+     * iso only) if that fails. */
+    first_disc(game_path, disc, sizeof(disc));
+    use_core_disc = host_hash_disc_begin(disc);
+    bool ok = rc_hash_generate_from_file(hash, RC_CONSOLE_PLAYSTATION, use_core_disc ? "disc.cue" : disc);
+    host_hash_disc_end();
+    use_core_disc = false;
+    if (!ok)
     {
         psxs5_log("ra: could not hash this disc");
         return;

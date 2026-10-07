@@ -47,6 +47,9 @@ const struct retro_memory_map *host_memory_map(void);
 void *host_memory_data(unsigned id); /* retro_get_memory_data of the running core */
 size_t host_memory_size(unsigned id);
 bool host_read_sector(uint32_t lba, uint8_t out[2048]); /* user data of a disc sector */
+/* host_read_sector from this image (any core), until _end. */
+bool host_hash_disc_begin(const char *disc_path);
+void host_hash_disc_end(void);
 
 int host_disc_count(void);
 int host_disc_index(void);

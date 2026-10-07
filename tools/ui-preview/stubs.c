@@ -33,6 +33,8 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
 void host_unload(void) { loaded = false; }
 bool host_loaded(void) { return loaded; }
 const char *host_core_name(void) { return "PCSX-ReARMed"; }
+bool host_hash_disc_begin(const char *p) { (void)p; return false; }
+void host_hash_disc_end(void) {}
 void *host_memory_data(unsigned id) { (void)id; return NULL; }
 size_t host_memory_size(unsigned id) { (void)id; return 0; }
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]) { (void)pads; }

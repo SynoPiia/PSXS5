@@ -845,11 +845,39 @@ const struct retro_memory_map *host_memory_map(void)
  * image format is loaded (bin/cue, CHD, PBP...). */
 int cdra_readTrack(const unsigned char *time);
 void *cdra_getBuffer(void);
+int cdra_init(void);
+int cdra_open(void);
+void cdra_close(void);
+void set_cd_image(const char *fname); /* PCSX-ReARMed frontend/main.c */
+
+/* When another core runs the game, PCSX-ReARMed's CD layer still reads every
+ * image format (bin/cue, CHD, PBP...): open it just to hash the disc. */
+static bool hash_disc_open;
+
+bool host_hash_disc_begin(const char *disc_path)
+{
+    if (loaded && core == &PCSX)
+        return true; /* the running core's disc */
+    host_hash_disc_end();
+    cdra_init();
+    set_cd_image(disc_path);
+    hash_disc_open = cdra_open() == 0;
+    if (!hash_disc_open)
+        psxs5_log("ra: could not open %s to identify it", disc_path);
+    return hash_disc_open;
+}
+
+void host_hash_disc_end(void)
+{
+    if (hash_disc_open)
+        cdra_close();
+    hash_disc_open = false;
+}
 
 bool host_read_sector(uint32_t lba, uint8_t out[2048])
 {
-    if (!loaded || core != &PCSX)
-        return false; /* RetroAchievements then hashes the disc image itself */
+    if (!hash_disc_open && (!loaded || core != &PCSX))
+        return false;
     unsigned abs = lba + 150; /* sector 0 is at 00:02:00 */
     /* minute, second, frame as plain numbers: the core's cdra_readTrack takes
      * them through msf2sec, not as the BCD the PS1's CD commands use */
