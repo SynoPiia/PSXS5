@@ -33,6 +33,9 @@ void plat_set_lightbar(int port, uint32_t rgb);
 /* Frame profiling: the time since the previous mark goes to `name`
  * (drawing flushed first); averages are logged every 120 frames. */
 void plat_profile(const char *name);
+/* A full-screen grey picture (w x h, one byte a pixel) times a colour,
+ * as the background: written straight into the canvas on the PS5. */
+void plat_draw_backdrop(const uint8_t *grey, int w, int h, uint32_t tint_argb);
 
 /* Audio: interleaved signed 16-bit stereo. */
 bool plat_audio_open(int sample_rate);

@@ -1085,6 +1085,66 @@ void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
     SDL_RenderFillRect(renderer, &r);
 }
 
+#if defined(__PROSPERO__)
+/* The shelf's background: SDL's software renderer took 18 ms a frame to draw
+ * a tinted full-screen texture. Here: a lookup table per channel, rows split
+ * over the blit threads, written straight into the canvas. */
+typedef struct
+{
+    const uint8_t *grey;
+    int w, h;
+    uint32_t lut[256];
+} BackdropJob;
+
+static void backdrop_rows(void *ctx, int begin, int end)
+{
+    const BackdropJob *j = ctx;
+    uint32_t *dst = canvas->pixels;
+    size_t pitch = (size_t)canvas->pitch / 4;
+    for (int y = begin; y < end; ++y)
+    {
+        const uint8_t *src = j->grey + (size_t)(y * j->h / out_h) * j->w;
+        uint32_t *row = dst + (size_t)y * pitch;
+        if (j->w == out_w)
+            for (int x = 0; x < out_w; ++x)
+                row[x] = j->lut[src[x]];
+        else
+            for (int x = 0; x < out_w; ++x)
+                row[x] = j->lut[src[x * j->w / out_w]];
+    }
+}
+#endif
+
+void plat_draw_backdrop(const uint8_t *grey, int w, int h, uint32_t tint)
+{
+#if defined(__PROSPERO__)
+    static BackdropJob job;
+    job.grey = grey;
+    job.w = w;
+    job.h = h;
+    uint32_t r = (tint >> 16) & 0xff, g = (tint >> 8) & 0xff, b = tint & 0xff;
+    for (uint32_t v = 0; v < 256; ++v) /* canvas bytes: R, G, B, A */
+        job.lut[v] = 0xff000000u | (b * v / 255) << 16 | (g * v / 255) << 8 | (r * v / 255);
+    SDL_RenderFlush(renderer); /* anything queued goes under, as drawn so far */
+    blit_parallel(backdrop_rows, &job, out_h);
+#else
+    /* desktop: a texture, made once from the grey picture */
+    static PlatTexture *texture;
+    if (!texture)
+    {
+        uint8_t *px = malloc((size_t)w * h * 4);
+        if (!px)
+            return;
+        for (size_t i = 0; i < (size_t)w * h; ++i)
+            px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = grey[i], px[i * 4 + 3] = 255;
+        texture = plat_texture_create(px, w, h, true);
+        free(px);
+    }
+    if (texture)
+        plat_draw_texture(texture, 0, 0, (float)plat_width(), (float)plat_height(), tint, false);
+#endif
+}
+
 #define PROFILE_SLOTS 8
 static struct
 {

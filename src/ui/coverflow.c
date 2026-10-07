@@ -209,44 +209,36 @@ void shelf_select_game(int library_index)
  * a full-screen gradient mesh per frame would be costly here. */
 void shelf_backdrop(void)
 {
-    static PlatTexture *backdrop;
+    /* dark top, a brighter band behind the covers, a dark floor, a soft
+     * vignette; tinted by the theme or the cover (update_tint) */
+    enum { W = 1920, H = 1080 };
+    static uint8_t *grey;
     static bool tried;
-    if (!backdrop && !tried)
+    if (!grey && !tried)
     {
         tried = true;
-        enum { W = 1920, H = 1080 };
-        uint8_t *px = malloc((size_t)W * H * 4);
-        if (px)
+        grey = malloc((size_t)W * H);
+        for (int y = 0; grey && y < H; ++y)
         {
-            for (int y = 0; y < H; ++y)
+            float t = (float)y / (H - 1);
+            float l = t < 0.42f ? 0.30f + t / 0.42f * 0.42f
+                                : t < 0.64f ? 0.72f - (t - 0.42f) / 0.22f * 0.30f
+                                            : 0.42f - (t - 0.64f) / 0.36f * 0.30f;
+            for (int x = 0; x < W; ++x)
             {
-                float t = (float)y / (H - 1);
-                /* dark top, brighter band behind the covers, dark floor */
-                float l = t < 0.42f ? 0.30f + t / 0.42f * 0.42f
-                                    : t < 0.64f ? 0.72f - (t - 0.42f) / 0.22f * 0.30f
-                                                : 0.42f - (t - 0.64f) / 0.36f * 0.30f;
-                for (int x = 0; x < W; ++x)
-                {
-                    float dx = (x - W * 0.5f) / (W * 0.5f);
-                    float v = l * (1.0f - dx * dx * 0.35f); /* a soft vignette */
-                    uint8_t c = (uint8_t)(v * 255.0f);
-                    uint8_t *p = &px[((size_t)y * W + x) * 4];
-                    p[0] = p[1] = p[2] = c;
-                    p[3] = 255;
-                }
+                float dx = (x - W * 0.5f) / (W * 0.5f);
+                grey[(size_t)y * W + x] = (uint8_t)(l * (1.0f - dx * dx * 0.35f) * 255.0f);
             }
-            backdrop = plat_texture_create(px, W, H, true);
-            free(px);
         }
     }
-    if (!backdrop)
+    if (!grey)
     {
         draw_rect(0, 0, plat_width(), plat_height(), TH_BG);
         return;
     }
     uint32_t tint = 0xff000000u | (uint32_t)(S.tint[0] * 255) << 16 |
                     (uint32_t)(S.tint[1] * 255) << 8 | (uint32_t)(S.tint[2] * 255);
-    plat_draw_texture(backdrop, 0, 0, plat_width(), plat_height(), tint, false);
+    plat_draw_backdrop(grey, W, H, tint);
 }
 
 static void update_tint(int game)
@@ -291,8 +283,8 @@ static void draw_cover(PlatTexture *tex, const Game *g, float cx, float cy, floa
         draw_rrect(x - 10, y + 14, w + 20, h + 6, 18, 0x60000000u); /* shadow */
         draw_rrect_outline(x - 7, y - 7, w + 14, h + 14, 14, 4, 0xffe8ebffu);
     }
-    if (tex)
-        plat_draw_texture(tex, x, y, w, h, tint, true);
+    if (tex) /* flat covers are opaque: a plain copy is much cheaper than blending */
+        plat_draw_texture(tex, x, y, w, h, tint, app.global.cover_style == COVER_BOX3D);
     else
     {
         draw_rrect(x, y, w, h, 10, TH_CARD);
