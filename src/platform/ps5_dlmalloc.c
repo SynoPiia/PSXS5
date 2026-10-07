@@ -13,5 +13,9 @@
 #define NO_MALLOC_STATS 1
 #define NO_MALLINFO 1
 #define malloc_getpagesize ((size_t)16384U)
+/* The PS5 compiler assumes operator new returns 32-byte aligned memory
+ * (__STDCPP_DEFAULT_NEW_ALIGNMENT__) and zeroes new objects with 32-byte
+ * AVX stores (vmovaps ymm): 16 crashed Beetle's SPIRV-Cross. */
+#define MALLOC_ALIGNMENT ((size_t)32U)
 #include "../../third_party/dlmalloc/malloc.c"
 #endif
