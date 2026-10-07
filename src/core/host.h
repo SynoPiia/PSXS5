@@ -31,6 +31,8 @@ float host_rumble_level(int port);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */
 bool host_pad_digital(int port);
 void host_run_frame(void);
+/* Run-ahead: frames run only to show the future are silent and don't rumble. */
+void host_set_speculative(bool on);
 void host_reset(void);
 void host_apply_settings(const Settings *settings); /* takes effect without reloading */
 

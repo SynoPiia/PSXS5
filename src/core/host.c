@@ -120,6 +120,7 @@ static bool disk_available;
 static bool loaded;
 static unsigned game_fixes; /* GDB_* fixes for the next game (gamedb.h) */
 static int lid_open_frames;   /* frames left before the lid closes after a disc change */
+static bool speculative;      /* run-ahead's look-ahead frames: run, drawn, not heard or felt */
 
 static char patches_dir[PSXS5_PATH_MAX];
 static bool multitap;
@@ -489,6 +490,8 @@ static bool RETRO_CALLCONV rumble_cb(unsigned port, enum retro_rumble_effect eff
 {
     if (port >= PSXS5_MAX_PADS)
         return false;
+    if (speculative)
+        return true; /* only the real frame's rumble counts */
     if (effect == RETRO_RUMBLE_STRONG)
         rumble_strong[port] = strength;
     else
@@ -664,15 +667,23 @@ static void RETRO_CALLCONV video_cb(const void *data, unsigned width, unsigned h
     frame_fresh = true;
 }
 
+void host_set_speculative(bool on)
+{
+    speculative = on;
+}
+
 static void RETRO_CALLCONV audio_cb(int16_t left, int16_t right)
 {
+    if (speculative)
+        return;
     int16_t frame[2] = {left, right};
     plat_audio_push(frame, 1);
 }
 
 static size_t RETRO_CALLCONV audio_batch_cb(const int16_t *data, size_t frames)
 {
-    plat_audio_push(data, frames);
+    if (!speculative)
+        plat_audio_push(data, frames);
     return frames;
 }
 

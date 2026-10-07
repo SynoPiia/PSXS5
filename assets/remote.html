@@ -38,6 +38,11 @@
   .info { display:flex; justify-content:space-between; gap:12px; }
   .value { color:var(--dim); text-align:right; }
   #status { color:var(--dim); font-size:13px; text-align:center; margin-top:24px; }
+  form { display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  input { font:inherit; padding:10px 12px; border-radius:10px; border:1px solid var(--off);
+          background:var(--row); color:var(--text); }
+  button.action { border:0; border-radius:999px; padding:9px 16px; background:var(--on); color:#fff;
+                  font:inherit; margin-top:10px; align-self:flex-start; }
   input[type=search], input.note { width:100%; border:0; border-radius:10px; padding:10px 12px;
            background:var(--row); color:var(--text); font:inherit; }
   details { background:var(--card); border-radius:16px; margin-top:10px; }
@@ -106,6 +111,7 @@ function render() {
   const rows = document.getElementById('rows');
   rows.replaceChildren();
   if (tab === data.tabs.length) { renderSaves(rows); return; }
+  if (data.ra && tab === data.ra.tab) renderAccount(rows);
   let card = null;
   for (const r of data.tabs[tab].rows) {
     if (r.group || !card) {
@@ -141,6 +147,69 @@ function render() {
     }
     card.appendChild(row);
   }
+}
+
+/* ---- RetroAchievements: sign in from the phone (the password goes to
+   retroachievements.org through PSXS5 and isn't kept; PSXS5 keeps a token) ---- */
+
+let accountMessage = '';
+
+function renderAccount(rows) {
+  rows.appendChild(el('div', 'group', 'RetroAchievements account'));
+  const card = el('div', 'card');
+  const row = el('div', 'row');
+  if (data.ra.user) {
+    const line = el('div', 'info');
+    line.append(el('div', 'name', 'Signed in as ' + data.ra.user + (data.ra.signed_in ? '' : ' (connecting…)')),
+                el('div', 'value', 'Profile: ' + data.ra.profile));
+    row.appendChild(line);
+    const out = el('button', '', 'Sign out');
+    out.className = 'action';
+    out.onclick = async () => {
+      if (!confirm('Sign out of RetroAchievements on this profile?')) return;
+      await fetch('/api/ra-logout', {method: 'POST'});
+      setTimeout(load, 400);
+    };
+    row.appendChild(out);
+  } else {
+    row.appendChild(el('div', 'name', 'Sign in'));
+    row.appendChild(el('div', 'help', 'For the profile “' + data.ra.profile + '”. Your password goes from PSXS5 straight to retroachievements.org and isn’t kept: PSXS5 only keeps the sign-in token.'));
+    const form = el('form');
+    const user = el('input');
+    user.placeholder = 'User name';
+    user.autocomplete = 'username';
+    user.autocapitalize = 'none';
+    const pass = el('input');
+    pass.type = 'password';
+    pass.placeholder = 'Password';
+    pass.autocomplete = 'current-password';
+    const go = el('button', 'action', 'Sign in');
+    go.type = 'submit';
+    form.append(user, pass, go);
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      go.disabled = true;
+      accountMessage = 'Signing in…';
+      msg.textContent = accountMessage;
+      try {
+        const r = await fetch('/api/ra-login', {method: 'POST',
+          body: new URLSearchParams({user: user.value, password: pass.value})});
+        const j = await r.json();
+        accountMessage = j.ok ? 'Signed in as ' + j.user + '.' : (j.error || 'Sign-in failed');
+      } catch (err) {
+        accountMessage = 'PSXS5 isn’t answering.';
+      }
+      pass.value = '';
+      go.disabled = false;
+      setTimeout(load, 600);
+      msg.textContent = accountMessage;
+    };
+    row.appendChild(form);
+  }
+  const msg = el('div', 'help', accountMessage);
+  row.appendChild(msg);
+  card.appendChild(row);
+  rows.appendChild(card);
 }
 
 /* ---- Saves: memory cards and save states, to and from the phone ---- */

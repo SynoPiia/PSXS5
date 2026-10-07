@@ -33,6 +33,7 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -690,11 +691,32 @@ static void game_screen(PadState *pads)
     static uint64_t emu_us;
     static int emu_frames;
     uint64_t emu_start = plat_ticks_us();
+    /* Run-ahead: run the real frame, keep it, run 1 or 2 more to show where the
+     * game is about to be (silently), then go back to the real one. What's on
+     * screen answers the buttons that many frames sooner. */
+    static void *ahead_state;
+    static size_t ahead_size;
+    int ahead = !fast && !back ? app.settings.run_ahead : 0;
+    if (ahead > 0 && runs > 0 && (!ahead_state || host_state_size() != ahead_size))
+    {
+        free(ahead_state); /* another game's states are another size */
+        ahead_size = host_state_size();
+        ahead_state = ahead_size ? malloc(ahead_size) : NULL;
+    }
     for (int i = 0; i < runs; ++i)
     {
         host_run_frame();
         ra_frame();
         play_rewind_record();
+        if (ahead > 0 && i == runs - 1 && ahead_state && host_state_size() == ahead_size &&
+            host_serialize(ahead_state, ahead_size))
+        {
+            host_set_speculative(true);
+            for (int k = 0; k < ahead; ++k)
+                host_run_frame();
+            host_unserialize(ahead_state, ahead_size);
+            host_set_speculative(false);
+        }
     }
     /* quick resume: a background save every three minutes */
     static float since_resume;

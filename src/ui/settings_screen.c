@@ -1578,7 +1578,16 @@ int settings_json(char *out, size_t size)
         }
         PUT("]}");
     }
-    PUT("]}");
+    /* the RetroAchievements account, for the sign-in card on the Achievements tab */
+    int ra_tab = 0;
+    for (int t = 0; t < TAB_COUNT; ++t)
+        if (TABS[t].rows == ACHIEVEMENTS)
+            ra_tab = t;
+    PUT("],\"ra\":{\"tab\":%d,\"signed_in\":%s,\"user\":", ra_tab, ra_signed_in() ? "true" : "false");
+    at = json_text(out, size, at, ra_user());
+    PUT(",\"profile\":");
+    at = json_text(out, size, at, profiles_name(profiles_current()));
+    PUT("}}");
     return (int)(at < size ? at : size - 1);
 }
 

@@ -47,6 +47,9 @@ typedef struct
 int ra_recent(RaRecent *out, int max);
 unsigned ra_user_hardcore_score(void);
 unsigned ra_user_softcore_score(void);
+/* Signs in with a token got elsewhere (the phone page), or out; saved per profile. */
+void ra_use_token(const char *user, const char *token);
+void ra_sign_out(void);
 bool ra_hardcore(void);          /* blocks save states, cheats and rewind */
 void ra_set_hardcore(bool on);   /* saved to the ini */
 /* "12 of 40 achievements, 115 of 400 points", or "" when no set is loaded */

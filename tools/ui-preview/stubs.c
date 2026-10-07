@@ -49,6 +49,7 @@ void host_set_fixes(unsigned flags) { (void)flags; }
 float host_rumble_level(int port) { (void)port; return 0.0f; }
 bool host_pad_digital(int port) { (void)port; return false; }
 void host_run_frame(void) {}
+void host_set_speculative(bool on) { (void)on; }
 void host_reset(void) {}
 void host_apply_settings(const Settings *settings) { (void)settings; }
 double host_fps(void) { return 59.94; }
@@ -92,6 +93,8 @@ void ra_reset(void) {}
 bool ra_signed_in(void) { return true; }
 const char *ra_user(void) { return "SynoPiia"; }
 unsigned ra_user_score(void) { return 1240; }
+void ra_use_token(const char *u, const char *t) { (void)u; (void)t; }
+void ra_sign_out(void) {}
 unsigned ra_user_hardcore_score(void) { return 1240; }
 unsigned ra_user_softcore_score(void) { return 85; }
 int ra_recent(RaRecent *out, int max)

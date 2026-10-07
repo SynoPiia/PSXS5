@@ -10,12 +10,17 @@
  *   GET|POST /api/save?game=ID&type=card|state&slot=N   download / upload
  *   GET /api/thumb?game=ID&slot=N   a slot's picture as PNG
  *   POST /api/note?game=ID&slot=N   a slot's note (the body, one line)
+ *   POST /api/ra-login  user=U&password=P: signs in to RetroAchievements; the
+ *                       password goes to retroachievements.org and nowhere else
+ *   POST /api/ra-logout
  * Changes are queued and applied by the main thread (remote_frame), so the
  * settings are never touched from two threads.
  */
 #include "remote.h"
 
 #include "app.h"
+#include "ra/achievements.h"
+#include "net.h"
 #include "i18n.h"
 #include "platform/platform.h"
 
@@ -475,6 +480,136 @@ static void serve_saves(int fd, const char *method, const char *path, const char
         reply_json(fd, "400 Bad Request", "{\"ok\":false,\"error\":\"not a memory card (128 KB) or not saved\"}");
 }
 
+/* RetroAchievements sign-in, done here on the server thread (it waits on the
+ * network); the main thread then saves the token and signs in. */
+static char login_user[64], login_token[128];
+static bool login_ready, logout_ready;
+
+static int hex_digit(int c)
+{
+    return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+}
+
+/* a field of an application/x-www-form-urlencoded body, decoded */
+static bool form_field(const char *body, const char *name, char *out, size_t size)
+{
+    size_t n = strlen(name);
+    for (const char *p = body; p && *p; p = strchr(p, '&') ? strchr(p, '&') + 1 : NULL)
+    {
+        if (strncmp(p, name, n) != 0 || p[n] != '=')
+            continue;
+        size_t w = 0;
+        for (const char *v = p + n + 1; *v && *v != '&' && w + 1 < size; ++v)
+        {
+            if (*v == '+')
+                out[w++] = ' ';
+            else if (*v == '%' && hex_digit(v[1]) >= 0 && hex_digit(v[2]) >= 0)
+            {
+                out[w++] = (char)(hex_digit(v[1]) * 16 + hex_digit(v[2]));
+                v += 2;
+            }
+            else
+                out[w++] = *v;
+        }
+        out[w] = '\0';
+        return true;
+    }
+    return false;
+}
+
+static void url_encode(char *out, size_t size, const char *s)
+{
+    size_t w = 0;
+    for (const unsigned char *p = (const unsigned char *)s; *p && w + 4 < size; ++p)
+    {
+        if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') || strchr("-._~", *p))
+            out[w++] = (char)*p;
+        else
+            w += (size_t)snprintf(out + w, size - w, "%%%02X", *p);
+    }
+    out[w] = '\0';
+}
+
+/* the value of "key":"..." in a JSON reply (no escapes in what we read) */
+static bool json_value(const char *json, const char *key, char *out, size_t size)
+{
+    char pattern[48];
+    snprintf(pattern, sizeof(pattern), "\"%s\":\"", key);
+    const char *p = strstr(json, pattern);
+    if (!p)
+        return false;
+    p += strlen(pattern);
+    const char *end = strchr(p, '"');
+    if (!end || (size_t)(end - p) >= size)
+        return false;
+    memcpy(out, p, (size_t)(end - p));
+    out[end - p] = '\0';
+    return true;
+}
+
+static void serve_ra_login(int fd, const char *req, size_t req_len)
+{
+    size_t len = 0;
+    char *body = read_body(fd, req, req_len, 2048, &len);
+    char name[64] = "", password[256] = "";
+    bool have = body && form_field(body, "user", name, sizeof(name)) &&
+                form_field(body, "password", password, sizeof(password)) && name[0] && password[0];
+    if (body)
+    {
+        memset(body, 0, len); /* the password was in there */
+        free(body);
+    }
+    if (!have)
+    {
+        memset(password, 0, sizeof(password));
+        const char *bad = "{\"ok\":false,\"error\":\"Enter your user name and password\"}";
+        respond(fd, "400 Bad Request", "application/json", bad, strlen(bad));
+        return;
+    }
+    char post[800], enc_user[200], enc_pass[800];
+    url_encode(enc_user, sizeof(enc_user), name);
+    url_encode(enc_pass, sizeof(enc_pass), password);
+    snprintf(post, sizeof(post), "r=login2&u=%s&p=%s", enc_user, enc_pass);
+    memset(password, 0, sizeof(password));
+    memset(enc_pass, 0, sizeof(enc_pass));
+    char *reply = NULL;
+    size_t reply_len = 0;
+    int status = net_request("https://retroachievements.org/dorequest.php", post,
+                             "application/x-www-form-urlencoded", PSXS5_NAME "/" PSXS5_VERSION, &reply, &reply_len);
+    memset(post, 0, sizeof(post));
+    char token[128] = "", who[64] = "", error[160] = "";
+    bool ok = reply && strstr(reply, "\"Success\":true") && json_value(reply, "Token", token, sizeof(token));
+    if (ok)
+    {
+        if (!json_value(reply, "User", who, sizeof(who)))
+            str_copy(who, sizeof(who), name);
+        SDL_LockMutex(lock);
+        str_copy(login_user, sizeof(login_user), who);
+        str_copy(login_token, sizeof(login_token), token);
+        login_ready = true;
+        SDL_UnlockMutex(lock);
+    }
+    else if (reply && json_value(reply, "Error", error, sizeof(error)))
+        ;
+    else
+        snprintf(error, sizeof(error), status < 0 ? "Couldn't reach RetroAchievements" : "Sign-in failed (%d)", status);
+    free(reply);
+    memset(token, 0, sizeof(token));
+    psxs5_log("remote: RetroAchievements sign-in from the phone: %s", ok ? "ok" : "failed");
+    char answer[400];
+    int n;
+    if (ok)
+        n = snprintf(answer, sizeof(answer), "{\"ok\":true,\"user\":\"%s\"}", who);
+    else
+    {
+        for (char *c = error; *c; ++c)
+            if (*c == '"' || *c == '\\')
+                *c = '\'';
+        n = snprintf(answer, sizeof(answer), "{\"ok\":false,\"error\":\"%s\"}", error);
+    }
+    respond(fd, ok ? "200 OK" : "401 Unauthorized", "application/json", answer, (size_t)n);
+}
+
 static void serve(int fd)
 {
     char req[4096];
@@ -514,6 +649,15 @@ static void serve(int fd)
     else if (!strncmp(path, "/api/save?", 10) || !strncmp(path, "/api/thumb?", 11) ||
              (!strcmp(method, "POST") && !strncmp(path, "/api/note?", 10)))
         serve_saves(fd, method, path, req, (size_t)n);
+    else if (!strcmp(method, "POST") && !strcmp(path, "/api/ra-login"))
+        serve_ra_login(fd, req, (size_t)n);
+    else if (!strcmp(method, "POST") && !strcmp(path, "/api/ra-logout"))
+    {
+        SDL_LockMutex(lock);
+        logout_ready = true;
+        SDL_UnlockMutex(lock);
+        respond(fd, "200 OK", "application/json", "{\"ok\":true}", 11);
+    }
     else if (!strcmp(method, "POST") && !strncmp(path, "/api/set?", 9))
     {
         char key[16], value[16];
@@ -641,6 +785,36 @@ void remote_frame(void)
     }
     pending_count = 0;
     SDL_UnlockMutex(lock);
+    /* a sign-in or sign-out from the phone */
+    char user_in[64] = "", token_in[128] = "";
+    bool signing_in = false, signing_out = false;
+    SDL_LockMutex(lock);
+    if (login_ready)
+    {
+        str_copy(user_in, sizeof(user_in), login_user);
+        str_copy(token_in, sizeof(token_in), login_token);
+        memset(login_token, 0, sizeof(login_token));
+        login_ready = false;
+        signing_in = true;
+    }
+    signing_out = logout_ready;
+    logout_ready = false;
+    SDL_UnlockMutex(lock);
+    if (signing_in)
+    {
+        ra_use_token(user_in, token_in);
+        memset(token_in, 0, sizeof(token_in));
+        char msg[160];
+        snprintf(msg, sizeof(msg), tr("Signed in to RetroAchievements as %s"), user_in);
+        app_toast(msg);
+        refreshed = 0; /* show it on the phone */
+    }
+    if (signing_out)
+    {
+        ra_sign_out();
+        app_toast("Signed out of RetroAchievements");
+        refreshed = 0;
+    }
     for (int i = 0; i < count; ++i)
     {
         const char *name = settings_set_by_key(keys[i], values[i]);

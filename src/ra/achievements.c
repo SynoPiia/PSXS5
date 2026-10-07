@@ -669,6 +669,23 @@ bool ra_hardcore(void)
     return client && hardcore;
 }
 
+void ra_use_token(const char *name, const char *new_token)
+{
+    str_copy(user, sizeof(user), name);
+    str_copy(token, sizeof(token), new_token);
+    save_ini(); /* the profile's retroachievements.ini */
+    ra_shutdown();
+    ra_init(&paths);
+}
+
+void ra_sign_out(void)
+{
+    user[0] = token[0] = '\0';
+    save_ini();
+    ra_shutdown();
+    signed_in = false;
+}
+
 void ra_set_hardcore(bool on)
 {
     hardcore = on;
