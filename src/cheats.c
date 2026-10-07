@@ -9,6 +9,8 @@
  *   cheat0_enable = false
  */
 #include "cheats.h"
+
+#include "disc.h"
 #include "i18n.h"
 
 #include "core/host.h"
@@ -92,6 +94,75 @@ static bool parse_cht(CheatList *list, const char *path)
     }
     list->count = w;
     return w > 0;
+}
+
+/* DuckStation's chtdb format: [Name] (groups as "Group\\Name"), then
+ * "Key = Value" options, then the code lines. GameShark codes only. */
+static bool parse_chtdb(CheatList *list, const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (!f)
+        return false;
+    char line[512];
+    Cheat cur;
+    bool open = false, gameshark = false, too_long = false;
+    memset(&cur, 0, sizeof(cur));
+    for (bool more = true; more;)
+    {
+        more = fgets(line, sizeof(line), f) != NULL;
+        char *t = more ? trim(line) : NULL;
+        if (!more || t[0] == '[')
+        {
+            /* the previous code is complete */
+            if (open && gameshark && !too_long && cur.code[0] && list->count < CHEATS_MAX)
+                list->items[list->count++] = cur;
+            if (!more)
+                break;
+            memset(&cur, 0, sizeof(cur));
+            open = true;
+            gameshark = false;
+            too_long = false;
+            char *end = strrchr(t, ']');
+            if (end)
+                *end = '\0';
+            /* "Baofu\Infinite HP" -> "Baofu: Infinite HP" */
+            size_t w = 0;
+            for (const char *p = t + 1; *p && w + 3 < sizeof(cur.desc); ++p)
+            {
+                if (*p == '\\')
+                {
+                    cur.desc[w++] = ':';
+                    cur.desc[w++] = ' ';
+                }
+                else
+                    cur.desc[w++] = *p;
+            }
+            cur.desc[w] = '\0';
+            continue;
+        }
+        if (!open || !t[0] || t[0] == ';' || t[0] == '#')
+            continue;
+        char *eq = strchr(t, '=');
+        if (eq)
+        {
+            *eq = '\0';
+            if (!strcmp(trim(t), "Type"))
+                gameshark = !str_icmp(trim(eq + 1), "Gameshark");
+            continue;
+        }
+        /* a code line: "800833A8 FFFF" */
+        size_t len = strlen(t), have = strlen(cur.code);
+        if (have + len + 2 >= sizeof(cur.code))
+        {
+            too_long = true;
+            continue;
+        }
+        if (have)
+            cur.code[have++] = '+';
+        memcpy(cur.code + have, t, len + 1);
+    }
+    fclose(f);
+    return list->count > 0;
 }
 
 /* ---------------------------------------------------------------- matching */
@@ -345,12 +416,14 @@ static int fetch_main(void *unused)
     return 0;
 }
 
-static void fetch_start(const char *name, const char *dest)
+static const char LIBRETRO_BASE[] =
+    "https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Sony%20-%20PlayStation/";
+static const char CHTDB_BASE[] = "https://raw.githubusercontent.com/duckstation/chtdb/master/cheats/";
+
+static void fetch_start(const char *base, const char *name, const char *dest)
 {
     if (!net_available() || !SDL_AtomicCAS(&fetch_state, 0, 1))
         return;
-    static const char base[] =
-        "https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Sony%20-%20PlayStation/";
     str_copy(fetch_url, sizeof(fetch_url), base);
     size_t w = strlen(fetch_url);
     for (const unsigned char *p = (const unsigned char *)name; *p && w + 4 < sizeof(fetch_url); ++p)
@@ -372,6 +445,28 @@ static void fetch_start(const char *name, const char *dest)
 bool cheats_fetch_finished(void)
 {
     return SDL_AtomicCAS(&fetch_state, 2, 0);
+}
+
+/* assets/chtdb-index.txt (tools/make-chtdb-index.py): serial<TAB>file. */
+static bool chtdb_file_for(const char *serial, char *name, size_t size)
+{
+    char path[PSXS5_PATH_MAX];
+    plat_asset_path(path, sizeof(path), "chtdb-index.txt");
+    FILE *f = fopen(path, "r");
+    if (!f)
+        return false;
+    char line[160];
+    size_t n = strlen(serial);
+    bool hit = false;
+    while (!hit && fgets(line, sizeof(line), f))
+        if (!strncmp(line, serial, n) && line[n] == '\t')
+        {
+            line[strcspn(line, "\r\n")] = '\0';
+            str_copy(name, size, line + n + 1);
+            hit = true;
+        }
+    fclose(f);
+    return hit;
 }
 
 static bool find_any_cht(const char *dir, char *out, size_t size)
@@ -510,11 +605,30 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
             if (!found)
             {
                 make_dirs(cheats_dir);
-                fetch_start(name, path);
+                fetch_start(LIBRETRO_BASE, name, path);
             }
         }
     }
     bool library = found && parse_cht(list, path);
+    /* 4. Nothing there: DuckStation's database, by the disc's serial (it has
+     *    games libretro-database lacks: Persona, Diablo...) */
+    if (!library && game->serial[0])
+    {
+        char name[96], serial[16];
+        if (disc_format_serial(game->serial, serial, sizeof(serial)) && chtdb_file_for(serial, name, sizeof(name)))
+        {
+            char dir[PSXS5_PATH_MAX];
+            path_join(dir, sizeof(dir), cheats_dir, "duckstation");
+            path_join(path, sizeof(path), dir, name);
+            if (file_opens(path))
+                library = parse_chtdb(list, path);
+            else if (!found)
+            {
+                make_dirs(dir);
+                fetch_start(CHTDB_BASE, name, path);
+            }
+        }
+    }
     if (library)
         str_copy(list->source, sizeof(list->source), path);
     int from_library = list->count;

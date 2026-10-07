@@ -90,7 +90,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
   - Unlocks and leaderboard results pop up on screen.
   - Optional hardcore mode.
   - See [RetroAchievements](#retroachievements).
-- **Cheats for every game, automatically.** PSXS5 knows all 1,961 PlayStation cheat files of libretro-database (GameShark, Action Replay...).
+- **Cheats for every game, automatically.** PSXS5 knows all 1,961 PlayStation cheat files of libretro-database (GameShark, Action Replay...), and DuckStation's cheat database (about 4,500 more files) for games libretro has nothing for.
   - When a game starts it finds that game's file and downloads it: no setup.
   - Toggle codes per game from the in-game menu.
 - **Save states.** 10 slots per game, plus memory cards saved per game.

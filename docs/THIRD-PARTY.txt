@@ -25,6 +25,9 @@ rcheevos (RetroAchievements)
 SDL 2 - zlib License - https://www.libsdl.org
 Fonts in assets/fonts - SIL Open Font License 1.1 (notices beside them): Inter, Noto Sans JP,
   Chakra Petch, IBM Plex Sans, IBM Plex Mono, Fraunces, Work Sans; Tabler Icons - MIT License
+Cheat codes are downloaded on the console from libretro-database
+  (https://github.com/libretro/libretro-database) and DuckStation's chtdb
+  (https://github.com/duckstation/chtdb; copyright of the codes is held by their authors).
 Game artwork borders (The Bezel Project, https://github.com/thebezelproject), title
   screens and gameplay pictures (libretro-thumbnails, https://github.com/libretro-thumbnails)
   are downloaded on the console, as covers are; PSXS5 doesn't include them.
