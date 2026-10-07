@@ -22,6 +22,8 @@ const char *host_emulator_for(const Settings *settings, const char *serial, cons
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
 /* Port 1's device for the next host_load: 0 a pad, 1 GunCon, 2 Justifier. */
 void host_set_gun(int device);
+/* Other controllers for the next host_load: 0 pads, 1 NeGcon in every port, 2 a mouse in port 1. */
+void host_set_special(int device);
 /* Known fixes for the next host_load (GDB_* from gamedb.h): settings the game breaks with. */
 void host_set_fixes(unsigned flags);
 /* How hard the game is rumbling this player's controller now, 0..1. */

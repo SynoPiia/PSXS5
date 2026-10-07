@@ -37,6 +37,7 @@ void plat_player_order(int order[PSXS5_MAX_PADS]);
 const char *plat_pad_name(int port); /* the PS5 user holding it, or the controller's name */
 /* DualSense extras; nothing happens where they aren't supported */
 void plat_pad_motion(bool on); /* PadState.quat while on */
+void plat_pad_touch(bool on);  /* PadState.touching / touch_x / touch_y while on */
 typedef struct
 {
     uint8_t mode;       /* TRIGGER_* (Sony's trigger effect modes) */
@@ -54,8 +55,9 @@ enum
 };
 void plat_pad_triggers(int port, PlatTrigger l2, PlatTrigger r2);
 int plat_pad_battery(int port); /* 0..100, -1 when unknown */
-/* The game picture's colours: Settings brightness (0..3, 1 normal) and colour (0..5). */
-void plat_set_colour(int brightness, int colour);
+/* The game picture's colours: Settings brightness (0..3, 1 normal), colour (0..5),
+ * and sharpening (0..2, Beetle on the GPU). */
+void plat_set_colour(int brightness, int colour, int sharpen);
 /* The console's time of day as the user set it up ("21:42" or "9:42 PM"). */
 void plat_clock(char *out, size_t size);
 /* Frame profiling: the time since the previous mark goes to `name`

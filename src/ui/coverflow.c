@@ -42,7 +42,13 @@
 #define STACK_GAP 150.0f /* between further neighbours */
 #define SIDE_SCALE 0.74f
 #define SIDE_SQUEEZE 0.58f /* turned-away covers look narrower */
-#define LAUNCH_TIME 0.3f
+#define LAUNCH_TIME 0.3f /* the fade to black */
+#define DISC_TIME 0.95f  /* before it, with the disc animation: the disc slides out and spins up */
+
+static float launch_total(void)
+{
+    return app.global.disc_animation ? DISC_TIME + LAUNCH_TIME : LAUNCH_TIME;
+}
 
 static struct
 {
@@ -966,6 +972,80 @@ static void draw_spines(float launch)
     draw_ach_badge(&app.library.games[S.view[S.cursor]], fx + face_w, fy + face_h, 20);
 }
 
+/* ---------------------------------------------------------------- disc animation */
+
+/* A PS1 disc: black rim, the cover's art as its printed label (turning with
+ * `spin`), the clear inner ring and the hole. */
+static void draw_disc(int game, float cx, float cy, float r, float spin)
+{
+    draw_circle(cx + r * 0.05f, cy + r * 0.08f, r, 0x70000000u); /* shadow */
+    draw_circle(cx, cy, r, 0xff16161cu);
+    float lr = r * 0.95f;
+    PlatTexture *t = covers_get(game);
+    if (t)
+    {
+        enum { SEG = 72 };
+        PlatVertex v[SEG + 2];
+        int idx[SEG * 3];
+        int tw = 1, th = 1;
+        plat_texture_size(t, &tw, &th);
+        /* the middle square of the art */
+        float ux = tw > th ? (float)th / tw : 1.0f, uy = th > tw ? (float)tw / th : 1.0f;
+        v[0] = (PlatVertex){cx, cy, 0.5f, 0.5f, 0xffffffffu};
+        for (int i = 0; i <= SEG; ++i)
+        {
+            float a = 6.2831853f * i / SEG;
+            v[i + 1] = (PlatVertex){cx + cosf(a) * lr, cy + sinf(a) * lr, 0.5f + cosf(a - spin) * 0.5f * ux,
+                                    0.5f + sinf(a - spin) * 0.5f * uy, 0xffffffffu};
+        }
+        for (int i = 0; i < SEG; ++i)
+        {
+            idx[i * 3] = 0;
+            idx[i * 3 + 1] = i + 1;
+            idx[i * 3 + 2] = i + 2;
+        }
+        plat_draw_mesh(t, v, SEG + 2, idx, SEG * 3);
+    }
+    else
+        draw_circle(cx, cy, lr, 0xff000000u | (covers_color(game) & 0xffffffu));
+    draw_ring(cx, cy, r * 0.97f, 3, 0x50ffffffu);
+    draw_circle(cx, cy, r * 0.32f, 0xffc9ced8u); /* the clear plastic ring */
+    draw_ring(cx, cy, r * 0.32f, 2, 0x80ffffffu);
+    draw_circle(cx, cy, r * 0.12f, 0xff0b0b10u); /* the hole */
+}
+
+/* The chosen game's disc slides out of its case (to the right of the cover)
+ * and spins up, before the screen fades to the game. */
+static void draw_launch_disc(int game, float d, float t)
+{
+    float ease = 1.0f - (1.0f - d) * (1.0f - d) * (1.0f - d);
+    float spin = t * t * 26.0f; /* speeds up */
+    if (theme.layout == LAYOUT_GRID)
+    {
+        /* the grid has no cover in the middle: the disc grows there */
+        float r = COVER_H * 0.42f * ease;
+        if (r > 2.0f)
+            draw_disc(game, CENTER_X, CENTER_Y + 60, r, spin);
+        return;
+    }
+    float r = COVER_H * 0.42f;
+    PlatTexture *cover = covers_get(game);
+    float aspect = 0.88f;
+    if (cover)
+    {
+        int tw = 1, th = 1;
+        plat_texture_size(cover, &tw, &th);
+        aspect = (float)tw / th;
+    }
+    float h = theme.layout == LAYOUT_SPINES ? COVER_H * 0.9f : COVER_H;
+    float right = CENTER_X + h * aspect * 0.5f;
+    float cx = CENTER_X + (right + r * 0.25f - CENTER_X) * ease;
+    /* only the part out of the case shows */
+    plat_set_clip((int)right, 0, plat_width() - (int)right, plat_height());
+    draw_disc(game, cx, CENTER_Y, r, spin);
+    plat_set_clip(0, 0, 0, 0);
+}
+
 /* ---------------------------------------------------------------- idle slideshow */
 
 /* After a minute without a button on the shelf: the library's games one by
@@ -1256,7 +1336,7 @@ void shelf_screen(uint32_t pressed)
     if (S.launch_t > 0.0f)
     {
         S.launch_t += app.dt;
-        if (S.launch_t >= LAUNCH_TIME)
+        if (S.launch_t >= launch_total())
         {
             S.launch_t = 0.0f;
             config_save(&app.global, app.paths.config);
@@ -1278,7 +1358,8 @@ void shelf_screen(uint32_t pressed)
         draw_rect(160, py + 22, plat_width() - 320, 12, 0xff5e3a22u);
     }
     plat_profile("backdrop");
-    float launch = S.launch_t > 0.0f ? S.launch_t / LAUNCH_TIME : 0.0f;
+    /* the fade to black is the last LAUNCH_TIME; the disc animation comes first */
+    float launch = S.launch_t > 0.0f ? fmaxf(S.launch_t - (launch_total() - LAUNCH_TIME), 0.0f) / LAUNCH_TIME : 0.0f;
     if (S.view_count > 0 && theme.layout == LAYOUT_GRID)
     {
         draw_grid(game, launch);
@@ -1421,6 +1502,8 @@ void shelf_screen(uint32_t pressed)
     }
 
     picker_draw();
+    if (S.launch_t > 0.0f && app.global.disc_animation && game >= 0)
+        draw_launch_disc(game, fminf(S.launch_t / DISC_TIME, 1.0f), S.launch_t);
     if (S.launch_t > 0.0f)
         draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, launch));
     app_draw_toast();

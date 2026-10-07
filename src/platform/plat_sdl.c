@@ -410,7 +410,7 @@ static void order_pads(PadState pads[PSXS5_MAX_PADS])
 static SDL_Joystick *joys[PSXS5_MAX_PADS];
 static int pad_uid[PSXS5_MAX_PADS] = {-1, -1, -1, -1}; /* the PS5 user of each */
 static int pad_h[PSXS5_MAX_PADS] = {-1, -1, -1, -1};   /* its scePad handle */
-static bool motion_on, motion_set[PSXS5_MAX_PADS];
+static bool motion_on, touch_on, motion_set[PSXS5_MAX_PADS];
 
 /* scePad, for what the SDL driver doesn't pass on: the motion sensor and the
  * adaptive triggers (layouts as in Sony's pad.h; the read gets room to spare) */
@@ -543,10 +543,10 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
         p->ry = SDL_JoystickGetAxis(j, 3);
         p->l2 = (uint8_t)((SDL_JoystickGetAxis(j, 4) + 32768) >> 8);
         p->r2 = (uint8_t)((SDL_JoystickGetAxis(j, 5) + 32768) >> 8);
-        int h = motion_on ? pad_handle(i) : -1;
+        int h = motion_on || touch_on ? pad_handle(i) : -1;
         if (h >= 0)
         {
-            if (!motion_set[i])
+            if (motion_on && !motion_set[i])
             {
                 int err = scePadSetMotionSensorState(h, true);
                 psxs5_log("pad %d: motion sensor %s (0x%08x)", i + 1, err ? "failed" : "on", (unsigned)err);
@@ -557,7 +557,11 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
             if (scePadReadState(h, &b) == 0)
             {
                 memcpy(p->quat, b.d.quat, sizeof(p->quat));
-                p->motion = b.d.quat[0] || b.d.quat[1] || b.d.quat[2] || b.d.quat[3];
+                p->motion = motion_on && (b.d.quat[0] || b.d.quat[1] || b.d.quat[2] || b.d.quat[3]);
+                /* touch: a finger count, then points of x, y (16 bits each), finger id */
+                p->touching = touch_on && b.d.touch[0] > 0;
+                p->touch_x = (uint16_t)(b.d.touch[8] | b.d.touch[9] << 8);
+                p->touch_y = (uint16_t)(b.d.touch[10] | b.d.touch[11] << 8);
                 /* where the battery is isn't documented: log the extra bytes when they change */
                 static uint8_t last[PSXS5_MAX_PADS][32];
                 static uint64_t logged_at[PSXS5_MAX_PADS];
@@ -586,6 +590,11 @@ const char *plat_pad_name(int port)
 void plat_pad_motion(bool on)
 {
     motion_on = on;
+}
+
+void plat_pad_touch(bool on)
+{
+    touch_on = on;
 }
 
 void plat_pad_triggers(int port, PlatTrigger l2, PlatTrigger r2)
@@ -802,6 +811,11 @@ const char *plat_pad_name(int port)
 }
 
 void plat_pad_motion(bool on)
+{
+    (void)on;
+}
+
+void plat_pad_touch(bool on)
 {
     (void)on;
 }
@@ -1037,13 +1051,14 @@ static float colour_k[3] = {1.0f, 1.0f, 0.0f}; /* brightness, saturation, warmth
 static bool colour_on;
 static uint8_t colour_lut[3][256]; /* per channel: brightness and warmth */
 
-void plat_set_colour(int brightness, int colour)
+void plat_set_colour(int brightness, int colour, int sharpen)
 {
-    static int last_b = -1, last_c = -1;
-    if (brightness == last_b && colour == last_c)
+    static int last_b = -1, last_c = -1, last_s = -1;
+    if (brightness == last_b && colour == last_c && sharpen == last_s)
         return;
     last_b = brightness;
     last_c = colour;
+    last_s = sharpen;
     static const float bright[] = {0.85f, 1.0f, 1.12f, 1.25f};
     static const float sat[] = {1.0f, 1.3f, 0.78f, 1.05f, 1.0f, 0.0f};
     static const float warm[] = {0.0f, 0.0f, 0.0f, 0.06f, -0.06f, 0.0f};
@@ -1059,7 +1074,8 @@ void plat_set_colour(int brightness, int colour)
             colour_lut[c][v] = (uint8_t)(x > 255.0f ? 255 : x);
         }
 #if defined(__PROSPERO__)
-    vkp_set_colour(colour_k[0], colour_k[1], colour_k[2]);
+    static const float sharp[] = {0.0f, 0.45f, 1.0f};
+    vkp_set_colour(colour_k[0], colour_k[1], colour_k[2], sharp[sharpen >= 0 && sharpen < 3 ? sharpen : 0]);
 #endif
 }
 

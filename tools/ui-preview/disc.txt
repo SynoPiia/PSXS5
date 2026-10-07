@@ -1,0 +1,9 @@
+wait 60
+press right
+wait 30
+press cross
+wait 25
+shot d1-disc
+wait 15
+shot d2-disc
+quit

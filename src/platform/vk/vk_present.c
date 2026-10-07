@@ -684,11 +684,12 @@ bool vkp_open(int canvas_w, int canvas_h, char *error, size_t size)
 /* A rectangle in screen pixels -> clip space for the quad shader. */
 static float colour_k[4] = {1.0f, 1.0f, 0.0f, 0.0f}; /* the game picture: brightness, saturation, warmth */
 
-void vkp_set_colour(float brightness, float saturation, float warmth)
+void vkp_set_colour(float brightness, float saturation, float warmth, float sharpen)
 {
     colour_k[0] = brightness;
     colour_k[1] = saturation;
     colour_k[2] = warmth;
+    colour_k[3] = sharpen;
 }
 
 static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
@@ -1114,9 +1115,9 @@ bool vkp_game_image_ready(void)
 {
     return false;
 }
-void vkp_set_colour(float brightness, float saturation, float warmth)
+void vkp_set_colour(float brightness, float saturation, float warmth, float sharpen)
 {
-    (void)brightness, (void)saturation, (void)warmth;
+    (void)brightness, (void)saturation, (void)warmth, (void)sharpen;
 }
 void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines)
 {

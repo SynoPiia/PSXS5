@@ -148,6 +148,20 @@ int controls_kind(const Game *g)
     return found;
 }
 
+int controls_special_for(const Game *g, const Settings *s)
+{
+    if (controls_gun_for(g, s))
+        return 0;
+    const GameInfo *info = gamedb_get(g->serial);
+    if (!info)
+        return 0;
+    if (s->negcon && (info->flags & GDB_NEGCON))
+        return 1;
+    if (s->touch_mouse && (info->flags & GDB_MOUSE))
+        return 2;
+    return 0;
+}
+
 int controls_gun_for(const Game *g, const Settings *s)
 {
     if (s->lightgun == 1)
@@ -167,6 +181,9 @@ static struct
     int gun;           /* 0 none, 1 GunCon, 2 Justifier: player 1 holds it */
     bool racing;       /* Cross is the gas and Square the brake: they can go on R2 / L2 */
     bool pedal;        /* a racing game: R2 feels like a pedal */
+    int special;       /* 1 NeGcon (analog gas and brake), 2 a mouse on the touchpad */
+    bool was_touching;
+    uint16_t last_x, last_y;
     bool centred;      /* centre holds the orientation that aims at the middle */
     float centre[4];
     float x, y;        /* the aim, -1..1 across the picture */
@@ -181,7 +198,9 @@ void controls_start(const Game *g, const Settings *s)
     int kind = controls_kind(g);
     C.racing = (kind & KIND_RACING) != 0;
     C.pedal = (kind & (KIND_RACING | KIND_PEDAL)) != 0;
+    C.special = controls_special_for(g, s);
     plat_pad_motion(C.gun != 0);
+    plat_pad_touch(C.special == 2);
     if (C.gun || C.pedal)
         psxs5_log("controls: %s%s", C.gun ? (C.gun == 1 ? "GunCon " : "Justifier ") : "",
                   C.racing ? "racing" : C.pedal ? "pedal" : "");
@@ -193,6 +212,7 @@ void controls_stop(void)
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
         plat_pad_triggers(i, off, off);
     plat_pad_motion(false);
+    plat_pad_touch(false);
     memset(&C, 0, sizeof(C));
 }
 
@@ -343,7 +363,8 @@ void controls_apply(PadState pads[PSXS5_MAX_PADS], const Settings *s, float dt)
             continue;
         shape_stick(&p->lx, &p->ly, s->stick_deadzone, s->stick_response);
         shape_stick(&p->rx, &p->ry, s->stick_deadzone, s->stick_response);
-        if (C.racing && s->racing_triggers && !(C.gun && i == 0))
+        /* with a NeGcon the triggers are analog already: no digital remap */
+        if (C.racing && s->racing_triggers && C.special != 1 && !(C.gun && i == 0))
         {
             if (p->buttons & BIT(BTN_R2))
                 p->buttons = (p->buttons & ~BIT(BTN_R2)) | BIT(BTN_CROSS);
@@ -352,6 +373,27 @@ void controls_apply(PadState pads[PSXS5_MAX_PADS], const Settings *s, float dt)
         }
         if (C.gun && i == 0)
             update_gun(p, dt);
+        if (C.special == 2 && i == 0)
+        {
+            /* the touchpad moves the pointer by how far the finger slid; the
+             * right stick works too */
+            float dx = 0, dy = 0;
+            if (p->touching && C.was_touching)
+            {
+                dx = ((int)p->touch_x - (int)C.last_x) * 0.4f;
+                dy = ((int)p->touch_y - (int)C.last_y) * 0.4f;
+            }
+            C.was_touching = p->touching;
+            C.last_x = p->touch_x;
+            C.last_y = p->touch_y;
+            float sx = p->rx / 32767.0f, sy = p->ry / 32767.0f;
+            if (fabsf(sx) > 0.15f)
+                dx += sx * dt * 500.0f;
+            if (fabsf(sy) > 0.15f)
+                dy += sy * dt * 500.0f;
+            p->mouse_dx = (int16_t)(dx > 127 ? 127 : dx < -127 ? -127 : dx);
+            p->mouse_dy = (int16_t)(dy > 127 ? 127 : dy < -127 ? -127 : dy);
+        }
         update_triggers(i, s);
     }
 }

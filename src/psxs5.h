@@ -53,6 +53,10 @@ typedef struct
     /* the light gun (filled in by PSXS5): -32767..32767 across the picture */
     int16_t gun_x, gun_y;
     bool gun_offscreen;
+    /* the touchpad (one finger) and, for mouse games, the pointer's move this frame */
+    bool touching;
+    uint16_t touch_x, touch_y; /* 0..1919, 0..1079 */
+    int16_t mouse_dx, mouse_dy;
 } PadState;
 
 enum AspectMode
@@ -148,6 +152,14 @@ typedef struct
     int deinterlace;      /* Beetle: 0 weave, 1 bob, 2 motion-adaptive */
     bool pal60;           /* Beetle: European games at 60 Hz */
     bool game_fixes;      /* turn off what DuckStation's database says a game breaks with */
+    bool fmv_smooth;      /* Beetle: smooth the colour blocks of FMVs (MDEC chroma filter) */
+    bool true_colour;     /* Beetle: 32-bit colour, no dithering */
+    bool boot_intro;      /* the PS1's startup logo and sound before the game (a real BIOS) */
+    int sharpen;          /* Beetle on the GPU: 0 off, 1 light, 2 strong (AMD FidelityFX CAS) */
+    bool disc_animation;  /* the disc slides out of its case when a game starts */
+    bool negcon;          /* racing games that take a NeGcon: analog gas and brake on R2 / L2 */
+    bool touch_mouse;     /* mouse games: the touchpad moves the pointer */
+    int run_ahead;        /* 0 off, 1 or 2 frames less input lag */
 } Settings;
 
 enum Emulator

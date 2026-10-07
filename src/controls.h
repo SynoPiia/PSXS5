@@ -22,6 +22,9 @@ enum GameKind
 int controls_kind(const Game *g);
 /* The light gun a game gets with these settings: 0 none, 1 GunCon, 2 Justifier. */
 int controls_gun_for(const Game *g, const Settings *s);
+/* Other controllers: 0 pads, 1 NeGcon (racing games that take one), 2 the
+ * touchpad as a mouse (mouse games); from DuckStation's database. */
+int controls_special_for(const Game *g, const Settings *s);
 /* Before the game loads, and when it stops (the triggers go back to normal). */
 void controls_start(const Game *g, const Settings *s);
 void controls_stop(void);

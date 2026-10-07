@@ -34,6 +34,9 @@ void config_defaults(Settings *s)
     s->trigger_effects = true;
     s->brightness = 1;
     s->game_fixes = true;
+    s->disc_animation = true;
+    s->negcon = true;
+    s->touch_mouse = true;
     s->racing_triggers = true;
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
@@ -170,6 +173,22 @@ static bool config_apply(Settings *s, const char *path)
             s->pal60 = as_bool(value);
         else if (strcmp(key, "game_fixes") == 0)
             s->game_fixes = as_bool(value);
+        else if (strcmp(key, "fmv_smooth") == 0)
+            s->fmv_smooth = as_bool(value);
+        else if (strcmp(key, "true_colour") == 0)
+            s->true_colour = as_bool(value);
+        else if (strcmp(key, "boot_intro") == 0)
+            s->boot_intro = as_bool(value);
+        else if (strcmp(key, "sharpen") == 0)
+            s->sharpen = atoi(value) % 3;
+        else if (strcmp(key, "disc_animation") == 0)
+            s->disc_animation = as_bool(value);
+        else if (strcmp(key, "negcon") == 0)
+            s->negcon = as_bool(value);
+        else if (strcmp(key, "touch_mouse") == 0)
+            s->touch_mouse = as_bool(value);
+        else if (strcmp(key, "run_ahead") == 0)
+            s->run_ahead = atoi(value) % 3;
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -261,6 +280,9 @@ bool config_save(const Settings *s, const char *path)
             s->overclock, s->brightness, s->colour, s->autosave, s->bezel);
     fprintf(f, "msaa=%d\ntexture_filter=%d\nfilter_2d=%d\nsupersampling=%d\ndeinterlace=%d\npal60=%d\ngame_fixes=%d\n",
             s->msaa, s->texture_filter, s->filter_2d, s->supersampling, s->deinterlace, s->pal60, s->game_fixes);
+    fprintf(f, "fmv_smooth=%d\ntrue_colour=%d\nboot_intro=%d\nsharpen=%d\ndisc_animation=%d\nnegcon=%d\n",
+            s->fmv_smooth, s->true_colour, s->boot_intro, s->sharpen, s->disc_animation, s->negcon);
+    fprintf(f, "touch_mouse=%d\nrun_ahead=%d\n", s->touch_mouse, s->run_ahead);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

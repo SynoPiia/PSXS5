@@ -363,7 +363,7 @@ void app_draw_game(uint8_t dim)
                       ALIGN_CENTER, PSXS5_NAME);
         }
     }
-    plat_set_colour(view.brightness, view.colour);
+    plat_set_colour(view.brightness, view.colour, view.sharpen);
     plat_draw_game(&view, host_aspect(), dim);
     bezel_draw(&view, dim);
     if (app.screen == SCREEN_GAME)
@@ -383,6 +383,7 @@ void app_start_game(int index, bool resume)
     controls_start(g, &app.settings);
     app.play_seconds = 0;
     host_set_gun(controls_gun_for(g, &app.settings));
+    host_set_special(controls_special_for(g, &app.settings));
     {
         const GameInfo *info = gamedb_get(g->serial);
         unsigned fixes = info && app.settings.game_fixes ? info->flags & GDB_FIXES : 0;

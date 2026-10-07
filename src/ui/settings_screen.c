@@ -118,6 +118,8 @@ static const char *const LIGHTGUNS[] = {"Automatic", "Off", "On"};
 static const char *const OVERCLOCKS[] = {"Off", "A little", "A lot"};
 static const char *const BRIGHTNESS[] = {"Darker", "Normal", "Brighter", "Brightest"};
 static const char *const COLOURS[] = {"Natural", "Vivid", "Soft", "Warm", "Cool", "Black and white"};
+static const char *const SHARPENS[] = {"Off", "Light", "Strong"};
+static const char *const RUN_AHEADS[] = {"Off", "1 frame", "2 frames"};
 static const char *const MSAA[] = {"Off", "2x", "4x", "8x", "16x"};
 static const char *const TEXTURE_FILTERS[] = {"Off", "Bilinear", "xBR", "SABR", "JINC2", "3-point"};
 static const char *const DEINTERLACERS[] = {"Weave", "Bob", "Motion-adaptive"};
@@ -133,6 +135,8 @@ static const Row DISPLAY[] = {
      APPLY_NOW, SP_NONE, false, INT_FIELD(aspect), ASPECTS, 6, 0},
     {NULL, "Shader", "Beetle PSX HW on the GPU: sharp bilinear keeps pixels crisp without shimmer; CRT adds scanlines, an RGB grille and glow.",
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(shader), SHADERS, 3, 0},
+    {NULL, "Sharpening", "Beetle PSX HW with the shader off: a light, contrast-aware sharpening (AMD FidelityFX CAS) that makes an upscaled picture crisper without halos.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(sharpen), SHARPENS, 3, 0},
     {NULL, "Crop black edges", "Hides the black lines many games leave at the top and bottom, which an old TV hid. Pair with Stretch to fill the screen.",
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(crop_edges), CROPS, 3, 0},
     {NULL, "Widescreen", "Turns on the game's widescreen code from the cheat library and shows 16:9. Games without one stay 4:3.",
@@ -164,6 +168,10 @@ static const Row GRAPHICS[] = {
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pgxp), OFF_ON, 2, 0},
     {NULL, "Dithering", "The PS1's dot pattern that fakes more colours. Off looks cleaner.", K_TOGGLE,
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(dithering), OFF_ON, 2, 0},
+    {NULL, "True colour", "Beetle PSX HW: draws in 32-bit colour, without the dot pattern or colour banding. Pairs well with a high internal resolution.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(true_colour), OFF_ON, 2, 0},
+    {NULL, "Smooth video colours", "Beetle PSX HW: smooths the blocky colour edges of the PS1's video cutscenes (FMV).",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(fmv_smooth), OFF_ON, 2, 0},
     {"Smoothing", "Anti-aliasing", "Beetle PSX HW: smooths the jagged edges of polygons (MSAA). Higher costs more GPU time, and a few games show seams or glitches with it: turn it off for those.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(msaa), MSAA, 5, 0},
     {NULL, "Texture filtering", "Beetle PSX HW: smooths blocky 3D textures. xBR and SABR keep edges sharp; bilinear is softest.",
@@ -201,6 +209,10 @@ static const Row CONTROLS[] = {
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(trigger_effects), OFF_ON, 2, 0},
     {NULL, "Gas and brake on R2 / L2", "In racing games where Cross is the gas and Square the brake (Gran Turismo, Ridge Racer...), R2 and L2 press them.",
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(racing_triggers), OFF_ON, 2, 0},
+    {NULL, "NeGcon for racing games", "Racing games made for Namco's NeGcon get analog gas and brake: how far you press R2 and L2 counts, and the left stick steers.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(negcon), OFF_ON, 2, 0},
+    {NULL, "Touchpad as a mouse", "Games made for the PlayStation Mouse (Discworld, Lemmings...): slide a finger on the touchpad to move the pointer; R2 or Cross clicks, L2 or Circle right-clicks.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(touch_mouse), OFF_ON, 2, 0},
     {NULL, "Light gun", "GunCon and Justifier games: point the controller at the screen to aim (motion sensor), R2 fires, L2 reloads, R3 re-centres. Automatic turns it on for known gun games.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(lightgun), LIGHTGUNS, 3, 0},
     {"Buttons", "Touchpad shortcuts", "Hold the touchpad and press: R2 fast forward, L2 rewind (turn Rewind on in System), Square screenshot, Triangle start/pause the timer, Circle reset it, R1 next disc.",
@@ -236,6 +248,8 @@ static const Row LIBRARY[] = {
      true, INT_FIELD(theme), THEME_NAMES, THEME_COUNT, 0},
     {NULL, "Cover art", "Flat front covers, or 3D boxes.", K_CHOICE, APPLY_NOW, SP_NONE, true,
      INT_FIELD(cover_style), COVER_STYLES, 2, 0},
+    {NULL, "Disc animation", "When a game starts, its disc slides out of the case and spins.", K_TOGGLE, APPLY_NOW,
+     SP_NONE, true, BOOL_FIELD(disc_animation), OFF_ON, 2, 0},
     {NULL, "Download missing covers", "Fetches covers for new games over the internet.", K_TOGGLE,
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(cover_download), OFF_ON, 2, 0},
     {NULL, "Background", "Classic theme: Dark keeps the screen deep navy; Cover colour tints it with the selected game.",
@@ -259,6 +273,8 @@ static const Row SYSTEM[] = {
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},
     {NULL, "Fast CD loading", "Shorter loading screens. Rarely, a game glitches.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(cd_fast), OFF_ON, 2, 0},
+    {NULL, "PS1 startup intro", "Shows the PlayStation logo and sound before the game, as a real console does. Needs your own BIOS.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(boot_intro), OFF_ON, 2, 0},
     {NULL, "PAL at 60 Hz", "Beetle PSX HW: European games run at 60 Hz like the American ones: smoother and full speed. A few games then misbehave.",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pal60), OFF_ON, 2, 0},
     {NULL, "Known game fixes", "Turns off, for that game only, the settings DuckStation's game database says it breaks with (PGXP, widescreen, upscaling, filtering).",
@@ -269,6 +285,8 @@ static const Row SYSTEM[] = {
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(quick_resume), OFF_ON, 2, 0},
     {NULL, "Rewind", "Keeps the last 8 seconds so you can go back (touchpad + L2). Uses about 200 MB of memory.",
      K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(rewind), OFF_ON, 2, 0},
+    {NULL, "Run-ahead", "Answers your buttons 1 or 2 frames sooner, for fighting games and platformers. It runs extra frames: at high internal resolutions some games may slow down.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(run_ahead), RUN_AHEADS, 3, 0},
     {NULL, "Auto-save", "Saves the game by itself every few minutes into three auto-save slots (the oldest is replaced). Load one from the PSXS5 menu > Auto-saves.",
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(autosave), AUTOSAVES, 4, 0},
     {"People", "Who's playing", "Profiles: each person keeps their own memory cards, save states, settings, play time, favourites and RetroAchievements sign-in. Games and covers are shared.",

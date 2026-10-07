@@ -23,8 +23,8 @@ bool vkp_game_image_ready(void);
 /* Draw that picture in this rectangle of the canvas, under it, this frame. */
 /* crop: share of the picture's height hidden at the top and at the bottom */
 /* shader: 0 none, 1 sharp bilinear, 2 CRT, 3 supersampling (averaged down); tex_*: the picture's size; lines: the PS1's */
-/* The game picture's colours (1, 1, 0: unchanged). */
-void vkp_set_colour(float brightness, float saturation, float warmth);
+/* The game picture's colours (1, 1, 0: unchanged) and sharpening (0 none .. 1). */
+void vkp_set_colour(float brightness, float saturation, float warmth, float sharpen);
 void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines);
 
 #endif

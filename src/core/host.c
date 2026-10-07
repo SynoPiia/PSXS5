@@ -119,6 +119,7 @@ static struct retro_disk_control_ext_callback disk;
 static bool disk_available;
 static bool loaded;
 static unsigned game_fixes; /* GDB_* fixes for the next game (gamedb.h) */
+static int lid_open_frames;   /* frames left before the lid closes after a disc change */
 
 static char patches_dir[PSXS5_PATH_MAX];
 static bool multitap;
@@ -218,12 +219,17 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_renderer", gpu ? "hardware_vk" : "software");
     set_option("beetle_psx_hw_internal_resolution", scales[level - 1]);
     set_option("beetle_psx_hw_region", regions[s->region % REGION_COUNT]);
-    set_option("beetle_psx_hw_dither_mode", s->dithering ? "1x(native)" : "disabled");
+    /* true colour: 32-bit, so no dithering */
+    set_option("beetle_psx_hw_depth", s->true_colour ? "32bpp" : "16bpp(native)");
+    set_option("beetle_psx_hw_dither_mode", s->dithering && !s->true_colour ? "1x(native)" : "disabled");
+    set_option("beetle_psx_hw_mdec_yuv", s->fmv_smooth ? "enabled" : "disabled");
+    set_option("beetle_psx_hw_negcon_response", "linear");
+    set_option("beetle_psx_hw_negcon_deadzone", "0%");
     /* read as it plays: "precache" loads every disc of a game into memory,
      * and two discs already pass PSXS5's 1 GB */
     set_option("beetle_psx_hw_cd_access_method", "async");
     set_option("beetle_psx_hw_cd_fastload", s->cd_fast ? "4x" : "2x(native)");
-    set_option("beetle_psx_hw_skip_bios", "enabled");
+    set_option("beetle_psx_hw_skip_bios", s->boot_intro ? "disabled" : "enabled");
     bool pgxp = s->pgxp && !(game_fixes & GDB_NO_PGXP);
     set_option("beetle_psx_hw_pgxp_mode", !pgxp ? "disabled" : (game_fixes & GDB_PGXP_CPU) ? "memory + CPU" : "memory only");
     set_option("beetle_psx_hw_pgxp_texture", pgxp ? "enabled" : "disabled");
@@ -286,7 +292,7 @@ static void apply_settings_to_options(const Settings *s)
     set_option("pcsx_rearmed_cd_turbo", s->cd_fast ? "enabled" : "disabled");
     set_option("pcsx_rearmed_rgb32_output", "enabled");
     set_option("pcsx_rearmed_memcard1", "serial");   /* one card per game, managed by the core */
-    set_option("pcsx_rearmed_show_bios_bootlogo", "disabled");
+    set_option("pcsx_rearmed_show_bios_bootlogo", s->boot_intro ? "enabled" : "disabled");
     set_option("pcsx_rearmed_vibration", "enabled");
     set_option("pcsx_rearmed_display_fps_v2", "disabled");
     /* 2x internal resolution: the enhanced GPU renders the 3D scene at double size. */
@@ -449,6 +455,13 @@ static int gun_device;           /* 0 a pad, 1 GunCon, 2 Justifier in port 1 */
 void host_set_gun(int device)
 {
     gun_device = device;
+}
+
+static int special_device; /* 0 pads, 1 NeGcon in every port, 2 a mouse in port 1 */
+
+void host_set_special(int device)
+{
+    special_device = device;
 }
 
 void host_set_fixes(unsigned flags)
@@ -684,7 +697,26 @@ static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, uns
             return id == RETRO_DEVICE_ID_ANALOG_X ? p->lx : p->ly;
         if (index == RETRO_DEVICE_INDEX_ANALOG_RIGHT)
             return id == RETRO_DEVICE_ID_ANALOG_X ? p->rx : p->ry;
+        if (index == RETRO_DEVICE_INDEX_ANALOG_BUTTON)
+        {
+            /* how far a button is pressed (the NeGcon's I, II and L): the triggers'
+             * travel, full for the others */
+            if (id == RETRO_DEVICE_ID_JOYPAD_R2)
+                return (int16_t)(p->r2 * 128 + (p->r2 >> 1));
+            if (id == RETRO_DEVICE_ID_JOYPAD_L2)
+                return (int16_t)(p->l2 * 128 + (p->l2 >> 1));
+            return id < 16 && ((p->buttons >> id) & 1) ? 0x7fff : 0;
+        }
         return 0;
+    case RETRO_DEVICE_MOUSE:
+        switch (id)
+        {
+        case RETRO_DEVICE_ID_MOUSE_X: return p->mouse_dx;
+        case RETRO_DEVICE_ID_MOUSE_Y: return p->mouse_dy;
+        case RETRO_DEVICE_ID_MOUSE_LEFT: return ((p->buttons >> BTN_R2) | (p->buttons >> BTN_CROSS)) & 1;
+        case RETRO_DEVICE_ID_MOUSE_RIGHT: return ((p->buttons >> BTN_L2) | (p->buttons >> BTN_CIRCLE)) & 1;
+        default: return 0;
+        }
     case RETRO_DEVICE_LIGHTGUN:
         /* the controller as a gun: aimed by PSXS5 (controls.c), R2 fires,
          * L2 or Square reloads (a shot off the screen), Cross / Circle are A / B */
@@ -886,6 +918,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     card_prepare(serial ? serial : "", game_path);
     option_count = 0;
     disk_available = false;
+    lid_open_frames = 0;
     frame_data = NULL;
     pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
     rumble_scale = settings->rumble ? (settings->rumble_strength + 1) * 0.25f : 0.0f;
@@ -933,6 +966,14 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
         core->set_controller_port_device(port, device);
+    /* NeGcon (analog subclass 3 in Beetle, 2 in PCSX-ReARMed) in every port, or a mouse in port 1 */
+    if (special_device == 1)
+        for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
+            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &PCSX ? 2 : 3));
+    if (special_device == 2)
+        core->set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE, 0));
+    if (special_device)
+        psxs5_log("host: %s", special_device == 1 ? "NeGcon in each port" : "a mouse in port 1");
     /* a light gun in port 1: GunCon is subclass 0, the Justifier 1, in both cores */
     if (gun_device)
     {
@@ -1052,6 +1093,8 @@ void host_run_frame(void)
 {
     if (!loaded)
         return;
+    if (lid_open_frames > 0 && --lid_open_frames == 0 && disk_available)
+        disk.set_eject_state(false); /* the disc change, completed */
     core->run();
     if (++card_check >= 120) /* every 2 s: games write a save in a burst */
     {
@@ -1239,10 +1282,11 @@ bool host_disc_select(int index)
 {
     if (!disk_available || index < 0 || index >= host_disc_count())
         return false;
-    /* Open the lid, swap, close it: the game sees a normal disc change. */
-    if (!disk.set_eject_state(true))
+    /* Open the lid and swap; it closes about a second later (host_run_frame),
+     * as a hand would: closed at once, games didn't notice the change. */
+    if (!disk.get_eject_state() && !disk.set_eject_state(true))
         return false;
     bool ok = disk.set_image_index((unsigned)index);
-    disk.set_eject_state(false);
+    lid_open_frames = 60;
     return ok;
 }
