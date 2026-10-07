@@ -52,6 +52,12 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 - **No more wobbly 3D.** PGXP (precise geometry) keeps polygons still and textures straight.
 - **The right emulator, automatically.** *Emulator: Automatic* uses Beetle when the BIOS for the game's region is there, and PCSX-ReARMed otherwise. Both share one memory card per game.
 
+- **Five themes.** Classic, Neon Arcade, Memory Card (light and dark, a grid of covers) and Record Shelf (spines on a shelf), each with its own colours and fonts.
+- **The DualSense as a light gun.** Point the controller at the screen in GunCon and Justifier games (Time Crisis, Point Blank...); R2 fires.
+- **Adaptive triggers.** R2 feels like a gas pedal in racing games, and R2 / L2 can be the gas and brake.
+- **Profiles.** Each person keeps their own memory cards, save states, settings, play time and RetroAchievements sign-in.
+- **Text guides and manuals.** Read a walkthrough `.txt` or a manual's pages from the in-game menu.
+- **Game art.** Title screens and gameplay pictures in Details, the game's own artwork around the picture, and an idle slideshow.
 - **Quick resume.** Leave a game and pick it up later: the shelf offers *Continue* (with a picture of where you were) or *Start over*.
 - **Rewind and fast forward.** Hold the touchpad and press L2 to go back a few seconds, or R2 to speed through cutscenes.
 - **Save states with pictures.** Ten slots per game, each showing a thumbnail and how long ago it was saved.
@@ -93,7 +99,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
   - On digital-only games, the left stick drives the D-pad.
   - Cross confirms and Circle goes back in the menus.
 - **Your BIOS, or none.** Beetle PSX HW needs a BIOS dump of your own console for the game's region (`scph5500.bin` Japan, `scph5501.bin` USA, `scph5502.bin` Europe in `bios/`; the PC tool names them for you). Without one, PCSX-ReARMed runs the game with its built-in BIOS.
-- **Five languages.** English, Français, Português (Portugal), Español (Latinoamérica) and 日本語, under Settings → Library → Language.
+- **Five languages.** English, Français, Português (Portugal), Español (Latinoamérica) and 日本語, under Settings → System → Language.
 - **Quiet interface sounds.** Five styles (Soft, Wood, Pop, Chime, Classic), a volume setting, or off.
 - **A PC tool for your library.** `tools/psxs5_sync.py` prepares your games on Windows and uploads them over FTP:
   - unpacks archives
@@ -173,10 +179,13 @@ The log shows the result: `storage: unlocked`, or `storage: sandboxed (...)` wit
 | Button | Does |
 |---|---|
 | D-pad or left stick | Browse the games |
-| L1 / R1 | Jump a page |
+| L1 / R1 | Category (All games, Recently played, Favorites...) |
 | Cross | Play |
-| Triangle | Game details |
+| Triangle | Game details (L3 there hides the game) |
 | Square | Settings |
+| R3 | Favorite |
+| Touchpad | Surprise me: a random game |
+| OPTIONS | Sort order |
 | Circle | Back |
 
 **In a game**
@@ -188,25 +197,37 @@ The log shows the result: `storage: unlocked`, or `storage: sandboxed (...)` wit
 | Hold the touchpad (0.5 s) or L3 + R3 | The PSXS5 menu |
 | Hold the touchpad + R2 | Fast forward |
 | Hold the touchpad + L2 | Rewind (turn on *Settings → System → Rewind*) |
+| Hold the touchpad + Square | Screenshot (in `/data/PSXS5/screenshots`) |
+| Hold the touchpad + Triangle / Circle | Start or pause / reset the speedrun timer |
+| Hold the touchpad + R1 | Next disc |
+| R3 (light gun games) | Re-centre the aim |
 | Left stick | Analog stick; on digital-only games it also drives the D-pad (*Left stick as D-pad* in Settings) |
 
 The **PSXS5 menu** has:
 - resume
-- save and load state (slots 0–9)
+- save and load state (slots 0–9), and the auto-saves
 - disc change, for multi-disc games
-- cheats
-- reset
+- cheats, and *Find a code* to make your own
+- achievements
+- the manual and text guides, when the game has them
 - settings
+- reset
 - quit to the shelf
+
+It also shows the time and how long you've been playing.
+
+**Text guides:** put a walkthrough or FAQ (`.txt`) in the game's folder, or in a `guides` folder inside it, and read it from the PSXS5 menu → Guide. **Manuals:** page images (`1.jpg`, `2.jpg`...) in `<game folder>/manual/`.
 
 ## Settings
 
 | Section | Settings |
 |---|---|
-| Video | Internal resolution (native to 16x), PGXP, upscale (off, 2x, 3x, 4x), upscale filter (sharp, Scale2x, xBR), aspect ratio, integer scaling, smooth final scaling, dithering, FPS counter |
-| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region (auto, NTSC, PAL), BIOS (real if present, or built-in HLE), controller (digital or DualShock), left stick as D-pad, fast CD loading, unlocking `/data`, PS5SX2 Helper whitelist |
-| RetroAchievements | Account, hardcore mode |
-| Library | Cover style (flat or 3D box), download missing covers, language, interface sound and volume, rescan library |
+| Display | Upscale filter, aspect ratio, shader (sharp bilinear, CRT), crop black edges, widescreen, integer scaling, scanlines, border, game artwork border, brightness, colours, FPS counter |
+| Graphics | Internal resolution (native to 16x), HD texture packs, PGXP, dithering |
+| Controls | Controller (digital or DualShock), left stick as D-pad, vibration, light bar, players (multitap), player order, dead zone, stick response, rumble feel, trigger effects, gas and brake on R2 / L2, light gun, button mapping |
+| Achievements | Account, your profile, unlock pop-ups and their style, progress tracker, hardcore mode |
+| Library | Theme, cover style, download missing covers, sort, your library, memory cards, rescan |
+| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region, BIOS, fast CD loading, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
 
 Video settings apply while you play. Emulator, internal resolution, PGXP, region, BIOS and controller apply from the next game.
 
@@ -220,7 +241,15 @@ python tools/psxs5_sync.py ra-login --host <PS5 IP>
 
 Restart PSXS5 and it signs in by itself. Start a game, and if it has an achievement set, a banner shows how many you have unlocked.
 
-- **Hardcore mode** (Settings → RetroAchievements) turns off loading states and cheats, as RetroAchievements requires. Turning it on restarts the running game.
+With several profiles (Settings → System → Who's playing), each person signs in for their own profile, using its name as shown on the console:
+
+```bash
+python tools/psxs5_sync.py ra-login --host <PS5 IP> --profile "Player 2"
+```
+
+- **Your profile** (Settings → Achievements) shows your points, the games you've mastered, recent unlocks and the games closest to mastery. Covers show a trophy badge with your progress.
+
+- **Hardcore mode** (Settings → Achievements) turns off loading states and cheats, as RetroAchievements requires. Turning it on restarts the running game.
 - Without a connection, unlocks are kept and sent when the console is back online.
 - Games are recognised by the same disc hash RetroArch uses, so the usual RetroAchievements-compatible dumps (Redump) work. When a version isn't in any set (some PlayStation Store or patched images), PSXS5 says so.
 
@@ -256,7 +285,6 @@ It remembers what is already on the console, so you can run it again whenever yo
 ## Known limitations
 
 - **Beetle PSX HW needs a BIOS** for the game's region; without it PSXS5 uses PCSX-ReARMed (up to 2x).
-- **Shaders** (CRT filters beyond the scanlines) aren't there yet.
 - **Sandboxed mode.** If etaHEN won't unlock `/data`, PSXS5 still runs: it reads the game list the PC tool uploads (`library.txt`) instead of listing the folder.
 - **Closing from the PS button** crashed the console once during testing while `/data` was unlocked through etaHEN. If it happens to you, set *Settings → System → Unlock /data with etaHEN* to Off and let us know.
 - The PS5's own keyboard and on-screen keyboard aren't used, so text entry (like the RetroAchievements sign-in) happens on the PC.
