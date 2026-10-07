@@ -197,8 +197,8 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_widescreen_hack", s->widescreen ? "enabled" : "disabled");
     set_option("beetle_psx_hw_widescreen_hack_aspect_ratio", "16:9");
     set_option("beetle_psx_hw_analog_toggle", "enabled");
-    /* the core writes saves/<disc name>.0.mcr itself */
-    set_option("beetle_psx_hw_use_mednafen_memcard0_method", "mednafen");
+    /* card 0 through SAVE_RAM: PSXS5 keeps it in PCSX-ReARMed's file */
+    set_option("beetle_psx_hw_use_mednafen_memcard0_method", "libretro");
     set_option("beetle_psx_hw_frame_duping", "enabled");
 }
 #endif
@@ -588,16 +588,150 @@ static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, uns
     }
 }
 
-/* ---------------------------------------------------------------- API */
+/* ---------------------------------------------------------------- memory card */
 
-static const CoreApi *choose_core(const Settings *settings)
+/* One card per game, whichever emulator runs it: <saves>/<serial>_1.mcd,
+ * the file PCSX-ReARMed writes itself ("serial" cards) and the memory card
+ * manager shows. Beetle's card is the frontend's (SAVE_RAM): loaded from that
+ * file after retro_load_game, written back when it changes. */
+static char card_path[PSXS5_PATH_MAX];
+static uint8_t card_saved[128 * 1024];
+static int card_check;
+
+static void card_prepare(const char *serial, const char *game_path)
+{
+    card_path[0] = '\0';
+    char name[200], path[PSXS5_PATH_MAX];
+    if (serial[0])
+        snprintf(name, sizeof(name), "%s_1.mcd", serial);
+    else
+    {
+        /* no serial known: the game file's name */
+        const char *base = strrchr(game_path, '/');
+        snprintf(name, sizeof(name), "%.150s", base ? base + 1 : game_path);
+        char *dot = strrchr(name, '.');
+        if (dot)
+            *dot = '\0';
+        strncat(name, "_1.mcd", sizeof(name) - strlen(name) - 1);
+    }
+    path_join(card_path, sizeof(card_path), host_paths->saves, name);
+    /* PCSX names it as the disc spells its ID, sometimes lower case */
+    FILE *f = fopen(card_path, "rb");
+    if (f)
+    {
+        fclose(f);
+        return;
+    }
+    for (char *c = name; *c; ++c)
+        *c = (char)(*c >= 'A' && *c <= 'Z' ? *c + 32 : *c);
+    path_join(path, sizeof(path), host_paths->saves, name);
+    if ((f = fopen(path, "rb")) != NULL)
+    {
+        fclose(f);
+        str_copy(card_path, sizeof(card_path), path);
+    }
+}
+
+static uint8_t *beetle_card(void)
 {
 #if defined(PSXS5_VULKAN)
-    /* Automatic stays on PCSX-ReARMed until Beetle draws through Vulkan */
+    if (core == &BEETLE && card_path[0] && core->get_memory_size(RETRO_MEMORY_SAVE_RAM) == sizeof(card_saved))
+        return core->get_memory_data(RETRO_MEMORY_SAVE_RAM);
+#endif
+    return NULL;
+}
+
+static void card_load(void)
+{
+    uint8_t *card = beetle_card();
+    if (!card)
+        return;
+    FILE *f = fopen(card_path, "rb");
+    if (f)
+    {
+        size_t n = fread(card, 1, sizeof(card_saved), f);
+        fclose(f);
+        psxs5_log("host: memory card %s (%s)", card_path, n == sizeof(card_saved) ? "loaded" : "short");
+    }
+    memcpy(card_saved, card, sizeof(card_saved));
+}
+
+static void card_flush(void)
+{
+    uint8_t *card = beetle_card();
+    if (!card || memcmp(card, card_saved, sizeof(card_saved)) == 0)
+        return;
+    char temp[PSXS5_PATH_MAX];
+    snprintf(temp, sizeof(temp), "%s.tmp", card_path);
+    FILE *f = fopen(temp, "wb");
+    bool ok = f && fwrite(card, 1, sizeof(card_saved), f) == sizeof(card_saved);
+    if (f)
+        ok = fclose(f) == 0 && ok;
+    ok = ok && rename(temp, card_path) == 0;
+    if (ok)
+        memcpy(card_saved, card, sizeof(card_saved));
+    psxs5_log("host: memory card %s %s", card_path, ok ? "saved" : "could not be saved");
+}
+
+/* ---------------------------------------------------------------- API */
+
+#if defined(PSXS5_VULKAN)
+/* Beetle needs a real BIOS of the disc's region, by one of the names it
+ * looks for (libretro.c firmware_is_present). Region from the serial. */
+static bool beetle_bios_present(const char *serial)
+{
+    static const char *const jp[] = {"scph5500.bin", "SCPH5500.bin", "SCPH5500.BIN", "SCPH-5500.bin",
+                                     "SCPH-5500.BIN", NULL};
+    static const char *const us[] = {"scph5501.bin", "SCPH5501.bin", "SCPH5501.BIN", "SCPH-5501.bin",
+                                     "SCPH-5501.BIN", "scph5503.bin", "scph7003.bin", NULL};
+    static const char *const eu[] = {"scph5502.bin", "SCPH5502.bin", "SCPH5502.BIN", "SCPH-5502.bin",
+                                     "SCPH-5502.BIN", "scph5552.bin", NULL};
+    const char *const *lists[3] = {us, eu, jp};
+    int only = -1; /* unknown region: any BIOS will do */
+    if (!strncmp(serial, "SLUS", 4) || !strncmp(serial, "SCUS", 4) || !strncmp(serial, "PAPX", 4))
+        only = 0;
+    else if (!strncmp(serial, "SLES", 4) || !strncmp(serial, "SCES", 4) || !strncmp(serial, "SCED", 4))
+        only = 1;
+    else if (serial[0] == 'S' || serial[0] == 'P') /* SLPS, SCPS, SLPM, SIPS, PCPX... */
+        only = 2;
+    for (int l = 0; l < 3; ++l)
+    {
+        if (only >= 0 && l != only)
+            continue;
+        for (const char *const *name = lists[l]; *name; ++name)
+        {
+            char path[PSXS5_PATH_MAX];
+            path_join(path, sizeof(path), host_paths->bios, *name);
+            FILE *f = fopen(path, "rb");
+            if (f)
+            {
+                fclose(f);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+#endif
+
+static const CoreApi *choose_core(const Settings *settings, const char *serial)
+{
+#if defined(PSXS5_VULKAN)
     if (settings->emulator == EMU_BEETLE)
         return &BEETLE;
+    if (settings->emulator == EMU_AUTO)
+    {
+        /* Beetle when it can run the game well: on the GPU, with the BIOS */
+        const char *why = settings->force_hle             ? "the built-in BIOS was chosen"
+                          : !vkp_describe()[0]            ? "the screen isn't drawn through Vulkan"
+                          : !beetle_bios_present(serial) ? "no BIOS for this disc's region"
+                                                          : NULL;
+        if (!why)
+            return &BEETLE;
+        psxs5_log("host: PCSX-ReARMed, as %s", why);
+    }
 #else
-    (void)settings;
+    (void)settings, (void)serial;
 #endif
     return &PCSX;
 }
@@ -607,13 +741,14 @@ const char *host_core_name(void)
     return core->name;
 }
 
-bool host_load(const char *game_path, const Paths *paths, const Settings *settings,
+bool host_load(const char *game_path, const char *serial, const Paths *paths, const Settings *settings,
                char *error, size_t error_size)
 {
     host_unload();
-    core = choose_core(settings);
-    psxs5_log("host: emulator %s", core->name);
     host_paths = paths;
+    core = choose_core(settings, serial ? serial : "");
+    psxs5_log("host: emulator %s", core->name);
+    card_prepare(serial ? serial : "", game_path);
     option_count = 0;
     disk_available = false;
     frame_data = NULL;
@@ -661,6 +796,7 @@ bool host_load(const char *game_path, const Paths *paths, const Settings *settin
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
         core->set_controller_port_device(port, device);
     loaded = true;
+    card_load();
     STEP("running");
 #undef STEP
     psxs5_log("loaded %s: %.3f fps, %.0f Hz, base %ux%u", game_path, av_info.timing.fps,
@@ -673,6 +809,7 @@ void host_unload(void)
 {
     if (!loaded)
         return;
+    card_flush();
     core->unload_game();
 #if defined(PSXS5_VULKAN)
     hw_stop();
@@ -741,8 +878,14 @@ void host_set_pads(const PadState pads[PSXS5_MAX_PADS])
 
 void host_run_frame(void)
 {
-    if (loaded)
-        core->run();
+    if (!loaded)
+        return;
+    core->run();
+    if (++card_check >= 120) /* every 2 s: games write a save in a burst */
+    {
+        card_check = 0;
+        card_flush();
+    }
 }
 
 void host_reset(void)

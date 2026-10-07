@@ -7,7 +7,9 @@
 
 #include "../psxs5.h"
 
-bool host_load(const char *game_path, const Paths *paths, const Settings *settings,
+/* serial: the disc's (SLUS-00662), for the emulator choice and the memory
+ * card; may be empty. */
+bool host_load(const char *game_path, const char *serial, const Paths *paths, const Settings *settings,
                char *error, size_t error_size);
 void host_unload(void);
 bool host_loaded(void);

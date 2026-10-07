@@ -310,7 +310,7 @@ void app_start_game(int index, bool resume)
     play_rewind_reset();
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
-    if (!host_load(g->path, &app.paths, &app.settings, error, sizeof(error)))
+    if (!host_load(g->path, g->serial, &app.paths, &app.settings, error, sizeof(error)))
     {
         app.settings = app.global;
         app_toast(error);

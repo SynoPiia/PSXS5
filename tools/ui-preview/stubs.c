@@ -13,10 +13,11 @@
 static bool loaded;
 static uint32_t frame[320 * 240];
 
-bool host_load(const char *game_path, const Paths *paths, const Settings *settings, char *error,
-               size_t error_size)
+bool host_load(const char *game_path, const char *serial, const Paths *paths, const Settings *settings,
+               char *error, size_t error_size)
 {
-    (void)game_path; (void)paths; (void)settings; (void)error; (void)error_size;
+    (void)game_path;
+    (void)serial; (void)paths; (void)settings; (void)error; (void)error_size;
     for (int y = 0; y < 240; ++y)
         for (int x = 0; x < 320; ++x)
         {
