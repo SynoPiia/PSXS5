@@ -332,6 +332,22 @@ static bool hw_start(char *error, size_t size)
     return true;
 }
 
+/* The core asked for new geometry (internal resolution...): a new device
+ * and renderer, between frames. */
+static void hw_restart(void)
+{
+    if (hw.context_destroy)
+        hw.context_destroy();
+    hw_running = false;
+    vkp_set_game_image(VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED);
+    char error[200];
+    if (!hw_start(error, sizeof(error)))
+        psxs5_log("host: could not rebuild Beetle's renderer: %s", error);
+    else
+        psxs5_log("host: Beetle's renderer rebuilt for %ux%u", av_info.geometry.max_width,
+                  av_info.geometry.max_height);
+}
+
 static void hw_stop(void)
 {
     if (hw_running && hw.context_destroy)
@@ -434,6 +450,12 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
         return true;
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
         av_info = *(const struct retro_system_av_info *)data;
+#if defined(PSXS5_VULKAN)
+        /* Beetle's Vulkan renderer reads its internal resolution only when
+         * it is rebuilt: like RetroArch, rebuild the context right away */
+        if (hw_running)
+            hw_restart();
+#endif
         return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         av_info.geometry = *(const struct retro_game_geometry *)data;
