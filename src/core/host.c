@@ -11,6 +11,8 @@
  */
 #include "host.h"
 
+#include "../gamedb.h"
+
 #include "libretro.h"
 #include "../platform/platform.h"
 #if defined(PSXS5_VULKAN)
@@ -207,6 +209,8 @@ static void apply_beetle_options(const Settings *s)
     static const char *const regions[] = {"auto", "ntsc-u", "pal"};
     static const char *const scales[] = {"1x(native)", "2x", "4x", "8x", "16x"};
     int level = s->internal_res >= 1 && s->internal_res <= 5 ? s->internal_res : 1;
+    if (game_fixes & GDB_NO_UPSCALING)
+        level = 1; /* the game breaks above native (DuckStation's database) */
     bool gpu = vkp_describe()[0] != '\0'; /* the screen runs through Vulkan */
     if (!gpu && level > 2)
         level = 2; /* the software renderer: 4x and up would not fit in memory */
@@ -219,8 +223,9 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_cd_access_method", "async");
     set_option("beetle_psx_hw_cd_fastload", s->cd_fast ? "4x" : "2x(native)");
     set_option("beetle_psx_hw_skip_bios", "enabled");
-    set_option("beetle_psx_hw_pgxp_mode", s->pgxp ? "memory only" : "disabled");
-    set_option("beetle_psx_hw_pgxp_texture", s->pgxp ? "enabled" : "disabled");
+    bool pgxp = s->pgxp && !(game_fixes & GDB_NO_PGXP);
+    set_option("beetle_psx_hw_pgxp_mode", !pgxp ? "disabled" : (game_fixes & GDB_PGXP_CPU) ? "memory + CPU" : "memory only");
+    set_option("beetle_psx_hw_pgxp_texture", pgxp ? "enabled" : "disabled");
     set_option("beetle_psx_hw_widescreen_hack", s->widescreen ? "enabled" : "disabled");
     set_option("beetle_psx_hw_widescreen_hack_aspect_ratio", "16:9");
     set_option("beetle_psx_hw_analog_toggle", "enabled");
@@ -242,6 +247,23 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_gte_overclock", oc ? "enabled" : "disabled");
     set_option("beetle_psx_hw_gpu_overclock", oc == 2 ? "2x" : "1x(native)");
     set_option("beetle_psx_hw_gun_cursor", "off"); /* PSXS5 draws its own */
+    /* the picture: anti-aliasing, texture filtering, supersampling, deinterlacing, PAL at 60 Hz */
+    static const char *const msaa[] = {"1x", "2x", "4x", "8x", "16x"};
+    static const char *const filters[] = {"nearest", "bilinear", "xBR", "SABR", "JINC2", "3-point"};
+    int m = s->msaa >= 0 && s->msaa <= 4 && !(game_fixes & GDB_NO_UPSCALING) ? s->msaa : 0;
+    set_option("beetle_psx_hw_msaa", msaa[m]);
+    int tf = s->texture_filter >= 0 && s->texture_filter <= 5 && !(game_fixes & GDB_NO_TEXTURE_FILTER) ? s->texture_filter : 0;
+    set_option("beetle_psx_hw_filter", filters[tf]);
+    bool sprites = s->filter_2d && !(game_fixes & GDB_NO_SPRITE_FILTER);
+    set_option("beetle_psx_hw_filter_exclude_sprite", sprites ? "disabled" : "all");
+    set_option("beetle_psx_hw_filter_exclude_2d_polygon", s->filter_2d ? "disabled" : "all");
+    set_option("beetle_psx_hw_super_sampling", s->supersampling ? "enabled" : "disabled");
+    static const char *const deint[] = {"weave", "bob", "fastmad"};
+    int d = s->deinterlace >= 0 && s->deinterlace <= 2 ? s->deinterlace : 0;
+    if (!d && (game_fixes & GDB_DEINTERLACE))
+        d = 1; /* the game needs it */
+    set_option("beetle_psx_hw_deinterlacer", deint[d]);
+    set_option("beetle_psx_hw_pal_video_timing_override", s->pal60 ? "enabled" : "disabled");
 }
 #endif
 
@@ -420,10 +442,16 @@ static void RETRO_CALLCONV core_log(enum retro_log_level level, const char *fmt,
 
 static float rumble_scale = 1.0f; /* Settings > Controls > Vibration */
 static int gun_device;           /* 0 a pad, 1 GunCon, 2 Justifier in port 1 */
+static unsigned game_fixes;      /* GDB_* fixes for the next game (gamedb.h) */
 
 void host_set_gun(int device)
 {
     gun_device = device;
+}
+
+void host_set_fixes(unsigned flags)
+{
+    game_fixes = flags;
 }
 static int rumble_feel;          /* Settings > Controls > Rumble feel */
 static uint16_t rumble_strong[PSXS5_MAX_PADS], rumble_weak[PSXS5_MAX_PADS];
@@ -1174,6 +1202,8 @@ bool host_load_state(const char *path)
 void host_beetle_widescreen(bool on)
 {
 #if defined(PSXS5_VULKAN)
+    if (game_fixes & GDB_NO_WIDESCREEN)
+        on = false; /* the renderer's widescreen breaks this game */
     if (loaded && core == &BEETLE)
         set_option("beetle_psx_hw_widescreen_hack", on ? "enabled" : "disabled");
 #else

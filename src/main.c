@@ -12,6 +12,7 @@
 #include "core/host.h"
 #include "bezels.h"
 #include "controls.h"
+#include "gamedb.h"
 #include "profiles.h"
 #include "covers.h"
 #include "i18n.h"
@@ -382,6 +383,13 @@ void app_start_game(int index, bool resume)
     controls_start(g, &app.settings);
     app.play_seconds = 0;
     host_set_gun(controls_gun_for(g, &app.settings));
+    {
+        const GameInfo *info = gamedb_get(g->serial);
+        unsigned fixes = info && app.settings.game_fixes ? info->flags & GDB_FIXES : 0;
+        host_set_fixes(fixes);
+        if (fixes)
+            psxs5_log("start: known fixes %x (DuckStation's database)", fixes);
+    }
     psxs5_log("start: %s (%s) from %s%s", g->title, g->serial, g->path,
               app.game_has_own ? " with its own settings" : "");
     if (!host_load(g->path, g->serial, &app.paths, &app.settings, error, sizeof(error)))
@@ -840,7 +848,10 @@ int main(void)
     sfx_init(UI_RATE);
     sfx_configure(app.global.ui_sound, (app.global.ui_volume + 1) * 25);
     if (!app.storage_error[0])
+    {
         ra_init(&app.paths);
+        gamedb_start(); /* DuckStation's game database, downloaded once */
+    }
     remote_update(app.global.remote && !app.storage_error[0]);
     if (app.global.update_check && !app.storage_error[0])
         update_check();

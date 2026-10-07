@@ -28,6 +28,8 @@ Fonts in assets/fonts - SIL Open Font License 1.1 (notices beside them): Inter, 
 Cheat codes are downloaded on the console from libretro-database
   (https://github.com/libretro/libretro-database) and DuckStation's chtdb
   (https://github.com/duckstation/chtdb; copyright of the codes is held by their authors).
+DuckStation's game database (https://github.com/stenzek/duckstation, CC BY-NC-ND 4.0) is
+  downloaded on the console for game information and known fixes; PSXS5 doesn't include it.
 Game artwork borders (The Bezel Project, https://github.com/thebezelproject), title
   screens and gameplay pictures (libretro-thumbnails, https://github.com/libretro-thumbnails)
   are downloaded on the console, as covers are; PSXS5 doesn't include them.

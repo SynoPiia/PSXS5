@@ -16,6 +16,7 @@ enum ShelfCategory
     CAT_USA,
     CAT_EUROPE,
     CAT_JAPAN,
+    CAT_MULTIPLAYER, /* 2 players or more (DuckStation's database) */
     CAT_HIDDEN, /* games hidden from the shelf (only shown when there are some) */
     CAT_COUNT
 };

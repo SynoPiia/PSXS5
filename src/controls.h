@@ -14,7 +14,8 @@ enum GameKind
 {
     KIND_GUNCON = 1,
     KIND_JUSTIFIER = 2,
-    KIND_RACING = 4,
+    KIND_RACING = 4, /* Cross gas, Square brake: our list */
+    KIND_PEDAL = 8,  /* a racing game (the database): only the trigger feel */
 };
 
 /* KIND_* bits for a game, from assets/game-kinds.txt. */

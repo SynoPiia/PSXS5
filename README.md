@@ -223,11 +223,11 @@ It also shows the time and how long you've been playing.
 | Section | Settings |
 |---|---|
 | Display | Upscale filter, aspect ratio, shader (sharp bilinear, CRT), crop black edges, widescreen, integer scaling, scanlines, border, game artwork border, brightness, colours, FPS counter |
-| Graphics | Internal resolution (native to 16x), HD texture packs, PGXP, dithering |
+| Graphics | Internal resolution (native to 16x), HD texture packs, PGXP, dithering, anti-aliasing (MSAA), texture filtering, supersampling, deinterlacing |
 | Controls | Controller (digital or DualShock), left stick as D-pad, vibration, light bar, players (multitap), player order, dead zone, stick response, rumble feel, trigger effects, gas and brake on R2 / L2, light gun, button mapping |
 | Achievements | Account, your profile, unlock pop-ups and their style, progress tracker, hardcore mode |
 | Library | Theme, cover style, download missing covers, sort, your library, memory cards, rescan |
-| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region, BIOS, fast CD loading, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
+| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region, BIOS, fast CD loading, PAL at 60 Hz, known game fixes, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
 
 Video settings apply while you play. Emulator, internal resolution, PGXP, region, BIOS and controller apply from the next game.
 

@@ -118,6 +118,9 @@ static const char *const LIGHTGUNS[] = {"Automatic", "Off", "On"};
 static const char *const OVERCLOCKS[] = {"Off", "A little", "A lot"};
 static const char *const BRIGHTNESS[] = {"Darker", "Normal", "Brighter", "Brightest"};
 static const char *const COLOURS[] = {"Natural", "Vivid", "Soft", "Warm", "Cool", "Black and white"};
+static const char *const MSAA[] = {"Off", "2x", "4x", "8x", "16x"};
+static const char *const TEXTURE_FILTERS[] = {"Off", "Bilinear", "xBR", "SABR", "JINC2", "3-point"};
+static const char *const DEINTERLACERS[] = {"Weave", "Bob", "Motion-adaptive"};
 static const char *const AUTOSAVES[] = {"Off", "Every 5 minutes", "Every 10 minutes", "Every 15 minutes"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
@@ -161,6 +164,16 @@ static const Row GRAPHICS[] = {
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pgxp), OFF_ON, 2, 0},
     {NULL, "Dithering", "The PS1's dot pattern that fakes more colours. Off looks cleaner.", K_TOGGLE,
      APPLY_NOW, SP_NONE, false, BOOL_FIELD(dithering), OFF_ON, 2, 0},
+    {"Smoothing", "Anti-aliasing", "Beetle PSX HW: smooths the jagged edges of polygons (MSAA). Higher costs more GPU time; with 8x or 16x resolution, 2x or 4x is plenty.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(msaa), MSAA, 5, 0},
+    {NULL, "Texture filtering", "Beetle PSX HW: smooths blocky 3D textures. xBR and SABR keep edges sharp; bilinear is softest.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(texture_filter), TEXTURE_FILTERS, 6, 0},
+    {NULL, "Filter 2D too", "Also filters sprites and menus. Off keeps them pixel-sharp, which usually looks better.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(filter_2d), OFF_ON, 2, 0},
+    {NULL, "Supersampling", "Beetle PSX HW: draws at the internal resolution, then scales it down for a very clean picture. Best with 2x or 4x.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(supersampling), OFF_ON, 2, 0},
+    {NULL, "Deinterlacing", "For interlaced menus and videos: Weave is sharp but can comb, Bob never combs, Motion-adaptive mixes both.",
+     K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(deinterlace), DEINTERLACERS, 3, 0},
 };
 
 static const Row CONTROLS[] = {
@@ -246,6 +259,10 @@ static const Row SYSTEM[] = {
      APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(force_hle), BIOS, 2, 0},
     {NULL, "Fast CD loading", "Shorter loading screens. Rarely, a game glitches.", K_TOGGLE, APPLY_NOW,
      SP_NONE, false, BOOL_FIELD(cd_fast), OFF_ON, 2, 0},
+    {NULL, "PAL at 60 Hz", "Beetle PSX HW: European games run at 60 Hz like the American ones: smoother and full speed. A few games then misbehave.",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(pal60), OFF_ON, 2, 0},
+    {NULL, "Known game fixes", "Turns off, for that game only, the settings DuckStation's game database says it breaks with (PGXP, widescreen, upscaling, filtering).",
+     K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(game_fixes), OFF_ON, 2, 0},
     {NULL, "Overclock", "Runs the emulated PS1 faster, which smooths games that slow down on a real console. Some games then run too fast in places.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(overclock), OVERCLOCKS, 3, 0},
     {"Playing", "Quick resume", "Saves when you leave a game, so the shelf can offer Continue.", K_TOGGLE,

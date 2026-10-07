@@ -141,6 +141,13 @@ typedef struct
     int colour;           /* 0 natural, 1 vivid, 2 soft, 3 warm, 4 cool, 5 black and white */
     int autosave;         /* 0 off, else every 5, 10 or 15 minutes into the auto slots */
     bool bezel;           /* the game's artwork around a 4:3 picture, when downloaded */
+    int msaa;             /* Beetle on the GPU: anti-aliasing 0 off, 1..4 = 2x, 4x, 8x, 16x */
+    int texture_filter;   /* Beetle: 0 off, 1 bilinear, 2 xBR, 3 SABR, 4 JINC2, 5 3-point */
+    bool filter_2d;       /* filter 2D sprites and menus too (off keeps them sharp) */
+    bool supersampling;   /* Beetle: render at the internal resolution, then scale down */
+    int deinterlace;      /* Beetle: 0 weave, 1 bob, 2 motion-adaptive */
+    bool pal60;           /* Beetle: European games at 60 Hz */
+    bool game_fixes;      /* turn off what DuckStation's database says a game breaks with */
 } Settings;
 
 enum Emulator

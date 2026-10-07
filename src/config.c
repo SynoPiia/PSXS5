@@ -33,6 +33,7 @@ void config_defaults(Settings *s)
     s->ra_tracker = true;
     s->trigger_effects = true;
     s->brightness = 1;
+    s->game_fixes = true;
     s->racing_triggers = true;
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
@@ -155,6 +156,20 @@ static bool config_apply(Settings *s, const char *path)
             s->autosave = atoi(value) % 4;
         else if (strcmp(key, "bezel") == 0)
             s->bezel = as_bool(value);
+        else if (strcmp(key, "msaa") == 0)
+            s->msaa = atoi(value) % 5;
+        else if (strcmp(key, "texture_filter") == 0)
+            s->texture_filter = atoi(value) % 6;
+        else if (strcmp(key, "filter_2d") == 0)
+            s->filter_2d = as_bool(value);
+        else if (strcmp(key, "supersampling") == 0)
+            s->supersampling = as_bool(value);
+        else if (strcmp(key, "deinterlace") == 0)
+            s->deinterlace = atoi(value) % 3;
+        else if (strcmp(key, "pal60") == 0)
+            s->pal60 = as_bool(value);
+        else if (strcmp(key, "game_fixes") == 0)
+            s->game_fixes = as_bool(value);
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -244,6 +259,8 @@ bool config_save(const Settings *s, const char *path)
             s->stick_deadzone, s->stick_response, s->trigger_effects, s->racing_triggers, s->rumble_feel);
     fprintf(f, "lightgun=%d\noverclock=%d\nbrightness=%d\ncolour=%d\nautosave=%d\nbezel=%d\n", s->lightgun,
             s->overclock, s->brightness, s->colour, s->autosave, s->bezel);
+    fprintf(f, "msaa=%d\ntexture_filter=%d\nfilter_2d=%d\nsupersampling=%d\ndeinterlace=%d\npal60=%d\ngame_fixes=%d\n",
+            s->msaa, s->texture_filter, s->filter_2d, s->supersampling, s->deinterlace, s->pal60, s->game_fixes);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

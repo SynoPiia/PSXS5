@@ -11,6 +11,7 @@
 
 #include "cheats.h"
 #include "core/host.h"
+#include "gamedb.h"
 #include "platform/platform.h"
 #include "ui/draw.h"
 #include "ui/theme.h"
@@ -87,9 +88,23 @@ static bool series_match(const char *series, const char *title)
 int controls_kind(const Game *g)
 {
     load_kinds();
-    if (!g || !kinds)
+    if (!g)
         return 0;
     int found = 0;
+    /* DuckStation's database: which controllers the disc takes */
+    const GameInfo *info = gamedb_get(g->serial);
+    if (info)
+    {
+        if (info->flags & GDB_JUSTIFIER)
+            found |= KIND_JUSTIFIER;
+        else if (info->flags & GDB_GUNCON)
+            found |= KIND_GUNCON;
+        if ((info->flags & GDB_NEGCON) || strstr(info->genre, "Racing") || strstr(info->genre, "Driving"))
+            found |= KIND_PEDAL;
+    }
+    if (!kinds)
+        return found;
+    bool listed_gun = false;
     for (const char *line = kinds; line && *line; line = strchr(line, '\n') ? strchr(line, '\n') + 1 : NULL)
     {
         if (*line == '#' || *line == '\n' || *line == '\r')
@@ -118,11 +133,13 @@ int controls_kind(const Game *g)
             hit = titles_match(title, g->title) || titles_match(title, g->disc_name);
         if (hit)
         {
-            /* the first gun entry wins ("Die Hard Trilogy 2" before "Die Hard Trilogy") */
+            /* the list's gun beats the database's; the first entry wins ("Die Hard
+             * Trilogy 2" before "Die Hard Trilogy") */
             if (kind & (KIND_GUNCON | KIND_JUSTIFIER))
             {
-                if (!(found & (KIND_GUNCON | KIND_JUSTIFIER)))
-                    found |= kind;
+                if (!listed_gun)
+                    found = (found & ~(KIND_GUNCON | KIND_JUSTIFIER)) | kind;
+                listed_gun = true;
             }
             else
                 found |= kind;
@@ -148,7 +165,8 @@ int controls_gun_for(const Game *g, const Settings *s)
 static struct
 {
     int gun;           /* 0 none, 1 GunCon, 2 Justifier: player 1 holds it */
-    bool racing;
+    bool racing;       /* Cross is the gas and Square the brake: they can go on R2 / L2 */
+    bool pedal;        /* a racing game: R2 feels like a pedal */
     bool centred;      /* centre holds the orientation that aims at the middle */
     float centre[4];
     float x, y;        /* the aim, -1..1 across the picture */
@@ -160,11 +178,13 @@ void controls_start(const Game *g, const Settings *s)
 {
     memset(&C, 0, sizeof(C));
     C.gun = controls_gun_for(g, s);
-    C.racing = (controls_kind(g) & KIND_RACING) != 0;
+    int kind = controls_kind(g);
+    C.racing = (kind & KIND_RACING) != 0;
+    C.pedal = (kind & (KIND_RACING | KIND_PEDAL)) != 0;
     plat_pad_motion(C.gun != 0);
-    if (C.gun || C.racing)
+    if (C.gun || C.pedal)
         psxs5_log("controls: %s%s", C.gun ? (C.gun == 1 ? "GunCon " : "Justifier ") : "",
-                  C.racing ? "racing" : "");
+                  C.racing ? "racing" : C.pedal ? "pedal" : "");
 }
 
 void controls_stop(void)
@@ -304,7 +324,7 @@ static void update_triggers(int port, const Settings *s)
         PlatTrigger click = {TRIGGER_WEAPON, 3, 6, 6, 0}; /* a gun's trigger: resists, then gives */
         r2 = click;
     }
-    else if (s->trigger_effects && C.racing)
+    else if (s->trigger_effects && C.pedal)
     {
         PlatTrigger pedal = {TRIGGER_SLOPE, 1, 9, 2, 6};  /* firmer the further it goes */
         PlatTrigger brake = {TRIGGER_FEEDBACK, 2, 6, 0, 0};

@@ -13,6 +13,7 @@
 #include "../art.h"
 #include "../config.h"
 #include "../covers.h"
+#include "../gamedb.h"
 #include "../play.h"
 #include "../profiles.h"
 #include "../i18n.h"
@@ -64,7 +65,7 @@ static struct
 } S;
 
 static const char *const CATEGORY_NAMES[CAT_COUNT] = {
-    "All games", "Recently played", "Favorites", "Multi-disc", "USA", "Europe", "Japan", "Hidden"};
+    "All games", "Recently played", "Favorites", "Multi-disc", "USA", "Europe", "Japan", "2+ players", "Hidden"};
 static const char *const SORT_NAMES[SORT_COUNT] = {"Title", "Recently played", "Most played",
                                                    "Region"};
 
@@ -107,6 +108,11 @@ static bool in_category(const Game *g, int category)
     case CAT_USA: return region_of(g->serial) == 1;
     case CAT_EUROPE: return region_of(g->serial) == 2;
     case CAT_JAPAN: return region_of(g->serial) == 3;
+    case CAT_MULTIPLAYER:
+    {
+        const GameInfo *info = gamedb_get(g->serial);
+        return info && info->max_players > 1;
+    }
     default: return true;
     }
 }
@@ -378,16 +384,27 @@ static void draw_details(const Game *g, float t)
     }
     snprintf(discs, sizeof(discs), "%d", g->discs);
     const char *folder = strrchr(g->folder, '/');
+    /* what DuckStation's database knows: genre, release, players */
+    const GameInfo *info = gamedb_get(g->serial);
+    char released[160] = "", players[48] = "";
+    if (info && info->year)
+        snprintf(released, sizeof(released), info->developer[0] ? "%d  \xc2\xb7  %s" : "%d", info->year, info->developer);
+    if (info && info->max_players > 1)
+        snprintf(players, sizeof(players), tr(info->flags & GDB_MULTITAP ? "1 to %d (multitap)" : "1 to %d"),
+                 info->max_players);
+    else if (info && info->max_players == 1)
+        str_copy(players, sizeof(players), "1");
     struct { const char *label; const char *value; int icon; } rows[] = {
         {"Serial", g->serial[0] ? g->serial : tr("Unknown"), ICON_CARDS},
         {"Region", shelf_region_name(g->serial), ICON_WORLD},
-        {"Discs", discs, ICON_DISC},
-        {"Format", path_ext(g->path), ICON_FOLDER},
-        {"Played", played[0] ? played : tr("Not yet"), ICON_CLOCK},
-        {"Last played", when[0] ? when : tr("Never"), ICON_HISTORY},
+        {"Genre", info && info->genre[0] ? info->genre : tr("Unknown"), ICON_CATEGORY},
+        {"Released", released[0] ? released : tr("Unknown"), ICON_CLOCK},
+        {"Players", players[0] ? players : tr("Unknown"), ICON_USER},
+        {"Played", played[0] ? played : tr("Not yet"), ICON_HISTORY},
         {"Achievements", ach[0] ? ach : tr("Unknown"), ICON_TROPHY},
         {"Folder", folder ? folder + 1 : g->folder, ICON_FOLDER},
     };
+    (void)when;
     for (int i = 0; i < 8; ++i)
     {
         float ry = y + 92 + i * 44;

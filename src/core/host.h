@@ -22,6 +22,8 @@ const char *host_emulator_for(const Settings *settings, const char *serial, cons
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
 /* Port 1's device for the next host_load: 0 a pad, 1 GunCon, 2 Justifier. */
 void host_set_gun(int device);
+/* Known fixes for the next host_load (GDB_* from gamedb.h): settings the game breaks with. */
+void host_set_fixes(unsigned flags);
 /* How hard the game is rumbling this player's controller now, 0..1. */
 float host_rumble_level(int port);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */
