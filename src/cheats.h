@@ -29,6 +29,9 @@ typedef struct
  * Restores which codes were switched on last time. */
 bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir);
 void cheats_clear(CheatList *list);
+/* True once when a cheat file cheats_load started downloading has arrived:
+ * load again then. */
+bool cheats_fetch_finished(void);
 
 /* Pushes enabled codes into the running core and remembers the selection. */
 void cheats_apply(const CheatList *list);
