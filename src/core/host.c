@@ -118,6 +118,7 @@ static struct retro_system_av_info av_info;
 static struct retro_disk_control_ext_callback disk;
 static bool disk_available;
 static bool loaded;
+static unsigned game_fixes; /* GDB_* fixes for the next game (gamedb.h) */
 
 static char patches_dir[PSXS5_PATH_MAX];
 static bool multitap;
@@ -442,7 +443,6 @@ static void RETRO_CALLCONV core_log(enum retro_log_level level, const char *fmt,
 
 static float rumble_scale = 1.0f; /* Settings > Controls > Vibration */
 static int gun_device;           /* 0 a pad, 1 GunCon, 2 Justifier in port 1 */
-static unsigned game_fixes;      /* GDB_* fixes for the next game (gamedb.h) */
 
 void host_set_gun(int device)
 {
