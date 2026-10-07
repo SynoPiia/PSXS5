@@ -94,7 +94,7 @@ static void clean_title(const char *raw, char *out, size_t size)
             }
         }
         if (*p == '(' && (strncmp(p, "(Disc", 5) == 0 || strncmp(p, "(disc", 5) == 0 ||
-                          strncmp(p, "(CD", 3) == 0))
+                          strncmp(p, "(CD", 3) == 0 || strncmp(p, "(PSXS5)", 7) == 0))
         {
             const char *end = strchr(p, ')');
             if (end)
@@ -334,18 +334,37 @@ static void scan_root(Library *lib, const char *root)
     for (int i = 0; i < n; ++i)
         if (image_rank(entries[i]) == 6)
         {
+            /* a playlist made elsewhere (VLC...) may hold a PC's paths: it counts
+             * only when every disc it lists is here */
             char m3u[PSXS5_PATH_MAX], line[300];
             path_join(m3u, sizeof(m3u), root, entries[i]);
             FILE *f = fopen(m3u, "r");
+            int listed[MAX_DIR_FILES], count = 0;
+            bool valid = f != NULL;
             while (f && fgets(line, sizeof(line), f))
             {
                 line[strcspn(line, "\r\n")] = '\0';
-                for (int k = 0; k < n; ++k)
-                    if (line[0] && !str_icmp(entries[k], line))
-                        skip[k] = true;
+                if (!line[0] || line[0] == '#')
+                    continue;
+                int found = -1;
+                for (int k = 0; k < n && found < 0; ++k)
+                    if (!str_icmp(entries[k], line))
+                        found = k;
+                if (found < 0)
+                    valid = false;
+                else if (count < MAX_DIR_FILES)
+                    listed[count++] = found;
             }
             if (f)
                 fclose(f);
+            if (valid && count > 0)
+                for (int k = 0; k < count; ++k)
+                    skip[listed[k]] = true;
+            else
+            {
+                skip[i] = true; /* not usable here: PSXS5 groups the discs itself */
+                psxs5_log("library: %s lists discs that aren't beside it, ignored", m3u);
+            }
         }
     for (int i = 0; i < n; ++i)
     {
@@ -381,6 +400,12 @@ static void scan_root(Library *lib, const char *root)
         char m3u_name[200], m3u[PSXS5_PATH_MAX];
         snprintf(m3u_name, sizeof(m3u_name), "%.190s.m3u", title);
         path_join(m3u, sizeof(m3u), root, m3u_name);
+        if (path_exists(m3u))
+        {
+            /* that name is taken by a playlist that didn't work here: keep it */
+            snprintf(m3u_name, sizeof(m3u_name), "%.180s (PSXS5).m3u", title);
+            path_join(m3u, sizeof(m3u), root, m3u_name);
+        }
         char first[PSXS5_PATH_MAX];
         path_join(first, sizeof(first), root, discs[0]);
         if (write_m3u(m3u, discs, count))
