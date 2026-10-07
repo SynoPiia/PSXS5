@@ -157,6 +157,8 @@ static void finish_game(Game *g)
         str_copy(g->id, sizeof(g->id), g->serial);
         return;
     }
+    psxs5_log("library: no serial found in %s (put it in the file or folder name, or a serial.txt beside it)",
+              g->path);
     size_t w = 0;
     for (const char *p = g->title; *p && w + 1 < sizeof(g->id); ++p)
         g->id[w++] = isalnum((unsigned char)*p) ? *p : '_';

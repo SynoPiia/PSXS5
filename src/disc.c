@@ -8,9 +8,21 @@
 #include "disc.h"
 
 #include <ctype.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+static int prefix_icmp(const char *a, const char *b, size_t n)
+{
+    for (size_t i = 0; i < n; ++i)
+    {
+        int d = tolower((unsigned char)a[i]) - tolower((unsigned char)b[i]);
+        if (d || !a[i])
+            return d;
+    }
+    return 0;
+}
 
 static uint32_t le32(const uint8_t *p)
 {
@@ -59,8 +71,9 @@ static bool image_open(Image *img, const char *path)
     img->f = fopen(path, "rb");
     if (!img->f)
         return false;
-    static const long layouts[][2] = {{2352, 24}, {2352, 16}, {2048, 0}};
-    for (size_t i = 0; i < 3; ++i)
+    /* raw Mode 2, raw Mode 1, cooked, raw with subchannel (2448), Mode 2 without sync (2336) */
+    static const long layouts[][2] = {{2352, 24}, {2352, 16}, {2048, 0}, {2448, 24}, {2336, 8}};
+    for (size_t i = 0; i < sizeof(layouts) / sizeof(layouts[0]); ++i)
     {
         uint8_t id[6];
         fseek(img->f, 16 * layouts[i][0] + layouts[i][1], SEEK_SET);
@@ -183,13 +196,29 @@ static bool first_referenced(const char *path, bool cue, char *out, size_t size)
         line[strcspn(line, "\r\n")] = '\0';
         if (cue)
         {
-            char *q = strstr(line, "FILE");
-            char *a = q ? strchr(q, '"') : NULL;
+            /* FILE "name.bin" BINARY, or FILE name.bin BINARY without quotes */
+            char *q = line;
+            while (*q == ' ' || *q == '\t' || (unsigned char)*q == 0xef || (unsigned char)*q == 0xbb ||
+                   (unsigned char)*q == 0xbf)
+                ++q;
+            if (prefix_icmp(q, "FILE", 4) != 0 || (q[4] != ' ' && q[4] != '\t'))
+                continue;
+            q += 5;
+            while (*q == ' ' || *q == '\t')
+                ++q;
+            char *a = *q == '"' ? q : NULL;
             char *b = a ? strchr(a + 1, '"') : NULL;
             if (a && b)
             {
                 *b = '\0';
                 str_copy(name, sizeof(name), a + 1);
+            }
+            else
+            {
+                char *type = strrchr(q, ' '); /* the name runs up to the type (BINARY) */
+                if (type && type > q)
+                    *type = '\0';
+                str_copy(name, sizeof(name), q);
             }
         }
         else if (line[0] && line[0] != '#')
@@ -217,8 +246,42 @@ bool disc_read_serial(const char *path, char *serial, size_t size)
         return first_referenced(path, false, next, sizeof(next)) &&
                disc_read_serial(next, serial, size);
     if (str_icmp(ext, "cue") == 0)
-        return first_referenced(path, true, next, sizeof(next)) &&
-               disc_read_serial(next, serial, size);
+    {
+        if (first_referenced(path, true, next, sizeof(next)) && disc_read_serial(next, serial, size))
+            return true;
+        /* the cue names a file that isn't there as written (a different case, a
+         * renamed .bin): try a .bin of the same name, then the folder's only one */
+        char dir[PSXS5_PATH_MAX], base[256];
+        str_copy(dir, sizeof(dir), path);
+        char *slash = strrchr(dir, '/');
+        if (!slash)
+            return false;
+        *slash = '\0';
+        str_copy(base, sizeof(base), slash + 1);
+        char *dot = strrchr(base, '.');
+        if (dot)
+            *dot = '\0';
+        DIR *d = opendir(dir);
+        if (!d)
+            return false;
+        char same[PSXS5_PATH_MAX] = "", only[PSXS5_PATH_MAX] = "";
+        int bins = 0;
+        struct dirent *e;
+        while ((e = readdir(d)) != NULL)
+        {
+            if (str_icmp(path_ext(e->d_name), "bin") != 0)
+                continue;
+            ++bins;
+            path_join(only, sizeof(only), dir, e->d_name);
+            size_t n = strlen(base);
+            if (!same[0] && prefix_icmp(e->d_name, base, n) == 0 && e->d_name[n] == '.')
+                str_copy(same, sizeof(same), only);
+        }
+        closedir(d);
+        if (same[0] && read_iso(same, serial, size))
+            return true;
+        return bins == 1 && read_iso(only, serial, size);
+    }
     if (str_icmp(ext, "pbp") == 0)
         return read_pbp(path, serial, size);
     if (str_icmp(ext, "bin") == 0 || str_icmp(ext, "iso") == 0 || str_icmp(ext, "img") == 0)
