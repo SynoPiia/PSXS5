@@ -246,7 +246,11 @@ static void apply_beetle_options(const Settings *s)
     set_option("beetle_psx_hw_analog_toggle", (game_fixes & GDB_ANALOG) ? "enabled-analog" : "enabled");
     /* card 0 through SAVE_RAM: PSXS5 keeps it in PCSX-ReARMed's file */
     set_option("beetle_psx_hw_use_mednafen_memcard0_method", "libretro");
-    set_option("beetle_psx_hw_frame_duping", "enabled");
+    /* Vulkan: never. Beetle repeats a frame there whenever the game didn't
+     * switch display buffers, so screens drawn straight into the shown buffer
+     * (the white Sony screen, FF7's battle swirl) never reached the screen, and
+     * the "repeated" image was one of Beetle's recycled ones (old pictures) */
+    set_option("beetle_psx_hw_frame_duping", gpu ? "disabled" : "enabled");
     bool pack = gpu && s->hd_textures && texture_pack_present();
     set_option("beetle_psx_hw_track_textures", pack ? "enabled" : "disabled");
     set_option("beetle_psx_hw_replace_textures", pack ? "enabled" : "disabled");
