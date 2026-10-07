@@ -251,7 +251,7 @@ static void draw_tracker(void)
 
 static void draw_achievement(void)
 {
-    if (app.screen == SCREEN_GAME)
+    if (app.screen == SCREEN_GAME && app.global.ra_tracker)
         draw_tracker();
     static char title[96], detail[192];
     static uint64_t shown_at;
@@ -263,6 +263,12 @@ static void draw_achievement(void)
         showing = ra_next_message(title, sizeof(title), detail, sizeof(detail));
         if (!showing)
             return;
+        /* pop-ups off: messages that arrive during play are dropped, not shown */
+        if (!app.global.ra_popups && app.screen == SCREEN_GAME)
+        {
+            showing = false;
+            return;
+        }
         shown_at = now;
         sfx_play(SFX_SELECT);
     }

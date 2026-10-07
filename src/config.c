@@ -28,6 +28,8 @@ void config_defaults(Settings *s)
     s->update_check = true;
     s->rumble_strength = 3;
     s->pgxp = true; /* Beetle: no wobbling polygons */
+    s->ra_popups = true;
+    s->ra_tracker = true;
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
 }
@@ -111,6 +113,10 @@ static bool config_apply(Settings *s, const char *path)
             s->emulator = atoi(value) % EMU_COUNT;
         else if (strcmp(key, "pgxp") == 0)
             s->pgxp = as_bool(value);
+        else if (strcmp(key, "ra_popups") == 0)
+            s->ra_popups = as_bool(value);
+        else if (strcmp(key, "ra_tracker") == 0)
+            s->ra_tracker = as_bool(value);
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -192,7 +198,8 @@ bool config_save(const Settings *s, const char *path)
     fprintf(f, "widescreen=%d\nmultitap=%d\nrewind=%d\nquick_resume=%d\ncrt=%d\nborder=%d\nremote=%d\nupdate_check=%d\n",
             s->widescreen, s->multitap, s->rewind, s->quick_resume, s->crt, s->border, s->remote,
             s->update_check);
-    fprintf(f, "emulator=%d\npgxp=%d\n", s->emulator, s->pgxp);
+    fprintf(f, "emulator=%d\npgxp=%d\nra_popups=%d\nra_tracker=%d\n", s->emulator, s->pgxp, s->ra_popups,
+            s->ra_tracker);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);
