@@ -450,7 +450,9 @@ static void RC_CCONV on_game_loaded(int result, const char *error, rc_client_t *
     (void)userdata;
     if (result != RC_OK)
     {
-        if (result != RC_NO_GAME_LOADED)
+        if (result == RC_NO_GAME_LOADED) /* "Unknown game": this dump's hash isn't in any set */
+            post("RetroAchievements", tr("This version of the game isn't supported. A Redump dump of your disc usually is."));
+        else
             psxs5_log("ra: no achievements loaded: %s", error ? error : "?");
         return;
     }
