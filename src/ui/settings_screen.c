@@ -170,6 +170,8 @@ static const Row GRAPHICS[] = {
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(texture_filter), TEXTURE_FILTERS, 6, 0},
     {NULL, "Filter 2D too", "Also filters sprites and menus. Off keeps them pixel-sharp, which usually looks better.",
      K_TOGGLE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(filter_2d), OFF_ON, 2, 0},
+    {NULL, "Supersampling", "Beetle PSX HW at 4x or more: the big picture is averaged down to your TV's pixels, for a clean, stable image without shimmering. With the shader off.",
+     K_TOGGLE, APPLY_NOW, SP_NONE, false, BOOL_FIELD(supersampling), OFF_ON, 2, 0},
     {NULL, "Deinterlacing", "For interlaced menus and videos: Weave is sharp but can comb, Bob never combs, Motion-adaptive mixes both.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, INT_FIELD(deinterlace), DEINTERLACERS, 3, 0},
 };

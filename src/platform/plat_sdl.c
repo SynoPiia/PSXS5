@@ -1343,7 +1343,11 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             SDL_RenderFillRect(renderer, &hole);
         }
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop, settings->shader, game_src_w,
+        /* supersampling: a picture bigger than its place on screen, averaged down */
+        int shader = settings->shader;
+        if (!shader && settings->supersampling && (game_src_w > dw || game_src_h > dh))
+            shader = 3;
+        vkp_show_game((float)hole.x, (float)hole.y, (float)hole.w, (float)hole.h, crop, shader, game_src_w,
                                       game_src_h, lines);
         return;
     }

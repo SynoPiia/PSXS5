@@ -4,6 +4,8 @@ against (as it does for cheats), so it downloads just that one picture:
   assets/bezels-index.txt   The Bezel Project's PlayStation bezels
   assets/snaps-index.txt    libretro-thumbnails: gameplay pictures (Named_Snaps)
   assets/titles-index.txt   libretro-thumbnails: title screens (Named_Titles)
+  assets/boxarts-index.txt  libretro-thumbnails: covers by name (Named_Boxarts), for discs
+                            whose serial can't be read
 
     python tools/make-art-index.py        (rerun now and then for new art)
 
@@ -18,6 +20,7 @@ LISTS = [
     ("thebezelproject/bezelproject-PSX", "retroarch/overlay/GameBezels/PSX/", "bezels-index.txt"),
     ("libretro-thumbnails/Sony_-_PlayStation", "Named_Snaps/", "snaps-index.txt"),
     ("libretro-thumbnails/Sony_-_PlayStation", "Named_Titles/", "titles-index.txt"),
+    ("libretro-thumbnails/Sony_-_PlayStation", "Named_Boxarts/", "boxarts-index.txt"),
 ]
 
 

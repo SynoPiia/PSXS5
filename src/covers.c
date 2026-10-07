@@ -10,18 +10,22 @@
  *      file or the serial (the way DuckStation finds covers)
  *   4. <root>/covers/default/<serial>.jpg or covers/3d/<serial>.png
  *   5. download from xlenore/psx-covers into (4), when enabled
- *   6. fallback-cover.png beside the game (picked up by the sync tool)
- *   7. a generated title card
+ *   6. no serial (or nothing for it): by name, from libretro-thumbnails'
+ *      Named_Boxarts (assets/boxarts-index.txt), into covers/boxart/<id>.png
+ *   7. fallback-cover.png beside the game (picked up by the sync tool)
+ *   8. a generated title card
  * One worker thread does the file I/O, downloads and JPEG/PNG decoding; the
  * main thread only uploads finished pixels, at most a few per frame.
  */
 #include "covers.h"
 
+#include "cheats.h"
 #include "net.h"
 #include "stb_image.h"
 #include "ui/text.h"
 
 #include <SDL2/SDL.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -220,6 +224,45 @@ static uint8_t *produce(const Slot *job, int *w, int *h, bool *placeholder)
                 psxs5_log("covers: network unavailable, downloads paused");
             if (r == NET_OK)
                 network_failures = 0;
+        }
+        uint8_t *px = path_exists(path) ? load_image(path, w, h) : NULL;
+        if (px)
+            return px;
+    }
+    /* by name: libretro-thumbnails' box art, for discs without a (known) serial */
+    {
+        char file[140];
+        snprintf(file, sizeof(file), "boxart/%.100s.png", job->id);
+        path_join(path, sizeof(path), paths.covers, file);
+        if (!path_exists(path) && download_enabled && network_failures < 3)
+        {
+            Game g;
+            memset(&g, 0, sizeof(g));
+            str_copy(g.title, sizeof(g.title), job->title);
+            str_copy(g.disc_name, sizeof(g.disc_name), job->disc_name);
+            str_copy(g.serial, sizeof(g.serial), job->serial);
+            char name[256];
+            if (cheats_best_in_index(&g, "boxarts-index.txt", name, sizeof(name)))
+            {
+                char url[700], dir[PSXS5_PATH_MAX];
+                size_t w = (size_t)snprintf(url, sizeof(url), "%s",
+                                            "https://raw.githubusercontent.com/libretro-thumbnails/Sony_-_PlayStation/master/Named_Boxarts/");
+                for (const unsigned char *p = (const unsigned char *)name; *p && w + 4 < sizeof(url); ++p)
+                {
+                    if (isalnum(*p) || strchr("-._~", *p))
+                        url[w++] = (char)*p;
+                    else
+                        w += (size_t)snprintf(url + w, sizeof(url) - w, "%%%02X", *p);
+                }
+                url[w] = '\0';
+                str_copy(dir, sizeof(dir), path);
+                *strrchr(dir, '/') = '\0';
+                make_dirs(dir);
+                NetResult r = net_download(url, path);
+                psxs5_log("covers: %s by name (%s): %s", job->title, name, r == NET_OK ? "ok" : "failed");
+                if (r == NET_UNAVAILABLE && ++network_failures == 3)
+                    psxs5_log("covers: network unavailable, downloads paused");
+            }
         }
         uint8_t *px = path_exists(path) ? load_image(path, w, h) : NULL;
         if (px)

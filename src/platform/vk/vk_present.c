@@ -94,7 +94,7 @@ static struct
     VkRenderPass pass;
     VkPipelineLayout layout;
     VkPipeline opaque, blended;
-    VkPipeline shaded[2]; /* the game through sharp.frag, crt.frag */
+    VkPipeline shaded[3]; /* the game through sharp.frag, crt.frag, downsample.frag */
     VkDescriptorSetLayout set_layout;
     VkDescriptorPool pool;
     VkSampler sampler;
@@ -528,9 +528,9 @@ static bool create_pipeline(char *error, size_t size)
     gp.renderPass = V.pass;
     VkResult r = vkCreateGraphicsPipelines(V.device, VK_NULL_HANDLE, 1, &gp, NULL, &V.opaque);
     /* the game's shaders: the same opaque pipeline with another fragment stage */
-    const uint32_t *shader_code[2] = {SPV_SHARP_FRAG, SPV_CRT_FRAG};
-    const size_t shader_size[2] = {sizeof(SPV_SHARP_FRAG), sizeof(SPV_CRT_FRAG)};
-    for (int k = 0; k < 2 && r == VK_SUCCESS; ++k)
+    const uint32_t *shader_code[3] = {SPV_SHARP_FRAG, SPV_CRT_FRAG, SPV_DOWNSAMPLE_FRAG};
+    const size_t shader_size[3] = {sizeof(SPV_SHARP_FRAG), sizeof(SPV_CRT_FRAG), sizeof(SPV_DOWNSAMPLE_FRAG)};
+    for (int k = 0; k < 3 && r == VK_SUCCESS; ++k)
     {
         VkShaderModule fm;
         sm.codeSize = shader_size[k];
@@ -788,7 +788,7 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
          * transparent (premultiplied) where the game shows */
         float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
         int sh = V.game_shader;
-        VkPipeline pipe = sh >= 1 && sh <= 2 && V.shaded[sh - 1] ? V.shaded[sh - 1] : V.opaque;
+        VkPipeline pipe = sh >= 1 && sh <= 3 && V.shaded[sh - 1] ? V.shaded[sh - 1] : V.opaque;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
         /* sharp: screen pixels per texel; crt: the PS1's line count */
         float shown = 1.0f - 2.0f * V.game_crop;
@@ -864,10 +864,10 @@ static void destroy_device_objects(void)
         vkDestroyPipeline(V.device, V.opaque, NULL);
     if (V.blended)
         vkDestroyPipeline(V.device, V.blended, NULL);
-    for (int k = 0; k < 2; ++k)
+    for (int k = 0; k < 3; ++k)
         if (V.shaded[k])
             vkDestroyPipeline(V.device, V.shaded[k], NULL);
-    V.shaded[0] = V.shaded[1] = VK_NULL_HANDLE;
+    V.shaded[0] = V.shaded[1] = V.shaded[2] = VK_NULL_HANDLE;
     if (V.layout)
         vkDestroyPipelineLayout(V.device, V.layout, NULL);
     if (V.set_layout)

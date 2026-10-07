@@ -666,12 +666,17 @@ static void picker_open(int game)
     P.preview_for = -1;
     P.files[0][0] = '\0';
     pick_scan(app.library.games[game].folder);
-    /* the covers PSXS5 downloaded for it (flat and 3D) */
+    /* the covers PSXS5 downloaded for it (flat, 3D, by name) */
     const char *serial = app.library.games[game].serial;
-    for (int k = 0; k < 2 && serial[0] && P.count < PICK_MAX; ++k)
+    for (int k = 0; k < 3 && P.count < PICK_MAX; ++k)
     {
-        char file[64];
-        snprintf(file, sizeof(file), k ? "3d/%s.png" : "default/%s.jpg", serial);
+        if (k < 2 && !serial[0])
+            continue;
+        char file[140];
+        if (k == 2)
+            snprintf(file, sizeof(file), "boxart/%.100s.png", app.library.games[game].id);
+        else
+            snprintf(file, sizeof(file), k ? "3d/%s.png" : "default/%s.jpg", serial);
         path_join(P.files[P.count], PSXS5_PATH_MAX, app.paths.covers, file);
         FILE *f = fopen(P.files[P.count], "rb");
         if (f)
