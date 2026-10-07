@@ -1,0 +1,37 @@
+PSXS5 - PlayStation X Super 5
+Copyright (C) 2026 the PSXS5 authors. GNU General Public License v3 or later (LICENSE-PSXS5.txt).
+Source code: https://github.com/SynoPiia/PSXS5 (the release's tag holds the exact source,
+with every component below as a submodule or in third_party/).
+
+PSXS5 contains, built into eboot.bin:
+
+PCSX-ReARMed (PlayStation emulator)
+  GNU GPL v2 or later - COPYING-pcsx_rearmed.txt
+  https://github.com/libretro/pcsx_rearmed
+
+Beetle PSX HW (Mednafen PSX, libretro port, PS5 fork by Mihawk-99)
+  GNU GPL v2 or later (Mednafen); the Vulkan renderer (parallel-psx / rhi) is MIT
+  COPYING-beetle-psx.txt
+  https://github.com/mihawk-99/PS5_BeetlePSX, https://github.com/libretro/beetle-psx-libretro
+
+RADV, Mesa's Vulkan driver for AMD GPUs (PS5 port by Mihawk-99)
+  MIT License
+  https://gitlab.freedesktop.org/mesa/mesa
+
+rcheevos (RetroAchievements)
+  MIT License - LICENSE-rcheevos.txt
+  https://github.com/RetroAchievements/rcheevos
+
+SDL 2 - zlib License - https://www.libsdl.org
+dlmalloc (Doug Lea) - public domain (CC0)
+miniz - MIT License - https://github.com/richgel999/miniz
+QR Code generator (Nayuki) - MIT License - https://github.com/nayuki/QR-Code-generator
+stb_image, stb_truetype (Sean Barrett) - public domain / MIT
+Lapy helper - MIT License - Lapy-MIT.txt
+libcurl, OpenSSL, libpsl, zstd, libsamplerate (PacBrew packages) - each under its own permissive licence
+
+Downloaded at run time, not included:
+  covers - xlenore/psx-covers (https://github.com/xlenore/psx-covers)
+  cheats - libretro-database (https://github.com/libretro/libretro-database)
+
+No BIOS, game, key or copyrighted data is included.

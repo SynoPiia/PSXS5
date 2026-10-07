@@ -357,6 +357,16 @@ assert manifest["target_title"] == app.name and manifest["mode"] == "elf-helper"
 PY
 fi
 
+# Licences of PSXS5 and what it's built from (GPL: the texts travel with it).
+mkdir -p "$app/licenses"
+cp "$root/docs/THIRD-PARTY.txt" "$app/licenses/THIRD-PARTY.txt"
+cp "$root/LICENSE" "$app/licenses/LICENSE-PSXS5.txt"
+for pair in "third_party/pcsx_rearmed/COPYING:COPYING-pcsx_rearmed.txt" \
+    "third_party/beetle-psx/COPYING:COPYING-beetle-psx.txt" \
+    "third_party/rcheevos/LICENSE:LICENSE-rcheevos.txt"; do
+    if [[ -f $root/${pair%%:*} ]]; then cp "$root/${pair%%:*}" "$app/licenses/${pair##*:}"; fi
+done
+
 [[ -f $root/runtime/libc.prx ]] || bash "$root/tools/rebuild-libc.sh"
 (cd "$root/runtime" && sha256sum --check --strict libc.prx.sha256)
 runtime_modules=("$root/runtime/libc.prx")

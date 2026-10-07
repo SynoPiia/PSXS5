@@ -14,7 +14,7 @@
 
 #define PSXS5_NAME "PSXS5"
 #define PSXS5_TITLE_ID "PPSA97510"
-#define PSXS5_VERSION "1.2.0"
+#define PSXS5_VERSION "2.0.0"
 #define PSXS5_PATH_MAX 512
 
 /* Pad bits use RetroPad numbering so the host can hand the mask to the core
