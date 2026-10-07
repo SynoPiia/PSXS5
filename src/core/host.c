@@ -1222,7 +1222,7 @@ size_t host_state_size(void)
         /* Beetle measures by saving a whole state: once per game, with room
          * to spare in case a later state is a little larger */
         size_t size = core->serialize_size();
-        state_size = size && core == &BEETLE ? size + 512 * 1024 : size;
+        state_size = size && core != &PCSX ? size + 512 * 1024 : size; /* Beetle */
         psxs5_log("host: states take %zu KB", state_size / 1024);
     }
     return state_size;
