@@ -58,6 +58,7 @@ static struct
     float pos;  /* animated position */
     bool details;
     float details_t, launch_t;
+    bool starting; /* the launch is over: this frame shows "Loading", the next one loads */
     float chip_x, chip_w; /* animated category highlight */
     float tint[3];        /* animated background colour */
     float title_fade;     /* text fades in after a move */
@@ -1333,15 +1334,19 @@ void shelf_screen(uint32_t pressed)
     int game = selected_game();
     if (game >= 0)
         S.last_cursor_game = game;
-    if (S.launch_t > 0.0f)
+    if (S.starting)
     {
-        S.launch_t += app.dt;
+        /* the last frame (disc and "Loading") stays on screen while the game loads */
+        S.starting = false;
+        S.launch_t = 0.0f;
+        config_save(&app.global, app.paths.config);
+        app_start_game(game, S.resume);
+    }
+    else if (S.launch_t > 0.0f)
+    {
+        S.launch_t = fminf(S.launch_t + app.dt, launch_total());
         if (S.launch_t >= launch_total())
-        {
-            S.launch_t = 0.0f;
-            config_save(&app.global, app.paths.config);
-            app_start_game(game, S.resume);
-        }
+            S.starting = true;
     }
     plat_profile("start");
     covers_update_view(S.view, S.view_count, S.cursor);
@@ -1502,9 +1507,17 @@ void shelf_screen(uint32_t pressed)
     }
 
     picker_draw();
-    if (S.launch_t > 0.0f && app.global.disc_animation && game >= 0)
-        draw_launch_disc(game, fminf(S.launch_t / DISC_TIME, 1.0f), S.launch_t);
     if (S.launch_t > 0.0f)
-        draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, launch));
+    {
+        bool disc = app.global.disc_animation && game >= 0;
+        /* with the disc, the shelf darkens behind it and the disc keeps spinning
+         * while the game loads (no black gap); without it, a fade to black */
+        draw_rect(0, 0, plat_width(), plat_height(), argb_alpha(0xff000000u, disc ? launch * 0.85f : launch));
+        if (disc)
+            draw_launch_disc(game, fminf(S.launch_t / DISC_TIME, 1.0f), S.launch_t);
+        if (launch > 0.0f)
+            text_draw(CENTER_X, plat_height() - 120, 30, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, launch),
+                      ALIGN_CENTER, tr("Loading..."));
+    }
     app_draw_toast();
 }

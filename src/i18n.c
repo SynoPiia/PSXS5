@@ -1198,6 +1198,9 @@ static const Entry ENTRIES[] = {
       "画面エフェクトを高速化"}},
     {{"Beetle PSX HW: effects that read the screen back (Final Fantasy VII's battle swirl, motion blur) are done on the GPU, without a stutter. A few games' effects may then look wrong: turn it off for those.", "Beetle PSX HW : les effets qui relisent l'écran (le tourbillon de combat de Final Fantasy VII, le flou de mouvement) sont faits par le GPU, sans saccade. Les effets de quelques jeux peuvent alors être faux : désactivez-le pour ceux-là.", "Beetle PSX HW: os efeitos que releem o ecrã (o remoinho de combate de Final Fantasy VII, o desfoque de movimento) são feitos pela GPU, sem soluços. Os efeitos de alguns jogos podem ficar errados: desligue-o nesses.", "Beetle PSX HW: los efectos que releen la pantalla (el remolino de combate de Final Fantasy VII, el desenfoque de movimiento) los hace la GPU, sin tirones. Los efectos de algunos juegos pueden verse mal: apágalo en esos.",
       "Beetle PSX HW: 画面を読み戻すエフェクト(ファイナルファンタジーVIIの戦闘突入の渦、モーションブラー)をGPUで行い、カクつきをなくします。一部のゲームでは表示が乱れるので、その場合はオフに。"}},
+    /* ---- 2.2: loading */
+    {{"Loading...", "Chargement...", "Carregando...", "Cargando...",
+      "読み込み中..."}},
 };
 
 #define ENTRY_COUNT (int)(sizeof(ENTRIES) / sizeof(ENTRIES[0]))
