@@ -51,6 +51,8 @@ typedef struct
     bool (*unserialize)(const void *, size_t);
     void *(*get_memory_data)(unsigned);
     size_t (*get_memory_size)(unsigned);
+    void (*cheat_reset)(void);
+    void (*cheat_set)(unsigned, bool, const char *);
 } CoreApi;
 
 #define CORE_API(label, p)                                                                         \
@@ -60,7 +62,8 @@ typedef struct
             p##retro_init, p##retro_deinit, p##retro_load_game, p##retro_unload_game,            \
             p##retro_get_system_av_info, p##retro_set_controller_port_device, p##retro_run,      \
             p##retro_reset, p##retro_serialize_size, p##retro_serialize, p##retro_unserialize,   \
-            p##retro_get_memory_data, p##retro_get_memory_size                                  \
+            p##retro_get_memory_data, p##retro_get_memory_size, p##retro_cheat_reset,           \
+            p##retro_cheat_set                                                                  \
     }
 
 static const CoreApi PCSX = CORE_API("PCSX-ReARMed", );
@@ -85,6 +88,8 @@ bool beetle_retro_serialize(void *, size_t);
 bool beetle_retro_unserialize(const void *, size_t);
 void *beetle_retro_get_memory_data(unsigned);
 size_t beetle_retro_get_memory_size(unsigned);
+void beetle_retro_cheat_reset(void);
+void beetle_retro_cheat_set(unsigned, bool, const char *);
 static const CoreApi BEETLE = CORE_API("Beetle PSX HW", beetle_);
 #endif
 
@@ -852,6 +857,18 @@ bool host_load_state(const char *path)
     if (ok)
         plat_audio_clear();
     return ok;
+}
+
+void host_cheat_reset(void)
+{
+    if (loaded)
+        core->cheat_reset();
+}
+
+void host_cheat_set(unsigned index, const char *code)
+{
+    if (loaded)
+        core->cheat_set(index, true, code);
 }
 
 int host_disc_count(void)

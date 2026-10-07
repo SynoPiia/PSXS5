@@ -27,6 +27,7 @@ void config_defaults(Settings *s)
     s->quick_resume = true;
     s->update_check = true;
     s->rumble_strength = 3;
+    s->pgxp = true; /* Beetle: no wobbling polygons */
     for (int i = 0; i < 16; ++i)
         s->button_map[i] = (int8_t)i;
 }

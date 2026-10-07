@@ -60,6 +60,8 @@ int host_disc_index(void) { return 0; }
 bool host_disc_select(int index) { (void)index; return true; }
 
 void retro_cheat_reset(void) {}
+void host_cheat_reset(void) {}
+void host_cheat_set(unsigned index, const char *code) { (void)index, (void)code; }
 void retro_cheat_set(unsigned index, bool enabled, const char *code)
 {
     (void)index; (void)enabled; (void)code;

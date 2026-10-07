@@ -50,4 +50,8 @@ int host_disc_count(void);
 int host_disc_index(void);
 bool host_disc_select(int index);
 
+/* GameShark codes, to the running core */
+void host_cheat_reset(void);
+void host_cheat_set(unsigned index, const char *code);
+
 #endif
