@@ -967,7 +967,7 @@ void plat_draw_game(const Settings *settings, float display_aspect, uint8_t dim)
             dw = out_w;
     }
 
-    if (settings->border == 2)
+    if (settings->border == 2 && settings->aspect != ASPECT_STRETCH)
     {
         /* TV frame: leave room for the TV around the picture */
         dw = dw * 86 / 100;

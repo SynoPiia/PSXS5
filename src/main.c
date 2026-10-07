@@ -297,7 +297,8 @@ void app_draw_game(uint8_t dim)
     /* around the picture: black, a soft glow, or a TV */
     int gx, gy, gw, gh;
     plat_game_rect(&gx, &gy, &gw, &gh);
-    if (view.border && gw > 0 && gw < plat_width() - 8)
+    /* Stretch fills the screen: no border or TV around it */
+    if (view.border && view.aspect != ASPECT_STRETCH && gw > 0 && gw < plat_width() - 8)
     {
         float k = dim / 255.0f;
         if (view.border == 1)
