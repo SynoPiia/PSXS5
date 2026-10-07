@@ -245,9 +245,10 @@ static int score_candidate(const char *file, const Game *game, const Wanted *wan
         score += 90;
     else if (!region && strstr(stem, "(USA"))
         score += 20;
-    /* GameShark sets use the plain code format; prefer them over other devices. */
+    /* GameShark sets are the full ones (files without a device are often a
+     * code or two): one beats a plain file of the disc's own region. */
     if (strstr(stem, "(GameShark)"))
-        score += 5;
+        score += 15;
     /* Codes are usually filed under disc 1 or under no disc number. */
     if (strstr(stem, "(Disc 1)") || !strstr(stem, "(Disc"))
         score += 10;
