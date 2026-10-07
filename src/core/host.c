@@ -572,14 +572,24 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
         disk_available = true;
         return true;
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
-        av_info = *(const struct retro_system_av_info *)data;
+    {
+        const struct retro_system_av_info *next = data;
 #if defined(PSXS5_VULKAN)
         /* Beetle's Vulkan renderer reads its internal resolution only when
-         * it is rebuilt: like RetroArch, rebuild the context right away */
-        if (hw_running)
+         * it is rebuilt: like RetroArch, rebuild the context right away. Not
+         * for a timing change alone (each switch between interlaced and
+         * progressive video, as from the white Sony screen to the PlayStation
+         * logo): a rebuild there stalled and lost frames */
+        bool resized = next->geometry.max_width != av_info.geometry.max_width ||
+                       next->geometry.max_height != av_info.geometry.max_height;
+        av_info = *next;
+        if (hw_running && resized)
             hw_restart();
+#else
+        av_info = *next;
 #endif
         return true;
+    }
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         av_info.geometry = *(const struct retro_game_geometry *)data;
         return true;
