@@ -97,12 +97,21 @@ static bool contains_icase(const char *hay, const char *needle)
     return false;
 }
 
+/* Widescreen: the game's own widescreen code when the cheat library has one
+ * (made for that game); else, under Beetle PSX HW, its renderer's
+ * widescreen mode, which widens any 3D game without touching its memory
+ * (so it stays on in hardcore mode). Never both: the picture would widen twice. */
 bool play_widescreen(void)
 {
     widescreen_on = false;
-    if (!app.settings.widescreen || ra_hardcore())
+    bool beetle = !strcmp(host_core_name(), "Beetle PSX HW");
+    if (!app.settings.widescreen)
+    {
+        if (beetle)
+            host_beetle_widescreen(false);
         return false;
-    for (int i = 0; i < app.cheats.count; ++i)
+    }
+    for (int i = 0; i < app.cheats.count && !ra_hardcore(); ++i)
     {
         const char *desc = app.cheats.items[i].desc;
         if (contains_icase(desc, "widescreen") || contains_icase(desc, "16:9") ||
@@ -114,6 +123,11 @@ bool play_widescreen(void)
     }
     if (widescreen_on)
         cheats_apply(&app.cheats);
+    if (beetle)
+    {
+        host_beetle_widescreen(!widescreen_on);
+        widescreen_on = true;
+    }
     return widescreen_on;
 }
 

@@ -198,6 +198,14 @@ static int title_match(const Words *a, const Words *b)
     return score >= 210 ? score : 0; /* at least 70 % */
 }
 
+bool titles_match(const char *a, const char *b)
+{
+    Words wa, wb;
+    title_words(a, &wa);
+    title_words(b, &wb);
+    return title_match(&wa, &wb) >= 300; /* the same words */
+}
+
 static const char *region_of_serial(const char *serial)
 {
     if (!serial[0])

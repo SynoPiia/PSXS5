@@ -202,6 +202,11 @@ void app_rescan(void)
     app_restart_covers();
 }
 
+const Paths *app_paths(void)
+{
+    return &app.paths;
+}
+
 void app_game_config_path(char *out, size_t size, const Game *g)
 {
     char dir[PSXS5_PATH_MAX], file[96];
@@ -840,7 +845,10 @@ int main(void)
         /* a game's cheat file arrived from libretro-database */
         if (cheats_fetch_finished() && app.game && !ra_hardcore() &&
             cheats_load(&app.cheats, app.game, app.paths.cheats))
+        {
             cheats_apply(&app.cheats);
+            play_widescreen(); /* the file may hold the game's widescreen code */
+        }
         if (app.screen != SCREEN_GAME)
             ra_idle();
         draw_achievement();

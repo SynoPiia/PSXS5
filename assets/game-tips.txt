@@ -1,0 +1,21 @@
+# PSXS5 per-game tips, shown in the shelf's Details panel.
+# title<TAB>region (any, US, EU or JP: the disc's serial)<TAB>tip
+# The title is compared word by word, as the cheat matching does (no
+# punctuation, roman numerals as digits). Add only what is sure.
+Ape Escape	any	Made for the analog sticks: keep Controller on DualShock (Settings > Controls).
+Ape Escape	EU	The European disc uses LibCrypt protection: keep its .sbi file next to the disc.
+Spyro 2 Gateway to Glimmer	EU	The European disc uses LibCrypt protection: keep its .sbi file next to the disc.
+Spyro Year of the Dragon	EU	The European disc uses LibCrypt protection: keep its .sbi file next to the disc.
+MediEvil 2	EU	The European disc uses LibCrypt protection: keep its .sbi file next to the disc.
+Crash Team Racing	any	Up to 4 players: Settings > Controls > Players > Up to 4 (multitap).
+Crash Bash	any	Up to 4 players: Settings > Controls > Players > Up to 4 (multitap).
+Bomberman World	any	Up to 4 players: Settings > Controls > Players > Up to 4 (multitap).
+Bomberman Party Edition	any	Up to 4 players: Settings > Controls > Players > Up to 4 (multitap).
+Micro Machines V3	any	Up to 4 players in PSXS5 with the multitap (Settings > Controls > Players).
+Time Crisis	any	Made for a light gun, which PSXS5 doesn't support yet.
+Time Crisis Project Titan	any	Made for a light gun, which PSXS5 doesn't support yet.
+Point Blank	any	Made for a light gun, which PSXS5 doesn't support yet.
+Point Blank 2	any	Made for a light gun, which PSXS5 doesn't support yet.
+Point Blank 3	any	Made for a light gun, which PSXS5 doesn't support yet.
+Elemental Gearbolt	any	Made for a light gun, which PSXS5 doesn't support yet.
+Vib Ribbon	any	On a real console it builds levels from music CDs; PSXS5 can't load audio CDs, so only its own songs play.

@@ -17,6 +17,7 @@
 #include "../platform/platform.h"
 #include "../ra/achievements.h"
 #include "../stats.h"
+#include "../tips.h"
 #include "../update.h"
 #include "draw.h"
 #include "icons.h"
@@ -323,11 +324,30 @@ static void draw_details(const Game *g, float t)
     };
     for (int i = 0; i < 8; ++i)
     {
-        float ry = y + 110 + i * 70;
+        float ry = y + 100 + i * 56;
         icon_draw(rows[i].icon, x + 40, ry + 2, 30, argb_alpha(TH_FOCUS, t));
         text_draw(x + 88, ry, 24, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT, tr(rows[i].label));
         text_draw_fit(x + 310, ry, 24, FONT_BOLD, argb_alpha(TH_TEXT, t), ALIGN_LEFT, w - 350,
                       rows[i].value);
+    }
+    /* tips: worked out once per game (they read files), with its own settings */
+    static char tips[3][TIP_LEN];
+    static int tip_count;
+    static const Game *tips_game;
+    if (g != tips_game)
+    {
+        tips_game = g;
+        Settings s;
+        char own[PSXS5_PATH_MAX];
+        app_game_config_path(own, sizeof(own), g);
+        config_load_game(&s, &app.global, own);
+        tip_count = tips_for(g, &s, tips, 3);
+    }
+    for (int i = 0; i < tip_count; ++i)
+    {
+        float ty = y + 560 + i * 40;
+        icon_draw(ICON_INFO_CIRCLE, x + 40, ty + 2, 24, argb_alpha(TH_GOLD, t));
+        text_draw_fit(x + 76, ty, 19, FONT_REGULAR, argb_alpha(TH_TEXT_SOFT, t), ALIGN_LEFT, w - 116, tips[i]);
     }
     text_draw(x + 40, y + h - 96, 20, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, t), ALIGN_LEFT,
               tr("Saves and cheats follow the serial."));

@@ -15,6 +15,9 @@ void host_unload(void);
 bool host_loaded(void);
 /* "PCSX-ReARMed" or "Beetle PSX HW": the emulator of the loaded game */
 const char *host_core_name(void);
+/* The emulator a game would get with these settings ("Beetle PSX HW" or
+ * "PCSX-ReARMed"); *why_not_beetle says why Automatic picked PCSX-ReARMed. */
+const char *host_emulator_for(const Settings *settings, const char *serial, const char **why_not_beetle);
 
 void host_set_pads(const PadState pads[PSXS5_MAX_PADS]);
 /* True while the game keeps this DualShock in digital mode (sticks ignored). */
@@ -58,5 +61,7 @@ bool host_disc_select(int index);
 /* GameShark codes, to the running core */
 void host_cheat_reset(void);
 void host_cheat_set(unsigned index, const char *code);
+/* Beetle PSX HW: its renderer's widescreen mode (no-op for other cores). */
+void host_beetle_widescreen(bool on);
 
 #endif

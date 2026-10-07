@@ -106,6 +106,7 @@ static int option_count;
 static bool options_dirty;
 
 static const Paths *host_paths;
+extern const Paths *app_paths(void);
 static PadState pad_state[PSXS5_MAX_PADS];
 static enum retro_pixel_format pixel_format = RETRO_PIXEL_FORMAT_0RGB1555;
 static struct retro_system_av_info av_info;
@@ -714,26 +715,43 @@ static bool beetle_bios_present(const char *serial)
 }
 #endif
 
-static const CoreApi *choose_core(const Settings *settings, const char *serial)
+/* Which core runs a game, and why not Beetle when Automatic picks PCSX. */
+static const CoreApi *pick_core(const Settings *settings, const char *serial, const char **why)
 {
+    *why = NULL;
 #if defined(PSXS5_VULKAN)
     if (settings->emulator == EMU_BEETLE)
         return &BEETLE;
     if (settings->emulator == EMU_AUTO)
     {
         /* Beetle when it can run the game well: on the GPU, with the BIOS */
-        const char *why = settings->force_hle             ? "the built-in BIOS was chosen"
-                          : !vkp_describe()[0]            ? "the screen isn't drawn through Vulkan"
-                          : !beetle_bios_present(serial) ? "no BIOS for this disc's region"
-                                                          : NULL;
-        if (!why)
+        *why = settings->force_hle             ? "the built-in BIOS was chosen"
+               : !vkp_describe()[0]            ? "the screen isn't drawn through Vulkan"
+               : !beetle_bios_present(serial) ? "no BIOS for this disc's region"
+                                               : NULL;
+        if (!*why)
             return &BEETLE;
-        psxs5_log("host: PCSX-ReARMed, as %s", why);
     }
 #else
     (void)settings, (void)serial;
 #endif
     return &PCSX;
+}
+
+static const CoreApi *choose_core(const Settings *settings, const char *serial)
+{
+    const char *why;
+    const CoreApi *c = pick_core(settings, serial, &why);
+    if (why)
+        psxs5_log("host: PCSX-ReARMed, as %s", why);
+    return c;
+}
+
+const char *host_emulator_for(const Settings *settings, const char *serial, const char **why_not_beetle)
+{
+    if (!host_paths)
+        host_paths = app_paths();
+    return pick_core(settings, serial ? serial : "", why_not_beetle)->name;
 }
 
 const char *host_core_name(void)
@@ -1054,6 +1072,16 @@ bool host_load_state(const char *path)
     if (ok)
         plat_audio_clear();
     return ok;
+}
+
+void host_beetle_widescreen(bool on)
+{
+#if defined(PSXS5_VULKAN)
+    if (loaded && core == &BEETLE)
+        set_option("beetle_psx_hw_widescreen_hack", on ? "enabled" : "disabled");
+#else
+    (void)on;
+#endif
 }
 
 void host_cheat_reset(void)
