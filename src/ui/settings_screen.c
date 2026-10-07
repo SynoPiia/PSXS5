@@ -102,6 +102,8 @@ static const char *const BACKGROUNDS[] = {"Dark", "Cover colour"};
 static const char *const CRT_LEVELS[] = {"Off", "Light", "Strong"};
 static const char *const BORDERS[] = {"Black", "Soft glow", "TV frame"};
 static const char *const CROPS[] = {"Off", "A little", "More"};
+static const char *const POPUP_STYLES[] = {"Banner", "Compact", "Big trophy"};
+static const char *const LIGHTBARS[] = {"System", "Player colours", "Game cover colour"};
 static const char *const PLAYERS[] = {"1 or 2", "Up to 4 (multitap)"};
 static const char *const SORTS[] = {"Title", "Recently played", "Most played", "Region"};
 
@@ -146,9 +148,11 @@ static const Row CONTROLS[] = {
      false, BOOL_FIELD(rumble), OFF_ON, 2, 0},
     {NULL, "Vibration strength", "How strong the rumble feels.", K_CHOICE, APPLY_NOW, SP_NONE, false,
      INT_FIELD(rumble_strength), VOLUMES, 4, 0},
+    {NULL, "Light bar", "The controller's light: as the system sets it, blue/red/green/pink by player, or the colour of the game's cover.",
+     K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(lightbar), LIGHTBARS, 3, 0},
     {NULL, "Players", "Up to 4 with a multitap, for games that support it: each PS5 controller is a player.",
      K_CHOICE, APPLY_NEXT_GAME, SP_NONE, false, BOOL_FIELD(multitap), PLAYERS, 2, 0},
-    {"Buttons", "Fast forward and rewind", "Hold the touchpad and press R2 to fast forward, or L2 to rewind (turn Rewind on in System).",
+    {"Buttons", "Touchpad shortcuts", "Hold the touchpad and press: R2 fast forward, L2 rewind (turn Rewind on in System), Square screenshot, Triangle start/pause the timer, Circle reset it, R1 next disc.",
      K_INFO, APPLY_NOW, SP_HOTKEYS, true, NO_FIELD, NULL, 0, 0},
     {NULL, "Button mapping", "Choose what each button of your controller presses.", K_ACTION,
      APPLY_NOW, SP_REMAP, false, NO_FIELD, NULL, 0, 0},
@@ -166,6 +170,8 @@ static const Row ACHIEVEMENTS[] = {
      K_INFO, APPLY_NOW, SP_ACCOUNT, true, NO_FIELD, NULL, 0, 0},
     {"While playing", "Unlock pop-ups", "The banner when you earn an achievement. Off only hides it: achievements still unlock.",
      K_TOGGLE, APPLY_NOW, SP_NONE, true, BOOL_FIELD(ra_popups), OFF_ON, 2, 0},
+    {NULL, "Pop-up style", "Banner: top right. Compact: a small line at the top. Big trophy: in the middle, like the PS5's.",
+     K_CHOICE, APPLY_NOW, SP_NONE, true, INT_FIELD(ra_popup_style), POPUP_STYLES, 3, 0},
     {NULL, "Progress tracker", "The small card when a counted achievement moves (18/80 dragons).", K_TOGGLE,
      APPLY_NOW, SP_NONE, true, BOOL_FIELD(ra_tracker), OFF_ON, 2, 0},
     {"Play", "Hardcore mode", "Earn hardcore achievements: save states and cheats are off. Turning it on restarts the game.",

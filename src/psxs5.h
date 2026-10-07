@@ -119,6 +119,8 @@ typedef struct
     int crop_edges;       /* 0 off, 1: 8 lines top and bottom, 2: 16 (the black a CRT hid) */
     bool ra_popups;       /* achievement unlock banners while playing */
     bool ra_tracker;      /* the progress card when a counted achievement moves */
+    int ra_popup_style;   /* 0 banner, 1 compact, 2 big trophy */
+    int lightbar;         /* 0 left to the system, 1 player colours, 2 the game's cover colour */
 } Settings;
 
 enum Emulator

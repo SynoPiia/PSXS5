@@ -275,6 +275,32 @@ static void draw_achievement(void)
     float t = (float)(now - shown_at) / 1e6f, total = length / 1e6f;
     float in = t < 0.25f ? t / 0.25f : 1.0f, out = total - t < 0.4f ? (total - t) / 0.4f : 1.0f;
     float a = in < out ? in : out, slide = (1.0f - in) * (1.0f - in) * 80.0f;
+    if (app.global.ra_popup_style == 1)
+    {
+        /* compact: one line at the top */
+        char line[300];
+        snprintf(line, sizeof(line), "%s  \xc2\xb7  %s", title, detail);
+        float lw = text_width(22, FONT_REGULAR, line) + 90;
+        if (lw > plat_width() - 200)
+            lw = plat_width() - 200;
+        float lx = (plat_width() - lw) * 0.5f, ly = 24 - slide * 0.5f;
+        draw_rrect(lx, ly, lw, 52, 26, argb_alpha(0xf0151a3du, a));
+        icon_draw(ICON_TROPHY, lx + 18, ly + 11, 30, argb_alpha(TH_GOLD, a));
+        text_draw_fit(lx + 60, ly + 13, 22, FONT_REGULAR, argb_alpha(TH_TEXT, a), ALIGN_LEFT, lw - 80, line);
+        return;
+    }
+    if (app.global.ra_popup_style == 2)
+    {
+        /* big trophy, in the middle */
+        float bw = 760, bh = 300, bx = (plat_width() - bw) * 0.5f, by = (plat_height() - bh) * 0.5f - 40 + slide * 0.4f;
+        draw_rrect(bx, by, bw, bh, TH_RADIUS, argb_alpha(0xf0151a3du, a));
+        draw_circle(bx + bw * 0.5f, by + 92, 62, argb_alpha(0xff2a2410u, a));
+        icon_draw(ICON_TROPHY, bx + bw * 0.5f - 44, by + 48, 88, argb_alpha(TH_GOLD, a));
+        text_draw_fit(bx + bw * 0.5f, by + 176, 34, FONT_BOLD, argb_alpha(TH_TEXT, a), ALIGN_CENTER, bw - 60, title);
+        text_draw_fit(bx + bw * 0.5f, by + 230, 22, FONT_REGULAR, argb_alpha(TH_TEXT_DIM, a), ALIGN_CENTER, bw - 60,
+                      detail);
+        return;
+    }
     const float w = 660, h = 116, x = plat_width() - w - 48 + slide, y = 48;
     draw_rrect(x, y, w, h, TH_RADIUS, argb_alpha(0xf0151a3du, a));
     draw_rrect(x + 18, y + 18, 80, 80, TH_RADIUS_SMALL, argb_alpha(0xff2a2410u, a));
@@ -285,6 +311,8 @@ static void draw_achievement(void)
 }
 
 /* ---------------------------------------------------------------- game start/stop */
+
+static void draw_timer(void);
 
 void app_draw_game(uint8_t dim)
 {
@@ -325,6 +353,8 @@ void app_draw_game(uint8_t dim)
         }
     }
     plat_draw_game(&view, host_aspect(), dim);
+    if (app.screen == SCREEN_GAME)
+        draw_timer();
 }
 
 void app_start_game(int index, bool resume)
@@ -431,6 +461,40 @@ static uint32_t map_buttons(uint32_t buttons)
     return out;
 }
 
+/* Speedrun timer: touchpad + Triangle starts/pauses, touchpad + Circle resets.
+ * It counts only while the game runs (not in the PSXS5 menu). */
+static struct
+{
+    bool shown, running;
+    double seconds;
+} timer;
+
+static void draw_timer(void)
+{
+    if (!timer.shown)
+        return;
+    int cs = (int)(timer.seconds * 100.0);
+    char text[32];
+    if (cs >= 360000)
+        snprintf(text, sizeof(text), "%d:%02d:%02d.%02d", cs / 360000, cs / 6000 % 60, cs / 100 % 60, cs % 100);
+    else
+        snprintf(text, sizeof(text), "%02d:%02d.%02d", cs / 6000, cs / 100 % 60, cs % 100);
+    float w = text_width(34, FONT_BOLD, "00:00:00.00") + 48;
+    draw_rrect(40, 40, w, 64, TH_RADIUS_SMALL, 0xd0101428u);
+    text_draw(40 + w * 0.5f, 50, 34, FONT_BOLD, timer.running ? TH_TEXT : TH_GOLD, ALIGN_CENTER, text);
+}
+
+/* The DualSense light bars: per player, or the cover's colour. */
+static void update_lightbars(void)
+{
+    static const uint32_t players[PSXS5_MAX_PADS] = {0x2050ff, 0xff2030, 0x20d040, 0xff40c0};
+    if (app.settings.lightbar == 0)
+        return;
+    uint32_t cover = app.game ? covers_color(app.game_index) & 0xffffff : 0;
+    for (int i = 0; i < PSXS5_MAX_PADS; ++i)
+        plat_set_lightbar(i, app.settings.lightbar == 2 && cover ? cover : players[i]);
+}
+
 static void game_screen(PadState *pads)
 {
     static uint32_t combo_prev;
@@ -451,6 +515,43 @@ static void game_screen(PadState *pads)
     bool fast = touch && (all & BIT(BTN_R2)), back = touch && (all & BIT(BTN_L2));
     if (fast || back)
         touch_used = true; /* a combo, not Select or the menu */
+    /* touchpad + Square: screenshot; + Triangle / Circle: timer; + R1: next disc */
+    static uint32_t combo_all_prev;
+    uint32_t newly = touch ? all & ~combo_all_prev : 0;
+    combo_all_prev = all;
+    const uint32_t combo_keys = BIT(BTN_SQUARE) | BIT(BTN_TRIANGLE) | BIT(BTN_CIRCLE) | BIT(BTN_R1);
+    if (touch && (all & combo_keys))
+        touch_used = true;
+    if (newly & BIT(BTN_SQUARE))
+    {
+        bool ok = play_screenshot();
+        app_toast(ok ? "Screenshot saved in /data/PSXS5/screenshots" : "Could not save the screenshot");
+        sfx_play(ok ? SFX_SELECT : SFX_BACK);
+    }
+    if (newly & BIT(BTN_TRIANGLE))
+    {
+        timer.shown = true;
+        timer.running = !timer.running;
+        sfx_play(SFX_CLICK);
+    }
+    if (newly & BIT(BTN_CIRCLE))
+    {
+        timer.running = false;
+        timer.seconds = 0;
+        timer.shown = false;
+        app_toast("Timer reset");
+    }
+    if ((newly & BIT(BTN_R1)) && host_disc_count() > 1)
+    {
+        int next = (host_disc_index() + 1) % host_disc_count();
+        if (host_disc_select(next))
+        {
+            char msg[64];
+            snprintf(msg, sizeof(msg), tr("Disc %d of %d inserted"), next + 1, host_disc_count());
+            app_toast(msg);
+            sfx_play(SFX_SELECT);
+        }
+    }
     if (touch)
     {
         if (!touch_since)
@@ -478,6 +579,8 @@ static void game_screen(PadState *pads)
     {
         if (fast || back)
             pads[i].buttons &= ~(BIT(BTN_L2) | BIT(BTN_R2));
+        if (touch) /* the combo buttons go to PSXS5, not the game */
+            pads[i].buttons &= ~combo_keys;
         pads[i].buttons = map_buttons(pads[i].buttons & ~BIT(BTN_MENU));
         if (i == 0 && select_frames > 0)
         {
@@ -536,6 +639,9 @@ static void game_screen(PadState *pads)
         if (queued > per_frame * 3)
             plat_audio_clear(); /* keep up instead of queueing sound */
     }
+    if (timer.running)
+        timer.seconds += app.dt;
+    update_lightbars();
     static uint64_t emu_us;
     static int emu_frames;
     uint64_t emu_start = plat_ticks_us();

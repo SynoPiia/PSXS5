@@ -449,6 +449,23 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
     }
 }
 
+void plat_set_lightbar(int port, uint32_t rgb)
+{
+    static uint32_t last[PSXS5_MAX_PADS] = {0xffffffffu, 0xffffffffu, 0xffffffffu, 0xffffffffu};
+    if (port < 0 || port >= PSXS5_MAX_PADS || !joys[port] || last[port] == rgb)
+        return;
+    last[port] = rgb;
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    if (SDL_JoystickSetLED(joys[port], (Uint8)(rgb >> 16), (Uint8)(rgb >> 8), (Uint8)rgb) != 0)
+    {
+        static bool logged;
+        if (!logged)
+            psxs5_log("pad: light bar not supported here (%s)", SDL_GetError());
+        logged = true;
+    }
+#endif
+}
+
 void plat_rumble(int port, uint16_t strong, uint16_t weak)
 {
     if (port < 0 || port >= PSXS5_MAX_PADS || !joys[port])
@@ -591,6 +608,16 @@ void plat_poll(PadState pads[PSXS5_MAX_PADS], bool *quit)
         }
 #else
     (void)key_map;
+#endif
+}
+
+void plat_set_lightbar(int port, uint32_t rgb)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+    if (port >= 0 && port < PSXS5_MAX_PADS && controllers[port])
+        SDL_GameControllerSetLED(controllers[port], (Uint8)(rgb >> 16), (Uint8)(rgb >> 8), (Uint8)rgb);
+#else
+    (void)port, (void)rgb;
 #endif
 }
 

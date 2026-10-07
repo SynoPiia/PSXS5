@@ -119,6 +119,10 @@ static bool config_apply(Settings *s, const char *path)
             s->ra_popups = as_bool(value);
         else if (strcmp(key, "ra_tracker") == 0)
             s->ra_tracker = as_bool(value);
+        else if (strcmp(key, "ra_popup_style") == 0)
+            s->ra_popup_style = atoi(value) % 3;
+        else if (strcmp(key, "lightbar") == 0)
+            s->lightbar = atoi(value) % 3;
         else if (strcmp(key, "rewind") == 0)
             s->rewind = as_bool(value);
         else if (strcmp(key, "quick_resume") == 0)
@@ -202,6 +206,7 @@ bool config_save(const Settings *s, const char *path)
             s->update_check);
     fprintf(f, "emulator=%d\npgxp=%d\nra_popups=%d\nra_tracker=%d\ncrop_edges=%d\n", s->emulator, s->pgxp,
             s->ra_popups, s->ra_tracker, s->crop_edges);
+    fprintf(f, "ra_popup_style=%d\nlightbar=%d\n", s->ra_popup_style, s->lightbar);
     fprintf(f, "button_map=");
     for (int i = 0; i < 16; ++i)
         fprintf(f, i ? ",%d" : "%d", s->button_map[i]);

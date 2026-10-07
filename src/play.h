@@ -27,6 +27,8 @@ bool play_load_resume(void);
 #define THUMB_W 192
 #define THUMB_H 144
 void play_save_thumb(const char *state_path);
+/* The game picture as a PNG in <root>/screenshots, at the size it has on screen. */
+bool play_screenshot(void);
 /* Loads it into rgba (THUMB_W x THUMB_H); false if there is none. */
 bool play_load_thumb(const char *state_path, uint8_t *rgba);
 

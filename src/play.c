@@ -7,6 +7,7 @@
 
 #include "app.h"
 #include "core/host.h"
+#include "platform/platform.h"
 #include "i18n.h"
 #include "ra/achievements.h"
 
@@ -119,6 +120,50 @@ bool play_widescreen(void)
 bool play_widescreen_active(void)
 {
     return widescreen_on;
+}
+
+/* ---------------------------------------------------------------- screenshots */
+
+void *tdefl_write_image_to_png_file_in_memory(const void *image, int w, int h, int num_chans,
+                                              size_t *len_out); /* miniz (vendor.c) */
+void mz_free(void *p);
+
+bool play_screenshot(void)
+{
+    if (!app.game)
+        return false;
+    int gx, gy, gw, gh;
+    plat_game_rect(&gx, &gy, &gw, &gh);
+    if (gw <= 0 || gh <= 0)
+        gw = 1440, gh = 1080;
+    uint8_t *rgba = malloc((size_t)gw * gh * 4);
+    if (!rgba)
+        return false;
+    bool ok = host_capture(rgba, gw, gh);
+    size_t len = 0;
+    void *png = ok ? tdefl_write_image_to_png_file_in_memory(rgba, gw, gh, 4, &len) : NULL;
+    free(rgba);
+    if (!png)
+        return false;
+    char dir[PSXS5_PATH_MAX], name[160], path[PSXS5_PATH_MAX];
+    path_join(dir, sizeof(dir), app.paths.root, "screenshots");
+    make_dirs(dir);
+    struct tm tm;
+    char when[32] = "0";
+    if (local_time((long long)time(NULL), &tm))
+        strftime(when, sizeof(when), "%Y-%m-%d %H.%M.%S", &tm);
+    snprintf(name, sizeof(name), "%.100s %s.png", app.game->title, when);
+    for (char *c = name; *c; ++c)
+        if (strchr("/\\:*?\"<>|", *c))
+            *c = '-';
+    path_join(path, sizeof(path), dir, name);
+    FILE *f = fopen(path, "wb");
+    ok = f && fwrite(png, 1, len, f) == len;
+    if (f)
+        ok = fclose(f) == 0 && ok;
+    mz_free(png);
+    psxs5_log("screenshot: %s %s", path, ok ? "saved" : "could not be saved");
+    return ok;
 }
 
 /* ---------------------------------------------------------------- thumbnails */
