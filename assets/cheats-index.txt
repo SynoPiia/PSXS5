@@ -1,0 +1,1962 @@
+# libretro/libretro-database master: cht/Sony - PlayStation/ (1961 files)
+007 - Der Morgen stirbt nie (Germany) (GameShark).cht
+007 - Die Welt ist nicht genug (Germany) (Game Buster).cht
+007 - Die Welt ist nicht genug (Germany) (Xploder).cht
+007 - The World Is Not Enough (USA, Europe) (GameShark).cht
+007 - Tomorrow Never Dies (World) (GameShark).cht
+007 Racing (USA, Europe) (Game Buster).cht
+007 Racing (USA, Europe) (GameShark).cht
+2Xtreme (USA, Europe) (Game Buster).cht
+3, 2, 1, Smurf! My First Racing Game (Europe) (Game Buster).cht
+360 Three Sixty (Europe) (Game Buster).cht
+3D Baseball (USA) (GameShark).cht
+3D Lemmings (World) (Game Buster).cht
+3Xtreme (USA) (GameShark).cht
+40 Winks (USA, Europe) (Game Buster).cht
+40 Winks (USA, Europe) (GameShark).cht
+4x4 World Trophy (Europe) (Game Buster).cht
+A-Train - Trains, Power, Money (USA) (Game Buster).cht
+A-Train - Trains, Power, Money (USA) (GameShark).cht
+A.IV - Evolution Global (Europe) (Game Buster).cht
+ATV - Quad Power Racing (World) (GameShark).cht
+ATV Mania (USA, Europe) (GameShark).cht
+Ace Combat (Japan) (Game Buster).cht
+Ace Combat 2 (Germany) (Game Buster).cht
+Ace Combat 2 (World) (Game Buster).cht
+Ace Combat 2 (World) (GameShark).cht
+Ace Combat 3 - Electrosphere (World) (Game Buster).cht
+Ace Combat 3 - Electrosphere (World) (GameShark).cht
+Aces of the Air (USA) (GameShark).cht
+Action Bass (World) (Game Buster).cht
+Action Bass (World) (GameShark).cht
+Action Man - Destruction X (Europe) (Game Buster).cht
+Action Man - Operation Extreme (USA) (GameShark).cht
+Actua Golf 2 (Europe) (Game Buster).cht
+Actua Golf 3 (Europe) (Game Buster).cht
+Actua Pool (Europe) (Game Buster).cht
+Actua Soccer 3 (Europe) (Game Buster).cht
+Adidas Power Soccer (USA, Europe) (GameShark).cht
+Advanced Dungeons _ Dragons - Iron _ Blood - Warriors of Ravenloft (USA, Europe) (GameShark).cht
+Adventures of Lomax, The (USA) (Game Buster).cht
+Adventures of Lomax, The (USA) (GameShark).cht
+Agent Armstrong (Europe) (Game Buster).cht
+Agile Warrior - F-111X (World) (Game Buster).cht
+Agile Warrior - F-111X (World) (GameShark).cht
+Air Combat (USA, Europe) (Game Buster).cht
+Air Combat (USA, Europe) (GameShark).cht
+Aironauts (Europe) (Game Buster).cht
+Akuji the Heartless (Europe) (Xploder).cht
+Akuji the Heartless (USA, Europe) (Game Buster).cht
+Akuji the Heartless (USA, Europe) (GameShark).cht
+Alexi Lalas International Soccer (USA) (GameShark).cht
+Alfred Chicken (Europe) (GameShark).cht
+Alien Resurrection (Europe) (Xploder).cht
+Alien Resurrection (USA, Europe) (Game Buster).cht
+Alien Resurrection (USA, Europe) (GameShark).cht
+Alien Trilogy (World) (Game Buster).cht
+Alien Trilogy (World) (GameShark).cht
+All Star Racing 2 (USA, Europe) (GameShark).cht
+All Star Tennis '99 (Europe) (Game Buster).cht
+All-Star Baseball 97 featuring Frank Thomas (USA) (GameShark).cht
+All-Star Slammin' D-Ball (USA) (GameShark).cht
+Allied General (World) (Game Buster).cht
+Allied General (World) (GameShark).cht
+Alone in the Dark - One-Eyed Jack's Revenge (USA) (GameShark).cht
+Alone in the Dark - The New Nightmare (USA, Europe) (GameShark).cht
+Alone in the Dark 2 (Japan) (Game Buster).cht
+Alundra (USA) (GameShark).cht
+Alundra (World) (Game Buster).cht
+Alundra (World) (GameShark).cht
+Alundra 2 - A New Legend Begins (USA, Europe) (Game Buster).cht
+Alundra 2 - A New Legend Begins (USA, Europe) (GameShark).cht
+Alundra 2 - A New Legend Begins (USA, Europe) (Xploder).cht
+Amazing Virtual Sea-Monkeys, The (USA, Europe) (GameShark).cht
+Andretti Racing (World) (Game Buster).cht
+Andretti Racing (World) (GameShark).cht
+Animorphs - Shattered Reality (USA) (GameShark).cht
+Anna Kournikova's Smash Court Tennis (Europe) (GameShark).cht
+Ape Escape (USA, Europe) (Game Buster).cht
+Ape Escape (USA, Europe) (GameShark).cht
+Apocalypse (World) (Game Buster).cht
+Apocalypse (World) (GameShark).cht
+Aqua GT (Beta) (Europe) (Game Buster).cht
+Aqua GT (Europe) (Game Buster).cht
+Arc the Lad (Japan) (Game Buster).cht
+Area 51 (USA) (GameShark).cht
+Area 51 (World) (Game Buster).cht
+Area 51 (World) (GameShark).cht
+Armored Core (World) (GameShark).cht
+Armored Core - Master of Arena (Japan) (GameShark).cht
+Armored Core - Master of Arena (USA, Japan) (GameShark).cht
+Armored Core - Project Phantasma (USA, Japan) (GameShark).cht
+Armorines - Project S.W.A.R.M. (World) (Game Buster).cht
+Armorines - Project S.W.A.R.M. (World) (GameShark).cht
+Army Men - Air Attack (USA, Europe) (Game Buster).cht
+Army Men - Air Attack (USA, Europe) (GameShark).cht
+Army Men - Air Attack 2 (USA, Europe) (Game Buster).cht
+Army Men - Green Rogue (USA) (GameShark).cht
+Army Men - Lock 'n' Load (Europe) (Game Buster).cht
+Army Men - Omega Soldier (Europe) (Game Buster).cht
+Army Men - Operation Meltdown (Europe) (Game Buster).cht
+Army Men - Sarge's Heroes (USA, Europe) (Game Buster).cht
+Army Men - Sarge's Heroes (USA, Europe) (GameShark).cht
+Army Men - Sarge's Heroes (USA, Europe) (Xploder).cht
+Army Men - Sarge's Heroes 2 (USA, Europe) (GameShark).cht
+Army Men - World War (USA) (GameShark).cht
+Army Men - World War (USA) (Xploder).cht
+Army Men - World War - Final Front (USA) (GameShark).cht
+Army Men - World War - Land, Sea, Air (USA) (GameShark).cht
+Army Men - World War - Team Assault (USA) (GameShark).cht
+Army Men 3D (USA, Europe) (Game Buster).cht
+Army Men 3D (USA, Europe) (GameShark).cht
+Arthur! Ready to Race (USA) (GameShark).cht
+Assault (Europe) (Game Buster).cht
+Assault - Retribution (USA) (GameShark).cht
+Asterix (Europe) (Game Buster).cht
+Asterix (Europe) (GameShark).cht
+Asterix - Mega Madness (Europe) (Game Buster).cht
+Asterix _ Obelix Take On Caesar (Europe) (GameShark).cht
+Asteroids (USA, Europe) (Game Buster).cht
+Asteroids (USA, Europe) (GameShark).cht
+Atlantis - Das sagenhafte Abenteuer (Germany) (Game Buster).cht
+Attack of the Saucerman (Europe) (Game Buster).cht
+Austin Powers Pinball (USA, Europe) (GameShark).cht
+Auto Destruct (USA) (Xploder).cht
+Auto Destruct (USA, Europe) (GameShark).cht
+Autobahn Raser II (Germany) (Game Buster).cht
+Autobahn Raser II (Germany) (Xploder).cht
+Aztec - The Curse in the Heart of the City of Gold (Europe) (Game Buster).cht
+B-Movie (Europe) (Game Buster).cht
+Backstreet Billiards (USA) (GameShark).cht
+Backyard Soccer (USA) (GameShark).cht
+Bakusou Dekotora Densetsu - Otoko Ippiki Yume Kaidou (Japan) (Xploder).cht
+Baldies (USA, Europe) (GameShark).cht
+BallBlazer Champions (USA, Europe) (GameShark).cht
+Ballerburg - Castle Chaos (USA) (GameShark).cht
+Ballistic (USA, Europe) (Game Buster).cht
+Ballistic (USA, Europe) (GameShark).cht
+Baphomets Fluch (Germany) (Game Buster).cht
+Barbie - Explorer (USA, Europe) (GameShark).cht
+Barbie - Race _ Ride (USA, Europe) (GameShark) (diff).cht
+Barbie - Race _ Ride (USA, Europe) (GameShark).cht
+Barbie - Super Sports (USA, Europe) (GameShark).cht
+Bases Loaded '96 - Double Header (USA) (GameShark).cht
+Bass Landing (USA, Japan) (GameShark).cht
+Bass Rise (USA) (GameShark).cht
+Bass Rise (USA) (Xploder).cht
+Batman - Gotham City Racer (USA, Europe) (GameShark).cht
+Batman Beyond - Return of the Joker (USA) (GameShark).cht
+Batman Forever - The Arcade Game (World) (GameShark).cht
+Batman of the Future - Return of the Joker (Europe) (Game Buster).cht
+Battle Arena Toshinden (USA, Europe) (Game Buster).cht
+Battle Arena Toshinden 2 (USA, Europe) (Game Buster).cht
+Battle Arena Toshinden 2 (USA, Europe) (GameShark).cht
+Battle Arena Toshinden 3 (USA, Europe) (Game Buster).cht
+Battle Arena Toshinden 3 (USA, Europe) (GameShark).cht
+Battle Arena Toshinden 4 (Europe, Japan) (Game Buster).cht
+Battle Arena Toshinden 4 (Europe, Japan) (GameShark).cht
+Battle Hunter (USA) (GameShark).cht
+Battle Stations (USA, Europe) (Game Buster).cht
+Battle Stations (USA, Europe) (GameShark).cht
+BattleRound USA (Japan) (GameShark).cht
+BattleSport (USA, Europe) (GameShark).cht
+BattleTanx - Global Assault (USA, Europe) (Game Buster).cht
+BattleTanx - Global Assault (USA, Europe) (GameShark).cht
+Beast Wars - Transformers (USA, Europe) (Game Buster).cht
+Beatmania (Europe) (Game Buster).cht
+Beatmania (Europe) (GameShark).cht
+Bedlam (Europe) (Game Buster).cht
+Beyblade (USA, Europe) (GameShark).cht
+Big Air (USA, Europe) (Game Buster).cht
+Big Air (USA, Europe) (GameShark).cht
+Big Bass Fishing (USA, Europe) (GameShark).cht
+Big Bass World Championship (USA) (GameShark).cht
+Big League Slugger Baseball (USA) (GameShark).cht
+Big Strike Bowling (USA, Europe) (GameShark).cht
+Billiards (USA) (GameShark).cht
+Bio F.R.E.A.K.S. (USA, Europe) (Game Buster).cht
+Bio F.R.E.A.K.S. (USA, Europe) (GameShark).cht
+Bishi Bashi Special (Europe, Japan) (Game Buster).cht
+Bishi Bashi Special (Europe, Japan) (GameShark).cht
+Black Bass with Blue Marlin (USA) (GameShark).cht
+Black Dawn (World) (Game Buster).cht
+Black Dawn (World) (GameShark).cht
+Blade (USA, Europe) (Game Buster).cht
+Blade (USA, Europe) (GameShark).cht
+Blade (USA, Europe) (Xploder).cht
+Blam! Machinehead (Europe, Japan) (Game Buster).cht
+Blast Chamber (USA, Europe) (GameShark).cht
+Blast Lacrosse (USA) (GameShark).cht
+Blast Radius (USA, Europe) (Game Buster).cht
+Blast Radius (USA, Europe) (GameShark).cht
+Blaster Master - Blasting Again (USA, Europe) (GameShark).cht
+Blasto (USA, Europe) (Game Buster).cht
+Blasto (USA, Europe) (GameShark).cht
+Blaze _ Blade - Eternal Quest (Europe, Japan) (Game Buster).cht
+Blockids (World) (GameShark).cht
+Blood Lines (Europe) (Game Buster).cht
+Blood Omen - Legacy of Kain (USA, Europe) (Game Buster).cht
+Blood Omen - Legacy of Kain (USA, Europe) (GameShark).cht
+Bloody Roar (USA) (Game Buster).cht
+Bloody Roar (USA) (GameShark).cht
+Bloody Roar - Hyper Beast Duel (Europe, Japan) (Xploder).cht
+Bloody Roar 2 - Bringer of the New Age (Europe, Japan) (Game Buster).cht
+Bloody Roar 2 - Bringer of the New Age (Europe, Japan) (GameShark).cht
+Board Game - Top Shop (USA) (GameShark).cht
+Bob the Builder - Can We Fix It (USA, Europe) (GameShark).cht
+Bogey - Dead 6 (USA) (GameShark).cht
+Bomberman (Europe, Japan) (Game Buster).cht
+Bomberman - Party Edition (USA) (GameShark).cht
+Bomberman Fantasy Race (World) (Game Buster).cht
+Bomberman Fantasy Race (World) (GameShark).cht
+Bomberman World (World) (Game Buster).cht
+Bomberman World (World) (GameShark).cht
+BoomBots (USA) (GameShark).cht
+Bottom of the 9th '97 (USA) (GameShark).cht
+Bottom of the 9th '99 (USA) (GameShark).cht
+Bowling (USA) (GameShark).cht
+Box Champions 2001 (Germany) (Game Buster).cht
+Box Champions 2001 (Germany) (Xploder).cht
+Box-Champions (Germany) (Game Buster).cht
+Boxing (USA) (GameShark).cht
+Brahma Force - The Assault on Beltlogger 9 (USA) (GameShark).cht
+Bratz - Dress Up, Get Down and Be a Bratz Superstar! (USA, Europe) (GameShark).cht
+Brave Fencer Musashi (USA, Japan) (GameShark).cht
+Bravo Air Race (USA) (GameShark).cht
+Break Out (USA, Europe) (Game Buster).cht
+Break Out (USA, Europe) (GameShark).cht
+Breath of Fire III (World) (Game Buster).cht
+Breath of Fire IV (USA) (GameShark).cht
+Broken Helix (World) (Game Buster).cht
+Broken Helix (World) (GameShark).cht
+Broken Sword II - The Smoking Mirror (USA, Europe) (GameShark).cht
+Brunswick Circuit Pro Bowling (USA, Europe) (GameShark).cht
+Brunswick Circuit Pro Bowling 2 (USA, Europe) (GameShark).cht
+Bubble Bobble also featuring Rainbow Islands (Europe) (Xploder).cht
+Bubble Bobble also featuring Rainbow Islands (Europe, USA) (Game Buster).cht
+Bubble Bobble also featuring Rainbow Islands (USA, Europe) (Game Buster).cht
+Bubble Bobble also featuring Rainbow Islands (USA, Europe) (GameShark).cht
+Bubsy 3D - Furbitten Planet (USA, Europe) (Game Buster).cht
+Bubsy 3D - Furbitten Planet (USA, Europe) (GameShark).cht
+Bugriders - The Race of Kings (USA, Europe) (Game Buster).cht
+Bugs Bunny - Lost in Time (USA, Europe) (Game Buster).cht
+Bugs Bunny - Lost in Time (USA, Europe) (GameShark).cht
+Bugs Bunny _ Taz - Time Busters (USA, Europe) (GameShark).cht
+Builder's Block (USA) (GameShark).cht
+Bundesliga Stars 2000 (Germany) (Game Buster).cht
+Burning Road (World) (Game Buster).cht
+Burning Road (World) (GameShark).cht
+BursTrick - Wake Boarding!! (World) (Game Buster).cht
+BursTrick - Wake Boarding!! (World) (GameShark).cht
+Bushido Blade (World) (Game Buster).cht
+Bushido Blade (World) (GameShark).cht
+Bushido Blade 2 (USA, Japan) (GameShark).cht
+Bust A Groove (USA) (GameShark).cht
+Bust A Groove 2 (USA) (Game Buster).cht
+Bust A Groove 2 (USA) (GameShark) (diff).cht
+Bust A Groove 2 (USA) (GameShark).cht
+Bust-A-Groove (USA, Europe) (Game Buster).cht
+Bust-A-Move '99 (USA) (GameShark).cht
+Bust-A-Move 3 DX (Europe) (Game Buster).cht
+Bust-A-Move 4 (Europe, USA) (GameShark).cht
+C - The Contra Adventure (USA) (GameShark).cht
+C-12 - Final Resistance (Demo) (USA, Europe) (Game Buster).cht
+C-12 - Final Resistance (Europe) (Xploder).cht
+C-12 - Final Resistance (USA, Europe) (GameShark).cht
+C3 Racing - Car Constructors Championship (Europe) (Game Buster).cht
+CART World Series (USA) (GameShark).cht
+CBZ - CyBall Zone (Germany) (Game Buster).cht
+CTR - Crash Team Racing (USA, Europe) (GameShark) (diff).cht
+CTR - Crash Team Racing (USA, Europe) (GameShark).cht
+Cabela's Big Game Hunter - Ultimate Challenge (USA) (GameShark) (diff).cht
+Cabela's Big Game Hunter - Ultimate Challenge (USA) (GameShark).cht
+Cabela's Ultimate Deer Hunt - Open Season (USA) (GameShark).cht
+Caesars Palace (USA, Europe) (Game Buster).cht
+Caesars Palace (USA, Europe) (GameShark).cht
+Caesars Palace II (USA, Europe) (Game Buster).cht
+Caesars Palace II (USA, Europe) (GameShark).cht
+Capcom vs. SNK Pro (USA) (GameShark).cht
+Car and Driver Presents - Grand Tour Racing '98 (USA) (GameShark) (diff).cht
+Car and Driver Presents - Grand Tour Racing '98 (USA) (GameShark).cht
+Card Games (USA) (GameShark).cht
+Cardinal Syn (USA, Europe) (Game Buster).cht
+Cardinal Syn (USA, Europe) (GameShark).cht
+Carmageddon (Europe) (Game Buster).cht
+Carmageddon (Europe) (GameShark).cht
+Carnage Heart (World) (GameShark).cht
+Casper (USA, Europe) (Game Buster).cht
+Casper (USA, Europe) (GameShark).cht
+Casper - Friends Around the World (USA) (GameShark).cht
+Casper - Friends Around the World (USA, Europe) (Game Buster).cht
+Castlevania - Symphony of the Night (USA, Europe) (Game Buster).cht
+Castlevania Chronicles (USA, Europe) (GameShark).cht
+Castrol Honda Superbike Racing (USA, Europe) (Game Buster).cht
+Castrol Honda Superbike Racing (USA, Europe) (GameShark).cht
+Castrol Honda VTR (Europe) (Game Buster).cht
+Catan - Die erste Insel (Germany) (Game Buster).cht
+Championship Bass (World) (GameShark).cht
+Championship Motocross 2001 featuring Ricky Carmichael (USA, Europe) (GameShark).cht
+Championship Motocross featuring Ricky Carmichael (USA, Europe) (Game Buster).cht
+Championship Motocross featuring Ricky Carmichael (USA, Europe) (GameShark).cht
+Championship Surfer (USA, Europe) (GameShark).cht
+Chase the Express (Europe, Japan) (Game Buster).cht
+Chess (USA) (GameShark).cht
+Chessmaster II (USA, Europe) (GameShark).cht
+Chicken Run (Europe) (Game Buster).cht
+Chicken Run (USA, Europe) (GameShark).cht
+Chill (Europe) (Game Buster).cht
+Chippoke Ralph no Daibouken (Japan) (GameShark).cht
+Chocobo Racing (USA, Europe) (Game Buster).cht
+Chocobo Racing (USA, Europe) (GameShark).cht
+Chocobo's Dungeon 2 (USA) (GameShark).cht
+Chrono Cross (USA).cht
+Circuit Breakers (USA, Europe) (Game Buster).cht
+Circuit Breakers (USA, Europe) (GameShark).cht
+Civilization II (World) (Game Buster).cht
+Civilization II (World) (GameShark).cht
+Cleopatra Fortune (Europe) (GameShark).cht
+Clock Tower (USA, Europe) (GameShark).cht
+Clock Tower II - The Struggle Within (USA) (GameShark).cht
+Codename - Tenka (USA) (GameShark) (diff).cht
+Codename - Tenka (USA) (GameShark).cht
+Cold Blood (Germany) (Game Buster).cht
+Colin McRae Rally (Europe) (Game Buster).cht
+Colin McRae Rally (USA, Europe) (GameShark).cht
+Colin McRae Rally 2.0 (Europe).cht
+Colin McRae Rally 2.0 (USA).cht
+Colin McRae Rally 2.0 (USA, Europe) (Game Buster).cht
+Colin McRae Rally 2.0 (USA, Europe) (GameShark).cht
+College Slam (USA) (Game Buster).cht
+College Slam (USA) (GameShark).cht
+Colony Wars (World) (Game Buster).cht
+Colony Wars (World) (GameShark).cht
+Colony Wars - Red Sun (USA, Europe) (Game Buster).cht
+Colony Wars - Red Sun (USA, Europe) (GameShark).cht
+Colony Wars - Vengeance (USA, Europe) (Game Buster).cht
+Colony Wars - Vengeance (USA, Europe) (GameShark).cht
+Command _ Conquer (USA, Europe) (GameShark).cht
+Command _ Conquer - Alarmstufe Rot (Germany) (Game Buster).cht
+Command _ Conquer - Alarmstufe Rot (Germany) (Xploder).cht
+Command _ Conquer - Alarmstufe Rot - Gegenschlag (Germany) (Game Buster).cht
+Command _ Conquer - Red Alert (USA, Europe) (GameShark).cht
+Command _ Conquer - Red Alert - Retaliation (USA, Europe) (Game Buster).cht
+Constructor (Europe) (Game Buster).cht
+Constructor (Europe) (GameShark).cht
+Contender (USA) (GameShark).cht
+Contender 2 (USA) (GameShark).cht
+Contra - Legacy of War (USA, Europe) (Game Buster).cht
+Contra - Legacy of War (USA, Europe) (GameShark).cht
+Cool Boarders (World) (GameShark).cht
+Cool Boarders 2 (USA, Europe) (Game Buster).cht
+Cool Boarders 2 (USA, Europe) (GameShark).cht
+Cool Boarders 2001 (USA) (GameShark).cht
+Cool Boarders 3 (World) (Game Buster).cht
+Cool Boarders 3 (World) (GameShark).cht
+Cool Boarders 4 (World) (Game Buster).cht
+Cool Boarders 4 (World) (GameShark).cht
+Courier Crisis - The Saga of the Modern Fatalist (World) (GameShark).cht
+Covert Ops - Nuclear Dawn (USA) (GameShark).cht
+Crash Bandicoot (World) (Game Buster).cht
+Crash Bandicoot (World) (GameShark).cht
+Crash Bandicoot 2 - Cortex Strikes Back (USA, Europe) (Game Buster).cht
+Crash Bandicoot 2 - Cortex Strikes Back (USA, Europe) (GameShark).cht
+Crash Bandicoot 3 - Warped (Europe) (Game Buster).cht
+Crash Bandicoot 3 - Warped (Europe) (GameShark).cht
+Crash Bash (USA, Europe) (Game Buster).cht
+Crash Bash (USA, Europe) (GameShark).cht
+Creatures (USA, Europe) (GameShark).cht
+Creatures - Raised in Space (USA, Europe) (GameShark).cht
+Crime Crackers (Japan) (Game Buster).cht
+Crime Killer (USA, Europe) (Game Buster).cht
+Crime Killer (USA, Europe) (GameShark).cht
+Crisis Beat (Europe, Japan) (Game Buster).cht
+Criticom (USA, Europe) (Game Buster).cht
+Criticom (USA, Europe) (GameShark).cht
+Croc - Legend of the Gobbos (USA, Europe) (Game Buster).cht
+Croc - Legend of the Gobbos (USA, Europe) (GameShark).cht
+Croc 2 (USA, Europe) (Game Buster).cht
+Croc 2 (USA, Europe) (GameShark).cht
+Crossroad Crisis (USA) (GameShark).cht
+Crow, The - City of Angels (World) (GameShark).cht
+Crusader - No Remorse (USA, Europe) (Game Buster).cht
+Crusader - No Remorse (USA, Europe) (GameShark).cht
+Crusaders of Might and Magic (USA, Europe) (Game Buster).cht
+Crusaders of Might and Magic (USA, Europe) (GameShark).cht
+Crypt Killer (USA, Europe) (Game Buster).cht
+Crypt Killer (USA, Europe) (GameShark).cht
+Cubix Robots for Everyone - Race 'n Robots (USA, Europe) (GameShark).cht
+CyberSled (World) (Game Buster).cht
+CyberSled (World) (GameShark) (diff).cht
+CyberSled (World) (GameShark).cht
+CyberTiger (USA, Europe) (GameShark).cht
+Cyberia (World) (GameShark).cht
+D (USA, Europe) (GameShark).cht
+DBZ - Dead Ball Zone (USA, Europe) (GameShark).cht
+Dance Dance Revolution (USA, Japan) (GameShark).cht
+Dance Dance Revolution - Disney Mix (USA) (GameShark).cht
+Dance Dance Revolution Konamix (USA) (GameShark).cht
+Dancing Stage - Euromix (Europe) (GameShark).cht
+Dancing Stage - Party Edition (Europe) (GameShark).cht
+Dancing Stage Fever (Europe) (GameShark).cht
+Dancing Stage Fusion (Europe) (GameShark).cht
+Danger Girl (USA, Europe) (Game Buster).cht
+Danger Girl (USA, Europe) (GameShark).cht
+Dare Devil Derby 3D (USA, Japan) (GameShark).cht
+Darklight Conflict (USA, Europe) (Game Buster).cht
+Darklight Conflict (USA, Europe) (GameShark).cht
+Darkstalkers - The Night Warriors (USA, Europe) (Game Buster).cht
+Darkstalkers - The Night Warriors (USA, Europe) (GameShark).cht
+Darkstalkers 3 (Europe, USA) (GameShark).cht
+Darkstalkers 3 (USA) (Xploder).cht
+Darkstone (USA) (Game Buster).cht
+Darkstone (USA) (GameShark).cht
+Dave Mirra Freestyle BMX (USA) (Xploder).cht
+Dave Mirra Freestyle BMX (World) (GameShark).cht
+Davis Cup Complete Tennis (Europe) (Game Buster).cht
+Davis Cup Complete Tennis (Europe) (GameShark).cht
+Dead in the Water (USA) (GameShark).cht
+Dead or Alive (USA) (Game Buster).cht
+Dead or Alive (USA) (GameShark).cht
+Deadly Skies (Japan) (GameShark).cht
+Deception III - Dark Delusion (USA) (GameShark).cht
+Defcon 5 (Europe, Japan) (Game Buster).cht
+Defcon 5 (Europe, Japan) (GameShark).cht
+Delta Force Urban Warfare (USA, Europe) (GameShark).cht
+Demolition Racer (USA, Europe) (Game Buster).cht
+Demolition Racer (USA, Europe) (GameShark).cht
+Descent (World) (Game Buster).cht
+Descent (World) (GameShark).cht
+Descent II (Europe) (Game Buster).cht
+Descent Maximum (USA) (GameShark).cht
+Destrega (World) (Game Buster).cht
+Destrega (World) (GameShark).cht
+Destruction Derby (World) (Game Buster).cht
+Destruction Derby (World) (GameShark).cht
+Destruction Derby 2 (World) (Game Buster).cht
+Destruction Derby 2 (World) (GameShark).cht
+Destruction Derby Raw (USA, Europe) (Game Buster).cht
+Destruction Derby Raw (USA, Europe) (GameShark).cht
+Detective Barbie - The Mystery Cruise (USA, Europe) (GameShark).cht
+Devil Dice (USA, Europe) (Game Buster).cht
+Devil's Deception (Europe) (Game Buster).cht
+Die Hard Trilogy (World) (Game Buster).cht
+Die Hard Trilogy 2 - Viva Las Vegas (USA) (Xploder).cht
+Die Hard Trilogy 2 - Viva Las Vegas (USA, Europe) (Game Buster).cht
+Digimon Digital Card Battle (USA, Europe) (GameShark).cht
+Digimon World (USA, Europe) (GameShark).cht
+Digimon World 3 (USA) (GameShark).cht
+Dino Crisis (Italy) (Game Buster).cht
+Dino Crisis (World) (GameShark) (diff).cht
+Dino Crisis (World) (GameShark).cht
+Dino Crisis 2 (Japan) (Xploder).cht
+Discworld Noir (Europe) (Game Buster).cht
+Disney Presents Tigger's Honey Hunt (USA) (GameShark).cht
+Disney's 102 Dalmatians - Puppies to the Rescue (USA, Europe) (GameShark).cht
+Disney's Aladdin in Nasira's Revenge (Europe) (Xploder).cht
+Disney's Aladdin in Nasira's Revenge (USA, Europe) (Game Buster).cht
+Disney's Atlantis - The Lost Empire (USA, Europe) (GameShark).cht
+Disney's Dinosaur (USA, Europe) (GameShark).cht
+Disney's Dinosaurier (Germany) (Game Buster).cht
+Disney's Dinosaurier (Germany) (Xploder).cht
+Disney's Donald Duck - Quack Attack (Europe, Scandinavia) (Game Buster).cht
+Disney's Goofy's Fun House (USA, Europe) (GameShark).cht
+Disney's Hercules Action Game (USA) (GameShark).cht
+Disney's Lilo _ Stitch (USA) (GameShark) (diff).cht
+Disney's Lilo _ Stitch (USA) (GameShark).cht
+Disney's Pooh's Party Game - In Search of the Treasure (USA) (GameShark).cht
+Disney's Story Studio - Mulan (USA, Europe) (GameShark).cht
+Disney's Tarzan (World) (GameShark).cht
+Disney's Tarzan (World) (Xploder).cht
+Disney's The Emperor's New Groove (USA, Europe) (GameShark).cht
+Disney's The Lion King - Simba's Mighty Adventure (Europe) (GameShark).cht
+Disney's The Little Mermaid II (USA, Europe) (GameShark).cht
+Disney's Tigger's Honey Hunt (Europe) (Game Buster).cht
+Disney's Treasure Planet (USA, Europe) (GameShark).cht
+Disney-Pixar A Bug's Life (USA, Europe) (Game Buster).cht
+Disney-Pixar A Bug's Life (USA, Europe) (GameShark).cht
+Disney-Pixar Buzz Lightyear of Star Command (USA, Europe) (Game Buster).cht
+Disney-Pixar Buzz Lightyear of Star Command (USA, Europe) (GameShark).cht
+Disney-Pixar Captain Buzz Lightyear - Star Command (Germany) (Game Buster).cht
+Disney-Pixar Monsters, Inc. - Scream Team (USA) (GameShark).cht
+Disney-Pixar Toy Story 2 - Buzz Lightyear to the Rescue! (USA, Europe) (Game Buster).cht
+Disney-Pixar Toy Story 2 - Buzz Lightyear to the Rescue! (USA, Europe) (GameShark).cht
+Disney-Pixar Toy Story Racer (USA, Europe) (Game Buster).cht
+Disneys Ein Koenigreich fuer ein Lama (Germany) (Game Buster).cht
+Disneys Hercules Action-Spiel (Germany) (Game Buster).cht
+Disneys Hercules Action-Spiel (Germany) (GameShark).cht
+Disneys Hercules Action-Spiel (Germany) (Xploder).cht
+Disneys Tiggers Honigjagd (Germany) (Game Buster).cht
+Disruptor (World) (Game Buster).cht
+Disruptor (World) (GameShark).cht
+Divide, The - Enemies Within (USA) (GameShark).cht
+Dodgem Arena (Europe) (Game Buster).cht
+Doom (World) (Game Buster).cht
+Doom (World) (GameShark) (diff).cht
+Doom (World) (GameShark).cht
+Dracula - Resurrection (Germany) (Game Buster).cht
+Dragon Ball - Final Bout (Europe, Japan) (Game Buster).cht
+Dragon Ball GT - Final Bout (USA) (GameShark).cht
+Dragon Ball Z - Ultimate Battle 22 (World) (Game Buster) (diff).cht
+Dragon Ball Z - Ultimate Battle 22 (World) (Game Buster).cht
+Dragon Ball Z - Ultimate Battle 22 (World) (GameShark).cht
+Dragon Tales - Dragonseek (USA, Europe) (GameShark).cht
+Dragon Valor (World) (Game Buster).cht
+Dragon Valor (World) (GameShark).cht
+DragonHeart - Fire _ Steel (USA, Europe) (Game Buster).cht
+DragonHeart - Fire _ Steel (USA, Europe) (GameShark).cht
+Dreams (Europe) (Game Buster).cht
+Driver (Erope, France, Germany, Italy) (Game Buster).cht
+Driver (Erope, France, Germany, Italy) (GameShark).cht
+Driver (Italy) (Game Buster).cht
+Driver (Playable) (GameShark).cht
+Driver 2 (Beta) (Europe) (Xploder).cht
+Driver 2 (Beta) (Game Buster).cht
+Driver 2 (USA) (Game Buster).cht
+Driver 2 (USA) (GameShark).cht
+Driver 2 (USA) (Xploder) (diff).cht
+Driver 2 (USA) (Xploder).cht
+Ducati World (Europe) (Game Buster).cht
+Ducati World - Racing Challenge (USA) (GameShark).cht
+Duke Nukem (Europe) (Game Buster).cht
+Duke Nukem - Land of the Babes (USA, Europe) (Game Buster).cht
+Duke Nukem - Land of the Babes (USA, Europe) (GameShark).cht
+Duke Nukem - Time to Kill (USA, Europe) (Game Buster).cht
+Duke Nukem - Time to Kill (USA, Europe) (GameShark).cht
+Duke Nukem - Total Meltdown (USA, Japan) (GameShark).cht
+Dukes of Hazzard II, The - Daisy Dukes It Out (USA, Europe) (GameShark).cht
+Dukes of Hazzard, The - Racing for Home (USA, Europe) (GameShark).cht
+Dune 2000 (USA, Europe) (Game Buster).cht
+Dune 2000 (USA, Europe) (GameShark).cht
+Dune 2000 (USA, Europe) (Xploder).cht
+Dynasty Warriors (USA, Europe) (Game Buster).cht
+Dynasty Warriors (USA, Europe) (GameShark).cht
+E.T. the Extra-Terrestrial - Interplanetary Mission (USA, Europe) (GameShark).cht
+EA Sports Superbike 2000 (USA, Europe) (GameShark) (diff).cht
+EA Sports Superbike 2000 (USA, Europe) (GameShark).cht
+EA Sports Supercross (USA, Europe) (Game Buster).cht
+EA Sports Supercross (USA, Europe) (GameShark).cht
+ECW Anarchy Rulz (USA, Europe) (Game Buster).cht
+ECW Anarchy Rulz (USA, Europe) (GameShark).cht
+ECW Hardcore Revolution (USA, Europe) (Game Buster).cht
+ECW Hardcore Revolution (USA, Europe) (GameShark).cht
+ESPN Extreme Games (USA, Europe) (Game Buster).cht
+ESPN Extreme Games (USA, Europe) (GameShark).cht
+ESPN MLS Gamenight (USA) (GameShark).cht
+Eagle One - Harrier Attack (USA, Europe) (Game Buster).cht
+Eagle One - Harrier Attack (USA, Europe) (GameShark).cht
+Earthworm Jim 2 (Europe) (Game Buster).cht
+Echo Night (USA, Japan) (GameShark).cht
+Eggs of Steel - Charlie's Eggcellent Adventure (USA) (GameShark).cht
+Ehrgeiz - God Bless the Ring (World) (GameShark).cht
+Einhaender (USA, Japan) (GameShark).cht
+Elemental Gearbolt (USA) (GameShark).cht
+Eliminator (USA, Europe) (Game Buster).cht
+Eliminator (USA, Europe) (GameShark).cht
+Epidemic (USA, Europe) (Game Buster).cht
+Epidemic (USA, Europe) (GameShark).cht
+Eternal Eyes (USA, Europe) (GameShark).cht
+Euro Demo 00 (Europe) (Game Buster).cht
+Euro Demo 64 (Europe) (Xploder).cht
+Euro Demo 66 (Europe) (Game Buster).cht
+Europe Racer (Europe) (Game Buster).cht
+Everybody's Golf (Europe) (Game Buster).cht
+Everybody's Golf 2 (Europe) (Game Buster).cht
+Everybody's Golf 2 (Europe) (Xploder).cht
+Evil Dead - Hail to the King (USA, Europe) (Game Buster).cht
+Evil Dead - Hail to the King (USA, Europe) (GameShark).cht
+Evil Zone (USA, Europe) (Game Buster).cht
+Evil Zone (USA, Europe) (GameShark).cht
+Evo's Space Adventures (Europe) (Game Buster).cht
+Excalibur 2555 A.D. (USA, Europe) (Game Buster).cht
+Excalibur 2555 A.D. (USA, Europe) (GameShark).cht
+Exhumed (Europe) (Game Buster).cht
+Expendable (USA) (GameShark).cht
+Explosive Racing (Europe) (Game Buster).cht
+Extreme 500 (Europe) (Game Buster).cht
+Extreme Ghostbusters - The Ultimate Invasion (Europe) (GameShark).cht
+Extreme Pinball (USA, Europe) (GameShark).cht
+F.A. Premier League Football Manager 2000, The (Europe) (Game Buster).cht
+F.A. Premier League Stars, The (Europe) (Game Buster).cht
+F1 2000 (World) (Game Buster).cht
+F1 2000 (World) (GameShark).cht
+F1 Championship Season 2000 (USA, Europe) (Game Buster).cht
+F1 Championship Season 2000 (USA, Europe) (GameShark).cht
+F1 Racing Championship (USA, Europe) (Game Buster).cht
+F1 Racing Championship (USA, Europe) (GameShark).cht
+F1 World Grand Prix (USA, Europe) (Game Buster).cht
+F1 World Grand Prix (USA, Europe) (GameShark) (diff).cht
+F1 World Grand Prix (USA, Europe) (GameShark).cht
+FIFA - Road to World Cup 98 (World) (GameShark).cht
+FIFA 2000 (Europe) (Game Buster).cht
+FIFA 2000 (Europe) (GameShark).cht
+FIFA 2001 (USA, Europe) (GameShark).cht
+FIFA 97 (Europe) (GameShark).cht
+FIFA 99 (USA, Europe) (Game Buster).cht
+FIFA 99 (USA, Europe) (GameShark).cht
+FIFA Football 2002 (Europe) (Game Buster).cht
+FIFA Soccer 2002 (USA) (GameShark).cht
+FIFA Soccer 96 (USA, Europe) (Game Buster).cht
+FIFA Soccer 96 (USA, Europe) (GameShark).cht
+FIFA World Cup 98 - France 98 Soushuuhen (Japan) (Game Buster).cht
+FOX Sports Golf '99 (USA) (GameShark).cht
+Fade to Black (World) (Game Buster).cht
+Fade to Black (World) (GameShark).cht
+Family Feud (USA) (GameShark).cht
+Fantastic Four (World) (Game Buster).cht
+Fantastic Four (World) (GameShark).cht
+Fatal Fury - Wild Ambition (USA) (GameShark).cht
+Fear Effect (USA, Europe) (Game Buster) (diff).cht
+Fear Effect (USA, Europe) (Game Buster).cht
+Fear Effect (USA, Europe) (GameShark).cht
+Fear Effect 2 - Retro Helix (USA, Europe) (Game Buster).cht
+Felony 11-79 (USA, Europe) (Game Buster).cht
+Felony 11-79 (USA, Europe) (GameShark).cht
+Fifth Element, The (World) (Game Buster).cht
+Fighter Maker (USA, Europe) (Game Buster).cht
+Fighter Maker (USA, Europe) (GameShark).cht
+Fighting Force (Europe) (Xploder).cht
+Fighting Force (USA, Europe) (Game Buster).cht
+Fighting Force (USA, Europe) (GameShark).cht
+Fighting Force 2 (USA, Europe) (Game Buster).cht
+Fighting Force 2 (USA, Europe) (GameShark).cht
+Final Doom (World) (Game Buster).cht
+Final Doom (World) (GameShark).cht
+Final Fantasy Anthology - Final Fantasy V (USA) (GameShark).cht
+Final Fantasy IX (Germany) (Game Buster).cht
+Final Fantasy IX (USA) (GameShark).cht
+Final Fantasy IX - Blank _ Amarant (Germany) (Game Buster).cht
+Final Fantasy IX - Cinna _ Quina (Germany) (Game Buster).cht
+Final Fantasy Origins - Final Fantasy - Enemies Defeated (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy - Item Modifier (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy - Key Item Modifier (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy - Miscellaneous (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - 4th Character (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Enemies Defeated (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Firion (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Gareth (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Gordon (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Gus (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Item Modifier (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Josef (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Leila (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Leon (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Maria (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Mindu (Europe) (GameShark).cht
+Final Fantasy Origins - Final Fantasy II - Miscellaneous (Europe) (GameShark).cht
+Final Fantasy Tactics (USA) (GameShark).cht
+Final Fantasy VII (USA).cht
+Final Fantasy VIII (Demo) (Europe) (GameShark).cht
+Final Fantasy VIII (World) (Game Buster).cht
+Final Round, The (USA) (GameShark).cht
+Firestorm - Thunderhawk 2 (Europe) (Xploder).cht
+Firo _ Klawd (Europe) (Xploder).cht
+Firo _ Klawd (Europe, Japan) (Game Buster).cht
+Fisherman's Bait - A Bass Challenge (USA) (GameShark).cht
+Fisherman's Bait - Bass Challenge (Europe) (Game Buster).cht
+Fisherman's Bait 2 - Big Ol' Bass (USA, Europe) (Game Buster).cht
+Fisherman's Bait 2 - Big Ol' Bass (USA, Europe) (GameShark).cht
+Flintstones, Die - Bedrock Bowling (Germany) (Game Buster).cht
+Flintstones, The - Bedrock Bowling (USA, Europe) (GameShark).cht
+Floating Runner - Quest for the 7 Crystals (USA) (Game Buster).cht
+Floating Runner - Quest for the 7 Crystals (USA) (GameShark).cht
+Ford Racing (USA, Europe) (Game Buster).cht
+Ford Racing (USA, Europe) (GameShark).cht
+Ford Truck Mania (USA, Europe) (GameShark).cht
+Formula 1 (World) (Game Buster).cht
+Formula 1 (World) (GameShark).cht
+Formula 1 98 (Europe) (Xploder).cht
+Formula 1 98 (USA, Europe) (Game Buster).cht
+Formula 1 Championship Edition (USA) (GameShark).cht
+Formula Nippon (Europe) (Game Buster).cht
+Formula One 2000 (USA, Europe) (Game Buster).cht
+Formula One 2001 (Europe) (Game Buster) (diff).cht
+Formula One 2001 (Europe) (Game Buster).cht
+Formula One 99 (World) (Game Buster).cht
+Formula One 99 (World) (GameShark).cht
+Forsaken (Demo) (Europe) (Game Buster).cht
+Forsaken (World) (Game Buster).cht
+Forsaken (World) (GameShark).cht
+Frank Thomas Big Hurt Baseball (World) (GameShark).cht
+Frankreich 98 - Die Fussball-WM (Germany) (Game Buster).cht
+Freestyle Boardin' '99 (USA) (GameShark) (diff).cht
+Freestyle Boardin' '99 (USA) (GameShark).cht
+Freestyle Motocross - McGrath vs. Pastrana (USA, Europe) (Game Buster).cht
+Freestyle Motocross - McGrath vs. Pastrana (USA, Europe) (GameShark).cht
+Freestyle Scooter (Europe) (Game Buster).cht
+Frogger (World) (Game Buster).cht
+Frogger (World) (GameShark).cht
+Frogger 2 - Swampy's Revenge (USA, Europe) (Game Buster).cht
+Frogger 2 - Swampy's Revenge (USA, Europe) (GameShark).cht
+Frontschweine (Germany) (Game Buster).cht
+Future Cop - L.A.P.D. (Demo) (USA) (Game Buster).cht
+Future Cop - L.A.P.D. (USA, Europe) (Game Buster).cht
+Future Cop - L.A.P.D. (USA, Europe) (GameShark).cht
+G-Police (World) (Game Buster).cht
+G-Police (World) (GameShark).cht
+G-Police - Weapons of Justice (USA, Europe) (Game Buster).cht
+G. Darius (World) (Game Buster).cht
+G. Darius (World) (GameShark).cht
+GaiaSeed - Project Seed Trap (Japan).cht
+Galaga - Destination Earth (USA, Europe) (Game Buster).cht
+Galaga - Destination Earth (USA, Europe) (GameShark).cht
+Galaxian^3 (Europe, Japan) (Game Buster).cht
+Galaxy Fight (Europe) (Game Buster).cht
+Galerians (World) (Game Buster).cht
+Galerians (World) (GameShark).cht
+Galerians (World) (Xploder).cht
+Gallop Racer (USA, Japan) (GameShark).cht
+Game of Life, The (USA) (GameShark) (diff).cht
+Game of Life, The (USA) (GameShark).cht
+Ganbare Goemon - Ooedo Daikaiten (Japan) (Xploder).cht
+Gauntlet Legends (USA, Europe) (Game Buster).cht
+Gauntlet Legends (USA, Europe) (GameShark).cht
+Gekido - Urban Fighters (USA, Europe) (Game Buster).cht
+Gekido - Urban Fighters (USA, Europe) (GameShark).cht
+Gekioh - Shooting King (USA, Europe) (GameShark).cht
+Gekitotsu Toma L'Arc - Tomarunner vs L'Arc-en-Ciel (Japan) (Xploder).cht
+Geom Cube (USA, Japan) (GameShark).cht
+Gex (USA, Europe) (GameShark).cht
+Gex - Deep Cover Gecko (Europe) (Game Buster).cht
+Gex - Enter the Gecko (USA) (GameShark).cht
+Gex 3 - Deep Cover Gecko (USA) (Game Buster).cht
+Gex 3 - Deep Cover Gecko (USA) (GameShark).cht
+Gex 3D - Enter the Gecko (Europe) (Game Buster).cht
+Ghost in the Shell (USA, Europe) (GameShark).cht
+Ghoul Panic (Europe) (Game Buster).cht
+Glover (USA, Europe) (Game Buster).cht
+Glover (USA, Europe) (GameShark).cht
+Goal Storm '97 (USA) (GameShark).cht
+Goal Storm (USA, Europe) (Game Buster).cht
+Goal Storm (USA, Europe) (GameShark).cht
+Gold and Glory - The Road to El Dorado (USA, Europe) (GameShark).cht
+Golden Nugget (USA) (GameShark).cht
+Gran Turismo (Europe) (DuckStation).cht
+Gran Turismo (Japan, Asia) (DuckStation).cht
+Gran Turismo (USA) (DuckStation).cht
+Gran Turismo (USA) (GameShark).cht
+Gran Turismo 2 (Europe) (DuckStation).cht
+Gran Turismo 2 (Japan, Asia) (DuckStation).cht
+Gran Turismo 2 (USA) (DuckStation).cht
+Gran Turismo 2 (USA) (Xploder).cht
+Gran Turismo 2 USA (v1.0).cht
+Gran Turismo 2 USA (v1.1).cht
+Gran Turismo 2 USA (v1.2) (Duckstation).cht
+Gran Turismo 2 USA (v1.2).cht
+Grand Slam (USA) (GameShark).cht
+Grand Theft Auto (USA, Europe) (Game Buster).cht
+Grand Theft Auto (USA, Europe) (GameShark).cht
+Grand Theft Auto - London 1969 (Europe) (Game Buster) (diff).cht
+Grand Theft Auto - London 1969 (Europe) (Game Buster).cht
+Grand Theft Auto - London 1969 (Europe) (GameShark).cht
+Grand Theft Auto 2 (USA, Europe) (Game Buster).cht
+Grand Theft Auto 2 (USA, Europe) (GameShark).cht
+Granstream Saga, The (USA, Europe) (Game Buster).cht
+Granstream Saga, The (USA, Europe) (GameShark).cht
+Grid Runner (USA, Japan) (GameShark).cht
+Grinch, The (USA, Europe) (Game Buster).cht
+Grinch, The (USA, Europe) (GameShark).cht
+Grind Session (USA, Europe) (GameShark).cht
+Grudge Warriors (USA, Europe) (Game Buster).cht
+Grudge Warriors (USA, Europe) (GameShark).cht
+Guardian of Darkness, The (Europe) (Game Buster).cht
+Guardian's Crusade (USA, Europe) (Game Buster).cht
+Guardian's Crusade (USA, Europe) (GameShark).cht
+Gubble (World) (GameShark).cht
+Guilty Gear (World) (Game Buster).cht
+Guilty Gear (World) (GameShark).cht
+Gunbarl (Japan) (GameShark).cht
+Gundam Battle Assault (USA, Europe) (Game Buster).cht
+Gundam Battle Assault (USA, Europe) (GameShark).cht
+Gundam Battle Assault 2 (USA, Europe) (GameShark).cht
+Gunfighter - The Legend of Jesse James (USA, Europe) (GameShark).cht
+Gungage (Europe, Japan) (Game Buster).cht
+Gunship (World) (Game Buster).cht
+Gunship (World) (GameShark).cht
+HBO Boxing (USA, Europe) (Game Buster).cht
+HBO Boxing (USA, Europe) (GameShark).cht
+Hard Boiled (Europe) (Game Buster).cht
+Hard Edge (Europe, Japan).cht
+HardBall '99 (USA) (GameShark).cht
+HardBall 5 (USA, Japan) (GameShark).cht
+Hardcore 4x4 (Europe) (Game Buster).cht
+Hardcore 4x4 (Europe) (GameShark).cht
+Harry Potter and the Chamber of Secrets (USA, Europe) (GameShark).cht
+Harry Potter and the Philosopher's Stone (Europe, Scandinavia) (Game Buster).cht
+Harry Potter and the Sorcerer's Stone (USA) (GameShark).cht
+Harvest Moon - Back to Nature (USA, Europe) (Game Buster).cht
+Harvest Moon - Back to Nature (USA, Europe) (GameShark).cht
+Heart of Darkness (USA, Europe) (Game Buster).cht
+Heart of Darkness (USA, Europe) (GameShark).cht
+Hellboy - Asylum Seeker (USA) (GameShark).cht
+Hellnight (Europe) (Game Buster).cht
+Hello Kitty - Cube Frenzy (USA) (GameShark).cht
+Herc's Adventures (USA, Europe) Game Buster).cht
+Hermie Hopperhead - Scrap Panic (Japan) (Xploder).cht
+Hexen (USA, Europe) (Game Buster).cht
+Hexen (USA, Europe) (GameShark).cht
+Hi-Octane (Europe, Japan) (Game Buster).cht
+Hi-Octane (Europe, Japan) (GameShark).cht
+Hidden _ Dangerous (Europe) (Game Buster).cht
+High Heat Baseball 2000 (USA) (GameShark).cht
+High Heat Major League Baseball 2002 (USA) (GameShark).cht
+Hive, The (USA) (GameShark).cht
+Hogs of War (USA, Europe) (Game Buster).cht
+Hogs of War (USA, Europe) (GameShark).cht
+Hot Shots Golf (USA) (GameShark).cht
+Hot Wheels - Extreme Racing (USA, Europe) (Game Buster).cht
+Hot Wheels - Extreme Racing (USA, Europe) (GameShark).cht
+Hot Wheels - Turbo Racing (USA, Europe) (Game Buster).cht
+Hot Wheels - Turbo Racing (USA, Europe) (GameShark).cht
+Hugo - The Quest for the Sunstones (Europe) (Game Buster).cht
+Hugo 2 (Europe) (Game Buster).cht
+Hydro Thunder (USA, Europe) (Game Buster).cht
+Hydro Thunder (USA, Europe) (GameShark).cht
+I.Q - Intelligent Qube (USA, Japan) (GameShark).cht
+IHRA Drag Racing (USA) (GameShark).cht
+ISS Pro Evolution (USA, Europe) (GameShark).cht
+Ian Livingstone's Deathtrap Dungeon (USA, Europe) (Game Buster).cht
+Ian Livingstone's Deathtrap Dungeon (USA, Europe) (GameShark).cht
+Imadoki no Vampire - Bloody Bride (Japan) (GameShark).cht
+Impact Racing (World) (GameShark).cht
+In Cold Blood (USA, Europe) (Game Buster).cht
+In Cold Blood (USA, Europe) (GameShark).cht
+In einem Land vor unserer Zeit - Die Rueckkehr ins Grosse Tal (Germany) (Game Buster).cht
+In the Hunt (USA, Europe) (Game Buster).cht
+In the Hunt (USA, Europe) (GameShark).cht
+Incredible Crisis (USA, Europe) (Game Buster).cht
+Incredible Crisis (USA, Europe) (GameShark).cht
+Incredible Hulk, The - The Pantheon Saga (USA, Europe) (Game Buster).cht
+Incredible Hulk, The - The Pantheon Saga (USA, Europe) (GameShark).cht
+Independence Day (USA) (Game Buster).cht
+Independence Day (USA) (GameShark).cht
+Indy 500 (Europe, Japan) (Game Buster).cht
+Inspector Gadget - Gadget's Crazy Maze (USA, Europe) (Game Buster).cht
+Inspector Gadget - Gadget's Crazy Maze (USA, Europe) (GameShark).cht
+International Superstar Soccer Deluxe (Europe) (Game Buster).cht
+International Superstar Soccer Pro (Europe) (Game Buster).cht
+International Track _ Field (USA, Europe) (Game Buster).cht
+International Track _ Field 2 (Europe) (Game Buster).cht
+International Track _ Field 2000 (USA) (GameShark).cht
+Interplay Sports Baseball 2000 (USA, Europe) (GameShark).cht
+Inuyasha - A Feudal Fairy Tale (USA) (GameShark).cht
+Invasion (Europe) (Game Buster).cht
+Invasion from Beyond (USA) (GameShark).cht
+Iron Man _ X-O Manowar in Heavy Metal (USA, Europe) (Game Buster).cht
+Iron Soldier 3 (USA) (Xploder).cht
+Iron Soldier 3 (USA, Europe) (Game Buster).cht
+Iron Soldier 3 (USA, Europe) (GameShark).cht
+Irritating Stick (USA) (GameShark).cht
+Italian Job, The (USA, Europe) (Game Buster).cht
+Italian Job, The (USA, Europe) (GameShark).cht
+Iznogoud (Europe) (Game Buster).cht
+Jackie Chan Stuntmaster (USA, Europe) (Game Buster).cht
+Jackie Chan Stuntmaster (USA, Europe) (GameShark).cht
+Jade Cocoon - Story of the Tamamayu (USA, Europe) (Game Buster).cht
+Jarrett _ Labonte Stock Car Racing (USA) (GameShark).cht
+Jeopardy! (USA) (GameShark).cht
+Jeopardy! 2nd Edition (USA) (GameShark).cht
+Jeremy McGrath Supercross 2000 (USA) (Xploder).cht
+Jeremy McGrath Supercross 2000 (USA, Europe) (Game Buster).cht
+Jeremy McGrath Supercross 2000 (USA, Europe) (GameShark).cht
+Jeremy McGrath Supercross 98 (World) (Game Buster).cht
+Jeremy McGrath Supercross 98 (World) (GameShark).cht
+Jersey Devil (USA, Europe) (Game Buster).cht
+Jersey Devil (USA, Europe) (GameShark).cht
+Jet Moto (USA) (GameShark).cht
+Jet Moto 2 (USA) (GameShark).cht
+Jet Moto 3 (USA) (GameShark).cht
+Jet Rider 2 (Europe) (Game Buster).cht
+Jigsaw Madness (USA, Europe) (GameShark).cht
+Jim Henson's Bear in the Big Blue House (USA, Europe) (GameShark).cht
+Jimmy Johnson's VR Football '98 (USA) (GameShark) (diff).cht
+Jimmy Johnson's VR Football '98 (USA) (GameShark).cht
+JoJo's Bizarre Adventure (USA, Europe) (Game Buster).cht
+JoJo's Bizarre Adventure (USA, Europe) (GameShark).cht
+Johnny Bazookatone (USA, Europe) (Game Buster).cht
+Johnny Bazookatone (USA, Europe) (GameShark).cht
+Judge Dredd (USA, Europe) (Game Buster).cht
+JumpStart Wildlife Safari - Field Trip (USA) (GameShark).cht
+Jumping Flash! (World) (Game Buster).cht
+Jumping Flash! (World) (GameShark).cht
+Jumping Flash! 2 (USA, Europe) (Game Buster).cht
+Jumping Flash! 2 (USA, Europe) (GameShark).cht
+Jupiter Strike (USA, Europe) (Game Buster).cht
+Jupiter Strike (USA, Europe) (GameShark).cht
+K-1 Grand Prix (USA, Europe) (Game Buster).cht
+K-1 Grand Prix (USA, Europe) (GameShark).cht
+K-1 Revenge (USA) (GameShark).cht
+K-1 The Arena Fighters (USA, Europe) (Game Buster).cht
+K-1 The Arena Fighters (USA, Europe) (GameShark).cht
+KISS Pinball (USA, Europe) (Game Buster).cht
+KISS Pinball (USA, Europe) (GameShark).cht
+KKND Krossfire (Europe) (Game Buster).cht
+Kagero - Deception II (USA, Europe) (Game Buster).cht
+Kagero - Deception II (USA, Europe) (GameShark).cht
+Kenkaku Ibunroku - Yomigaerishi Souku no Yaiba - Samurai Spirits Shinshou (Japan) (Xploder).cht
+Kensei - Sacred Fist (USA, Europe) (Game Buster).cht
+Kensei - Sacred Fist (USA, Europe) (GameShark).cht
+Kickboxing (USA) (GameShark).cht
+Kileak - The Blood (Europe, Japan) (Game Buster).cht
+Kileak - The DNA Imperative (USA) (Game Buster).cht
+Kileak - The DNA Imperative (USA) (GameShark).cht
+Killer Loop (USA, Europe) (Game Buster).cht
+Killer Loop (USA, Europe) (GameShark).cht
+Killing Zone (World) (GameShark).cht
+King of Fighters '95, The (World) (Game Buster).cht
+King of Fighters '95, The (World) (GameShark).cht
+King of Fighters '99, The (USA, Japan) (GameShark).cht
+King's Field (World) (Game Buster).cht
+King's Field II (USA, Japan) (GameShark).cht
+Kingsley's Adventure (USA, Europe) (Game Buster).cht
+Kingsley's Adventure (USA, Europe) (GameShark).cht
+Klonoa - Door to Phantomile (USA, Europe) (Game Buster).cht
+Klonoa - Door to Phantomile (USA, Europe) (GameShark).cht
+Knockout Kings (USA) (GameShark).cht
+Knockout Kings 2000 (USA, Europe) (Game Buster).cht
+Knockout Kings 2000 (USA, Europe) (GameShark).cht
+Knockout Kings 2001 (USA, Europe) (GameShark).cht
+Konami Arcade Classics (USA) (GameShark).cht
+Koudelka (France) (Xploder).cht
+Koudelka (World) (Game Buster).cht
+Koudelka (World) (Xploder).cht
+Krazy Ivan (World) (Game Buster).cht
+Krazy Ivan (World) (GameShark).cht
+Kula World (Europe) (Game Buster).cht
+Kurt Warner's Arena Football Unleashed (USA) (GameShark).cht
+Kurushi (Europe) (Game Buster).cht
+LEGO Island 2 - The Brickster's Revenge (USA, Europe) (GameShark).cht
+LEGO Racers (USA, Europe) (GameShark).cht
+LEGO Rock Raiders (Europe) (Xploder).cht
+LEGO Rock Raiders (USA) (Xploder).cht
+LEGO Rock Raiders (USA, Europe) (Game Buster).cht
+LEGO Rock Raiders (USA, Europe) (GameShark).cht
+LMA Manager 2001 (Europe) (Game Buster).cht
+Land Before Time, The - Big Water Adventure (USA, Europe) (GameShark).cht
+Land Before Time, The - Great Valley Racing Adventure (USA) (GameShark).cht
+Land Before Time, The - Return to the Great Valley (USA, Europe) (GameShark).cht
+Land Maker (Europe, Japan) (Game Buster).cht
+Largo Winch - Commando SAR (USA, Europe) (GameShark).cht
+Lattice - 200EC7 (Japan) (Xploder).cht
+Le Mans 24 Hours (Europe) (Game Buster).cht
+Legacy of Kain - Soul Reaver (Beta) (USA, Europe) (GameShark).cht
+Legacy of Kain - Soul Reaver (USA, Europe) (Game Buster).cht
+Legacy of Kain - Soul Reaver (USA, Europe) (GameShark) (diff).cht
+Legacy of Kain - Soul Reaver (USA, Europe) (GameShark).cht
+Legacy of Kain - Soul Reaver (USA, Europe) (Xploder).cht
+Legend (Europe) (Game Buster).cht
+Legend of Legaia (USA, Europe) (Xploder).cht
+Lemmings _ Oh No! More Lemmings (USA, Europe) (Game Buster).cht
+Lemmings _ Oh No! More Lemmings (USA, Europe) (GameShark).cht
+Lethal Enforcers I _ II (USA) (Game Buster).cht
+Lethal Enforcers I _ II (USA) (GameShark).cht
+Libero Grande 2 (Japan) (Game Buster).cht
+Lifeforce Tenka (Europe) (Game Buster).cht
+Little Big Adventure (Europe, Japan) (Game Buster).cht
+Live Wire! (Europe) (Game Buster).cht
+Loaded (USA, Europe) (Game Buster).cht
+Loaded (USA, Europe) (GameShark).cht
+Lode Runner (USA) (GameShark).cht
+London Racer (Europe) (Game Buster).cht
+Lone Soldier (Europe, Japan) (Game Buster).cht
+Looney Tunes - Sheep Raider (USA) (GameShark).cht
+Looney Tunes Racing (USA, Europe) (GameShark).cht
+Lost Vikings 2 - Norse by Norsewest (Europe) (Game Buster).cht
+Lost World, The - Jurassic Park (World) (GameShark) (diff).cht
+Lost World, The - Jurassic Park (World) (GameShark).cht
+Lost World, The - Jurassic Park - Special Edition (USA) (GameShark).cht
+Lucky Luke (World) (Game Buster).cht
+Lucky Luke (World) (GameShark).cht
+Lucky Luke - Western Fever (Europe) (Game Buster).cht
+Lunar - Silver Star Story (Demo) (Japan) (GameShark).cht
+Lunar 2 Eternal Blue Complete (USA).cht
+MDK (World) (Game Buster).cht
+MDK (World) (GameShark).cht
+MLB 2000 (USA) (GameShark).cht
+MLB 2001 (USA) (GameShark).cht
+MLB 2002 (USA) (GameShark).cht
+MLB 2003 (USA) (GameShark).cht
+MLB 2004 (USA) (GameShark).cht
+MLB 98 (USA) (GameShark).cht
+MLB 99 (USA) (GameShark).cht
+MLB Pennant Race (USA) (GameShark).cht
+MTV Sports - Pure Ride (USA, Europe) (Game Buster).cht
+MTV Sports - Pure Ride (USA, Europe) (GameShark).cht
+MTV Sports - Skateboarding featuring Andy Macdonald (USA, Europe) (Game Buster).cht
+MTV Sports - Snowboarding (USA, Europe) (Game Buster).cht
+MTV Sports - Snowboarding (USA, Europe) (GameShark).cht
+MTV Sports - T.J. Lavin's Ultimate BMX (USA, Europe) (Game Buster).cht
+MTV Sports - T.J. Lavin's Ultimate BMX (USA, Europe) (GameShark).cht
+M_M's - Shell Shocked (USA, Europe) (GameShark).cht
+Machine Head (USA) (GameShark).cht
+Machine Hunter (USA, Europe) (Game Buster).cht
+Machine Hunter (USA, Europe) (GameShark).cht
+Macross Digital Mission VF-X (Japan) (Xploder).cht
+Madden NFL 2000 (USA, Europe) (Game Buster).cht
+Madden NFL 2000 (USA, Europe) (GameShark).cht
+Madden NFL 2001 (USA, Europe) (GameShark).cht
+Madden NFL 2002 (USA) (GameShark).cht
+Madden NFL 2003 (USA) (GameShark).cht
+Madden NFL 2004 (USA) (GameShark).cht
+Madden NFL 97 (USA, Europe) (GameShark).cht
+Madden NFL 98 (USA, Europe) (GameShark).cht
+Madden NFL 99 (USA, Europe) (Game Buster).cht
+Madden NFL 99 (USA, Europe) (GameShark).cht
+Magic - The Gathering - BattleMage (USA, Europe) (GameShark).cht
+Magic Carpet (World) (Game Buster).cht
+Magic Carpet (World) (GameShark).cht
+Magical Drop III - Yokubari Tokudai-gou! (Japan) (Xploder).cht
+Magical Tetris Challenge (Europe) (GameShark).cht
+Marble Master (USA) (GameShark).cht
+March Madness '98 (USA) (GameShark).cht
+Martian Gothic - Unification (USA, Europe) (Game Buster).cht
+Martian Gothic - Unification (USA, Europe) (GameShark).cht
+Marvel Super Heroes (World) (Game Buster).cht
+Marvel Super Heroes (World) (GameShark).cht
+Marvel Super Heroes vs. Street Fighter (USA, Europe) (Game Buster).cht
+Marvel Super Heroes vs. Street Fighter (USA, Europe) (GameShark).cht
+Marvel vs. Capcom - Clash of Super Heroes (USA, Europe) (Game Buster).cht
+Marvel vs. Capcom - Clash of Super Heroes (USA, Europe) (GameShark).cht
+Mary-Kate and Ashley - Crush Course (USA, Europe) (GameShark).cht
+Mary-Kate and Ashley - Winners Circle (USA, Europe) (GameShark).cht
+Mass Destruction (USA, Europe) (Game Buster).cht
+Mass Destruction (USA, Europe) (GameShark).cht
+Mat Hoffman's Pro BMX (Beta) (USA, Europe) (Game Buster).cht
+Mat Hoffman's Pro BMX (USA, Europe) (GameShark).cht
+Maximum Force (USA, Europe) (Game Buster).cht
+Maximum Force (USA, Europe) (GameShark).cht
+MechWarrior 2 - 31st Century Combat - Arcade Combat Edition (USA, Europe) (Game Buster).cht
+MechWarrior 2 - 31st Century Combat - Arcade Combat Edition (USA, Europe) (GameShark).cht
+Medal of Honor (USA, Europe) (Game Buster).cht
+Medal of Honor (USA, Europe) (GameShark).cht
+Medal of Honor (USA, Europe) (Xploder).cht
+Medal of Honor - Underground (USA, Europe) (Game Buster).cht
+Medal of Honor - Underground (USA, Europe) (GameShark).cht
+MediEvil (USA, Europe) (Game Buster).cht
+MediEvil (USA, Europe) (GameShark).cht
+MediEvil (USA, Europe) (Xploder).cht
+MediEvil 2 (Europe) (Game Buster).cht
+Medievil II (USA) (GameShark).cht
+Mega Man 8 (USA, Europe) (Game Buster).cht
+Mega Man 8 (USA, Europe) (GameShark).cht
+Mega Man Legends (USA, Europe) (Game Buster).cht
+Mega Man Legends (USA, Europe) (GameShark).cht
+Mega Man Legends 2 (USA, Europe) (Demo) (GameShark).cht
+Mega Man Legends 2 (USA, Europe) (Game Buster).cht
+Mega Man Legends 2 (USA, Europe) (GameShark).cht
+Mega Man X3 (Europe) (Game Buster).cht
+Mega Man X4 (USA, Europe) (Game Buster).cht
+Mega Man X4 (USA, Europe) (GameShark).cht
+Mega Man X5 (USA, Europe) (Game Buster).cht
+Mega Man X5 (USA, Europe) (GameShark).cht
+Mega Man X6 (USA, Europe) (GameShark).cht
+Megaman - Battle _ Chase (Europe) (Game Buster).cht
+Men in Black - The Game (Europe) (Game Buster).cht
+Men in Black - The Game (France) (Game Buster).cht
+Men in Black - The Series - Crashdown (USA, Europe) (Game Buster).cht
+Men in Black - The Series - Crashdown (USA, Europe) (GameShark).cht
+Meremanoid (Japan) (Xploder).cht
+Metal Gear Solid (Demo) (Europe, Japan) (Game Buster).cht
+Metal Gear Solid (Italy) (Game Buster).cht
+Metal Gear Solid (USA) (GameShark).cht
+Metal Gear Solid (World) (Game Buster).cht
+Metal Gear Solid (World) (GameShark).cht
+Metal Gear Solid (World) (Xploder).cht
+Metal Gear Solid - Integral (Japan) (Xploder).cht
+Metal Gear Solid - Special Missions (Europe) (Game Buster).cht
+Metal Gear Solid - VR Missions (USA) (GameShark).cht
+Metal Slug X (Europe, USA) (GameShark).cht
+Metal Slug X - Super Vehicle-001 (Japan) (Xploder).cht
+Michelin Rally Masters - Race of Champions (USA, Europe) (Game Buster).cht
+Michelin Rally Masters - Race of Champions (USA, Europe) (GameShark).cht
+Mickey's Wild Adventure (Europe) (Game Buster).cht
+Mickey's Wild Adventure (Europe) (GameShark).cht
+Micro Machines V3 (Europe) (Xploder).cht
+Micro Machines V3 (USA, Europe) (Game Buster).cht
+Micro Machines V3 (USA, Europe) (GameShark).cht
+Micro Maniacs (Europe) (Game Buster).cht
+Micro Maniacs (Europe) (GameShark).cht
+Micro Maniacs (Europe) (Xploder).cht
+Midnight Run - Road Fighter 2 (Europe, Japan) (Game Buster).cht
+Midnight in Vegas (Europe) (Game Buster).cht
+Mighty Hits Special (Europe, Japan) (Game Buster).cht
+Mike Tyson Boxing (USA, Europe) (Game Buster).cht
+Mike Tyson Boxing (USA, Europe) (GameShark).cht
+Mille Miglia (Europe) (Game Buster).cht
+Millennium Soldier - Expendable (Europe) (Game Buster).cht
+Miracle Space Race (USA, Europe) (GameShark).cht
+Miss Spider's Tea Party (USA) (GameShark).cht
+Missile Command (Europe) (Game Buster).cht
+Mission - Impossible (USA, Europe) (Game Buster).cht
+Mission - Impossible (USA, Europe) (GameShark).cht
+MoHo (Europe) (Game Buster).cht
+Mobil 1 Rally Championship (USA, Europe) (Game Buster) (diff).cht
+Mobil 1 Rally Championship (USA, Europe) (Game Buster).cht
+Mobil 1 Rally Championship (USA, Europe) (GameShark).cht
+Mobile Armor (USA) (GameShark).cht
+Mobile Light Force (USA, Europe) (GameShark).cht
+Monaco Grand Prix (USA) (GameShark).cht
+Monkey Hero (USA, Europe) (Game Buster).cht
+Monkey Hero (USA, Europe) (GameShark).cht
+Monkey Magic (USA) (GameShark).cht
+Monopoly (World) (Game Buster).cht
+Monopoly (World) (GameShark).cht
+Monster Racer (Europe) (Game Buster).cht
+Monster Rancher (USA, Europe) (Game Buster).cht
+Monster Rancher (USA, Europe) (GameShark).cht
+Monster Rancher (USA, Europe) (Xploder).cht
+Monster Rancher 2 (USA) (GameShark).cht
+Monster Rancher Battle Card - Episode II (USA) (GameShark).cht
+Monster Trucks (Europe) (Game Buster).cht
+MonsterSeed (World) (Game Buster).cht
+MonsterSeed (World) (GameShark).cht
+Moorhuhn 2 - Die Jagd geht weiter (Germany) (Game Buster).cht
+Mort the Chicken (USA, Europe) (Game Buster).cht
+Mort the Chicken (USA, Europe) (GameShark).cht
+Mortal Kombat - Special Forces (Europe) (Xploder).cht
+Mortal Kombat - Special Forces (USA, Europe) (Game Buster).cht
+Mortal Kombat - Special Forces (USA, Europe) (GameShark).cht
+Mortal Kombat 3 (World) (Game Buster).cht
+Mortal Kombat 3 (World) (GameShark).cht
+Mortal Kombat 4 (USA, Europe) (Game Buster).cht
+Mortal Kombat 4 (USA, Europe) (GameShark).cht
+Mortal Kombat II (Japan) (GameShark).cht
+Mortal Kombat II (Japan) (Xploder).cht
+Mortal Kombat Mythologies - Sub-Zero (USA, Europe) (Game Buster).cht
+Mortal Kombat Mythologies - Sub-Zero (USA, Europe) (GameShark).cht
+Mortal Kombat Trilogy (World) (Game Buster).cht
+Mortal Kombat Trilogy (World) (GameShark).cht
+Moto Racer (World) (Game Buster).cht
+Moto Racer (World) (GameShark).cht
+Moto Racer 2 (World) (Game Buster).cht
+Moto Racer 2 (World) (GameShark).cht
+Moto Racer World Tour (USA, Europe) (Game Buster).cht
+Moto Racer World Tour (USA, Europe) (GameShark).cht
+Motocross Mania (USA, Europe) (Game Buster).cht
+Motocross Mania (USA, Europe) (GameShark).cht
+Motocross Mania 2 (USA, Europe) (GameShark).cht
+Motor Toon Grand Prix (USA, Japan) (GameShark).cht
+Motor Toon Grand Prix 2 (Europe, Japan) (Game Buster).cht
+Motorhead (USA, Europe) (Game Buster).cht
+Motorhead (USA, Europe) (GameShark).cht
+Mr Driller (World) (Game Buster).cht
+Mr Driller (World) (GameShark).cht
+Ms. Pac-Man Maze Madness (World) (GameShark).cht
+Mummy, The (USA, Europe) (GameShark).cht
+Muppet Monster Adventure (USA, Europe) (Game Buster).cht
+Muppet Monster Adventure (USA, Europe) (GameShark).cht
+Muppet Monster Adventure (USA, Europe) (Xploder).cht
+Muppet RaceMania (USA, Europe) (Game Buster).cht
+Muppet RaceMania (USA, Europe) (GameShark).cht
+N-Gen Racing (USA, Europe) (Game Buster).cht
+N-Gen Racing (USA, Europe) (GameShark).cht
+N2O (Europe) (Game Buster).cht
+N2O - Nitrous Oxide (USA) (GameShark).cht
+NASCAR 2000 (Europe) (Xploder).cht
+NASCAR 2000 (USA, Europe) (Game Buster).cht
+NASCAR 2000 (USA, Europe) (GameShark).cht
+NASCAR 2001 (USA) (GameShark).cht
+NASCAR 98 (World) (GameShark).cht
+NASCAR 99 (USA, Europe) (GameShark).cht
+NASCAR Heat (USA) (GameShark).cht
+NASCAR Racing (USA) (GameShark).cht
+NASCAR Rumble (USA) (GameShark).cht
+NASCAR Thunder 2002 (USA) (GameShark).cht
+NASCAR Thunder 2004 (USA) (GameShark).cht
+NBA Basketball 2000 (USA, Europe) (GameShark) (diff).cht
+NBA Basketball 2000 (USA, Europe) (GameShark).cht
+NBA Fastbreak '98 (USA, Europe) (GameShark).cht
+NBA Hangtime (USA) (GameShark).cht
+NBA Jam - Tournament Edition (USA, Europe) (Game Buster) (diff).cht
+NBA Jam - Tournament Edition (USA, Europe) (Game Buster).cht
+NBA Jam - Tournament Edition (USA, Europe) (GameShark).cht
+NBA Jam Extreme (World) (GameShark).cht
+NBA Live 2000 (World) (Game Buster).cht
+NBA Live 2000 (World) (GameShark).cht
+NBA Live 2001 (USA, Europe) (GameShark).cht
+NBA Live 2002 (USA, Europe) (Game Buster).cht
+NBA Live 2002 (USA, Europe) (GameShark).cht
+NBA Live 2003 (USA, Europe) (GameShark).cht
+NBA Live 96 (World) (GameShark).cht
+NBA Live 98 (World) (Game Buster).cht
+NBA Live 98 (World) (GameShark).cht
+NBA Live 99 (World) (Game Buster).cht
+NBA Live 99 (World) (GameShark).cht
+NBA Pro 98 (Europe) (Game Buster).cht
+NBA Pro 99 (Europe) (Game Buster).cht
+NBA Shoot Out '97 (USA) (GameShark).cht
+NBA Shoot Out (USA) (Game Buster).cht
+NBA Shoot Out (USA) (GameShark).cht
+NBA ShootOut 2000 (USA) (GameShark).cht
+NBA ShootOut 2001 (USA) (GameShark).cht
+NBA ShootOut 2002 (USA) (GameShark).cht
+NBA ShootOut 2003 (USA) (GameShark).cht
+NBA ShootOut 98 (USA) (GameShark).cht
+NBA Showtime - NBA on NBC (USA, Europe) (Game Buster).cht
+NBA Showtime - NBA on NBC (USA, Europe) (GameShark).cht
+NBA in the Zone '98 (USA) (GameShark).cht
+NBA in the Zone '99 (USA) (GameShark).cht
+NBA in the Zone (USA, Europe) (GameShark).cht
+NBA in the Zone 2 (USA, Europe) (GameShark).cht
+NBA in the Zone 2000 (USA, Europe) (GameShark).cht
+NCAA Basketball Final Four 97 (USA) (GameShark).cht
+NCAA Final Four 2000 (USA) (GameShark).cht
+NCAA Final Four 2001 (USA) (GameShark).cht
+NCAA Final Four 99 (USA) (GameShark).cht
+NCAA Football 2000 (USA) (GameShark).cht
+NCAA Football 2001 (USA) (GameShark).cht
+NCAA Football 98 (USA) (GameShark).cht
+NCAA Football 99 (USA) (GameShark).cht
+NCAA Football GameBreaker (USA) (GameShark).cht
+NCAA GameBreaker 2000 (USA) (GameShark).cht
+NCAA GameBreaker 2001 (USA) (GameShark).cht
+NCAA GameBreaker 98 (USA) (GameShark).cht
+NCAA GameBreaker 99 (USA) (GameShark).cht
+NCAA March Madness 2000 (USA) (GameShark).cht
+NCAA March Madness 2001 (USA) (GameShark).cht
+NCAA March Madness 99 (USA) (GameShark).cht
+NFL Blitz (USA) (GameShark).cht
+NFL Blitz 2001 (USA) (GameShark).cht
+NFL Full Contact (USA) (GameShark) (diff).cht
+NFL Full Contact (USA) (GameShark).cht
+NFL GameDay (USA, Europe) (GameShark).cht
+NFL GameDay 2000 (USA) (GameShark).cht
+NFL GameDay 2001 (USA) (GameShark).cht
+NFL GameDay 2002 (USA) (GameShark).cht
+NFL GameDay 2004 (USA) (GameShark).cht
+NFL GameDay 97 (USA) (GameShark).cht
+NFL GameDay 98 (USA) (GameShark).cht
+NFL GameDay 99 (USA) (GameShark).cht
+NFL Quarterback Club 97 (USA, Europe) (GameShark).cht
+NFL Xtreme (USA, Europe) (GameShark).cht
+NFL Xtreme 2 (USA) (GameShark).cht
+NHL 2000 (USA, Europe) (Game Buster).cht
+NHL 2000 (USA, Europe) (GameShark).cht
+NHL 2001 (USA, Europe) (GameShark).cht
+NHL 97 (World) (GameShark).cht
+NHL 98 (USA, Europe) (Game Buster).cht
+NHL 98 (USA, Europe) (GameShark).cht
+NHL 99 (USA, Europe) (Game Buster).cht
+NHL 99 (USA, Europe) (GameShark).cht
+NHL Blades of Steel 2000 (World) (GameShark).cht
+NHL Breakaway 98 (USA, Europe) (GameShark).cht
+NHL Championship 2000 (USA, Europe) (Game Buster).cht
+NHL Face Off '97 (USA, Europe) (GameShark).cht
+NHL Face Off (USA, Europe) (GameShark).cht
+NHL FaceOff 2000 (USA, Europe) (Game Buster).cht
+NHL FaceOff 2000 (USA, Europe) (GameShark).cht
+NHL FaceOff 2001 (USA) (GameShark).cht
+NHL FaceOff 98 (USA, Europe) (GameShark).cht
+NHL FaceOff 99 (USA, Europe) (Game Buster).cht
+NHL FaceOff 99 (USA, Europe) (GameShark).cht
+NHL Open Ice - 2 on 2 Challenge (USA) (GameShark).cht
+NHL Powerplay '96 (USA, Japan) (GameShark).cht
+NHL Powerplay 98 (USA, Europe) (GameShark).cht
+NHL Rock the Rink (USA, Europe) (Game Buster).cht
+NHL Rock the Rink (USA, Europe) (GameShark).cht
+Nagano Winter Olympics '98 (USA, Europe) (GameShark).cht
+Namco Museum Vol. 3 (World) (GameShark).cht
+NanoTek Warrior (World) (Game Buster).cht
+NanoTek Warrior (World) (GameShark).cht
+Need for Speed - High Stakes (USA, Australia) (GameShark) (diff).cht
+Need for Speed - High Stakes (USA, Australia) (GameShark).cht
+Need for Speed - High Stakes (USA, Australia).cht
+Need for Speed - Porsche Unleashed (USA) (Game Buster).cht
+Need for Speed - Porsche Unleashed (USA) (GameShark).cht
+Need for Speed - V-Rally (USA) (GameShark).cht
+Need for Speed II (USA, Europe) (Game Buster).cht
+Need for Speed II (USA, Europe) (GameShark).cht
+Need for Speed III - Hot Pursuit (USA, Europe) (Game Buster).cht
+Need for Speed III - Hot Pursuit (USA, Europe) (GameShark).cht
+Need for Speed III - Hot Pursuit (USA, Europe) (Xploder).cht
+Nekketsu Oyako (Japan) (Game Buster).cht
+Net Yaroze Boot Disc (Europe) (Game Buster).cht
+Newman Haas Racing (USA, Europe) (GameShark).cht
+Next Tetris, The (World) (GameShark).cht
+Nickelodeon Rocket Power - Team Rocket Rescue (USA, Europe) (Game Buster).cht
+Nickelodeon Rocket Power - Team Rocket Rescue (USA, Europe) (GameShark).cht
+Nickelodeon Rugrats - Auf der Suche nach Reptar (Germany) (Game Buster).cht
+Nickelodeon Rugrats - Studio Tour (USA, Europe) (Game Buster).cht
+Nickelodeon Rugrats - Studio Tour (USA, Europe) (GameShark).cht
+Nickelodeon Rugrats - Totally Angelica (USA, Europe) (GameShark).cht
+Nickelodeon Rugrats in Paris - The Movie (USA, Europe) (GameShark).cht
+Nickelodeon SpongeBob SquarePants - SuperSponge (USA, Europe) (GameShark).cht
+Nicktoons Racing (USA, Europe) (GameShark).cht
+Nightmare Creatures (World) (Game Buster).cht
+Nightmare Creatures (World) (GameShark).cht
+Nightmare Creatures II (USA, Europe) (Game Buster).cht
+Nightmare Creatures II (USA, Europe) (GameShark).cht
+Ninja - Shadow of Darkness (USA, Europe) (Game Buster) (diff).cht
+Ninja - Shadow of Darkness (USA, Europe) (Game Buster).cht
+Ninja - Shadow of Darkness (USA, Europe) (GameShark).cht
+No Fear Downhill Mountain Bike Racing (USA) (GameShark).cht
+No Fear Downhill Mountain Biking (Europe) (Game Buster).cht
+No One Can Stop Mr. Domino (USA, Europe) (Game Buster).cht
+No One Can Stop Mr. Domino (USA, Europe) (GameShark).cht
+Novastorm (World) (GameShark).cht
+O.D.T. (USA, Europe) (Game Buster).cht
+O.D.T. (USA, Europe) (GameShark).cht
+Oddworld - Abe's Exoddus (USA, Europe) (Game Buster).cht
+Oddworld - Abe's Exoddus (USA, Europe) (GameShark).cht
+Oddworld - Abe's Oddysee (USA, Europe) (Game Buster) (diff).cht
+Oddworld - Abe's Oddysee (USA, Europe) (Game Buster).cht
+Oddworld - Abe's Oddysee (USA, Europe) (GameShark).cht
+Off-World Interceptor Extreme (World) (GameShark).cht
+Official U.S. PlayStation Magazine Demo Disc 00 (USA) (GameShark).cht
+Official U.S. PlayStation Magazine Demo Disc 26 (USA) (GameShark).cht
+Official U.S. PlayStation Magazine Demo Disc 28 (USA) (GameShark).cht
+Ogre Battle - Limited Edition (USA) (GameShark).cht
+Olympic Soccer (World) (GameShark).cht
+Omega Boost (World) (Game Buster).cht
+Omega Boost (World) (GameShark).cht
+One (Europe) (Xploder).cht
+One (World) (Game Buster).cht
+One (World) (GameShark).cht
+One Piece Mansion (World) (Game Buster).cht
+One Piece Mansion (World) (GameShark).cht
+Option - Tuning Car Battle Spec R (Japan) (Xploder).cht
+OverBlood (World) (GameShark).cht
+OverBlood (World).cht
+Overboard! (Europe) (Game Buster).cht
+PGA European Tour Golf (Europe) (Game Buster).cht
+PGA Tour 97 (World) (GameShark).cht
+PGA Tour 98 (USA, Europe) (GameShark).cht
+PO'ed (World) (Game Buster).cht
+PO'ed (World) (GameShark).cht
+PaRappa the Rapper (USA, Japan) (Game Buster).cht
+PaRappa the Rapper (USA, Japan) (GameShark).cht
+Pac-Man World (USA) (Game Buster).cht
+Pac-Man World (USA) (GameShark).cht
+Pac-Man World 20th Anniversary (Europe, Japan) (Game Buster).cht
+Pac-Man World 20th Anniversary (Europe, Japan) (Xploder).cht
+Pajama Sam - You Are What You Eat from Your Head to Your Feet (USA, Europe) (GameShark).cht
+Pandemonium 2 (USA, Europe) (Game Buster).cht
+Pandemonium 2 (USA, Europe) (GameShark).cht
+Pandemonium! (USA, Europe) (Game Buster).cht
+Pandemonium! (USA, Europe) (GameShark).cht
+Panzer Front (World) (Game Buster).cht
+Panzer Front (World) (GameShark).cht
+Panzer General (World) (Game Buster).cht
+Panzer General (World) (GameShark).cht
+Parasite Eve (World) (GameShark).cht
+Parasite Eve II (Italy) (Game Buster).cht
+Parasite Eve II (World) (Game Buster).cht
+Parasite Eve II (World) (GameShark).cht
+Parasite Eve II (World) (Xploder).cht
+Patriotic Pinball (USA, Europe) (GameShark).cht
+Pax Corpus (Europe) (Game Buster).cht
+Pax Corpus (Europe) (GameShark).cht
+Peak Performance (USA, Europe) (Game Buster).cht
+Peak Performance (USA, Europe) (GameShark).cht
+Penny Racers (Europe) (Game Buster).cht
+Perfect Assassin (Europe) (Game Buster).cht
+Perfect Weapon (USA, Europe) (GameShark).cht
+Peter Jacobsen's Golden Tee Golf (USA) (GameShark).cht
+Peter Pan in Disney's Return to Never Land (USA) (GameShark).cht
+Phat Air - Extreme Snowboarding (Europe) (Game Buster).cht
+Philosoma (World) (Game Buster).cht
+Philosoma (World) (GameShark).cht
+Phix - The Adventure (USA) (GameShark) (diff).cht
+Phix - The Adventure (USA) (GameShark).cht
+Pink Panther - Pinkadelic Pursuit (USA, Europe) (GameShark).cht
+Pinobee (USA, Europe) (GameShark).cht
+Pipe Dreams 3D (USA) (GameShark).cht
+Pipe Mania 3D (Europe) (Game Buster).cht
+Pitball (World) (GameShark).cht
+Pitfall 3D - Beyond the Jungle (World) (Game Buster).cht
+Pitfall 3D - Beyond the Jungle (World) (GameShark).cht
+Player Manager 2000 (Europe) (Game Buster).cht
+Player Manager Ninety Nine (UK, Europe) (Game Buster).cht
+PoPoLoCrois Monogatari (Japan) (GameShark).cht
+Pocket Fighter (World) (Game Buster).cht
+Pocket Fighter (World) (GameShark).cht
+Pocket Jiman (Japan) (GameShark).cht
+Point Blank (USA, Europe) (Game Buster).cht
+Point Blank 3 (USA, Europe) (Game Buster).cht
+Point Blank 3 (USA, Europe) (GameShark).cht
+Polaris SnoCross (USA) (GameShark).cht
+Pong (Europe) (Game Buster).cht
+Pong (Europe) (GameShark).cht
+Pool Hustler (USA, Europe) (Game Buster).cht
+Pool Hustler (USA, Europe) (GameShark).cht
+Pop n' Pop (Europe, Japan) (Game Buster).cht
+Populous - The Beginning (World) (Game Buster).cht
+Populous - The Beginning (World) (GameShark).cht
+Porsche Challenge (World) (Game Buster).cht
+Porsche Challenge (World) (GameShark).cht
+Power Move Pro Wrestling (Europe) (Xploder).cht
+Power Move Pro Wrestling (USA, Europe) (Game Buster).cht
+Power Move Pro Wrestling (USA, Europe) (GameShark).cht
+Power Play - Sports Trivia (USA) (GameShark).cht
+Power Serve (Europe) (Game Buster).cht
+Power Shovel (USA) (GameShark).cht
+Power Spike - Pro Beach Volleyball (USA) (GameShark).cht
+Powerpuff Girls, The - Chemical X-Traction (USA, Europe) (GameShark).cht
+Poy Poy (USA, Europe) (GameShark).cht
+Poy Poy 2 (Europe) (Game Buster).cht
+Premier Manager 98 (Europe) (Game Buster).cht
+Premier Manager Ninety Nine (Europe) (Game Buster).cht
+Primal Rage (World) (GameShark).cht
+Prince Naseem Boxing (Europe) (Game Buster).cht
+Pro 18 - World Tour Golf (USA, Europe) (Game Buster).cht
+Pro 18 - World Tour Golf (USA, Europe) (GameShark).cht
+Pro Evolution Soccer 2 (Europe) (Game Buster).cht
+Pro Pinball - Big Race USA (USA, Europe) (Game Buster).cht
+Pro Pinball - Big Race USA (USA, Europe) (GameShark).cht
+Pro Pinball - Fantastic Journey (USA, Europe) (Game Buster).cht
+Pro Pinball - The Web (Europe) (Game Buster).cht
+Pro Pinball - Timeshock! (USA, Europe) (Game Buster).cht
+Pro Pinball - Timeshock! (USA, Europe) (GameShark).cht
+Pro-Pinball (USA) (GameShark).cht
+Professional Underground League of Pain (USA) (GameShark).cht
+Project - Horned Owl (USA) (GameShark).cht
+Project Overkill (USA, Europe) (Game Buster).cht
+Project Overkill (USA, Europe) (GameShark).cht
+Psybadek (USA, Europe) (Game Buster).cht
+Psybadek (USA, Europe) (GameShark).cht
+Psychic Detective (USA, Europe) (Game Buster).cht
+Psychic Force (World) (Game Buster).cht
+Psychic Force (World) (GameShark).cht
+Psychic Force 2 (Europe, Japan) (Game Buster).cht
+Puma Street Soccer (Europe) (Game Buster).cht
+Punch the Monkey! Game Edition (Japan) (Xploder).cht
+Punky Skunk (USA) (GameShark).cht
+Putter Golf (USA) (GameShark).cht
+Puzzle Star Sweep (USA) (GameShark).cht
+Puzznic (USA, Europe) (GameShark).cht
+Q-bert (USA, Europe) (Game Buster).cht
+Qix Neo (USA) (GameShark).cht
+Quake II (Demo) (USA, Europe) (Game Buster).cht
+Quake II (Demo) (USA, Europe) (Xploder).cht
+Quake II (USA, Europe) (Game Buster).cht
+Quake II (USA, Europe) (GameShark).cht
+R-Type Delta (World) (Game Buster).cht
+R-Type Delta (World) (GameShark).cht
+R4 - Ridge Racer Type 4 (USA) (Xploder).cht
+R4 - Ridge Racer Type 4 (USA).cht
+R4 - Ridge Racer Type 4 (USA, Japan) (GameShark).cht
+RC Helicopter (USA) (GameShark).cht
+RC Revenge (World) (Game Buster).cht
+RC Revenge (World) (GameShark).cht
+RC Stunt Copter (USA, Europe) (Game Buster).cht
+RC Stunt Copter (USA, Europe) (GameShark).cht
+RC de Go! (Japan) (Xploder).cht
+RC de Go! (World) (Game Buster).cht
+RC de Go! (World) (GameShark).cht
+RPG Maker (USA) (GameShark).cht
+RTL Skispringen 2002 (Germany) (Game Buster).cht
+Radikal Bikers (Europe) (Game Buster).cht
+Rage Racer (World) (Game Buster).cht
+Rage Racer (World) (GameShark).cht
+Rageball (USA, Europe) (GameShark).cht
+Raging Skies (Europe) (Game Buster).cht
+Raiden Project (Japan) (GameShark).cht
+Railroad Tycoon II (USA, Europe) (Game Buster).cht
+Rally Cross (World) (Game Buster).cht
+Rally Cross (World) (GameShark).cht
+Rally Cross 2 (USA, Europe) (Game Buster).cht
+Rally Cross 2 (USA, Europe) (GameShark).cht
+Rally de Europe (Japan) (Xploder).cht
+Rampage - Through Time (USA, Europe) (GameShark).cht
+Rampage - World Tour (USA, Europe) (Game Buster).cht
+Rampage - World Tour (USA, Europe) (GameShark).cht
+Rampage 2 - Universal Tour (USA, Europe) (Game Buster).cht
+Rampage 2 - Universal Tour (USA, Europe) (GameShark).cht
+Rapid Racer (Europe, Japan) (Game Buster).cht
+Rapid Reload (Europe) (Game Buster).cht
+Rascal (USA, Europe) (Game Buster).cht
+Rascal (USA, Europe) (GameShark).cht
+Rascal Racers (USA, Europe) (GameShark).cht
+Rat Attack! (USA, Europe) (Game Buster).cht
+Rat Attack! (USA, Europe) (GameShark).cht
+Ray Tracers (World) (Game Buster).cht
+RayCrisis (Europe, Japan) (Game Buster).cht
+RayCrisis - Series Termination (USA) (GameShark).cht
+RayStorm (World) (Game Buster).cht
+RayStorm (World) (GameShark).cht
+Rayman (World) (Game Buster).cht
+Rayman (World) (GameShark).cht
+Rayman 2 - The Great Escape (USA, Europe) (Game Buster).cht
+Rayman 2 - The Great Escape (USA, Europe) (GameShark).cht
+Rayman Brain Games (USA) (GameShark).cht
+Razor Freestyle Scooter (USA) (GameShark).cht
+Razor Racing (USA) (GameShark).cht
+Re-Loaded (Europe) (Game Buster).cht
+Re-Loaded (Europe) (GameShark).cht
+Re-Volt (World) (GameShark).cht
+Ready 2 Rumble Boxing (USA, Europe) (Game Buster).cht
+Ready 2 Rumble Boxing (USA, Europe) (GameShark).cht
+Ready 2 Rumble Boxing - Round 2 (USA, Europe) (Game Buster).cht
+Ready 2 Rumble Boxing - Round 2 (USA, Europe) (GameShark).cht
+Red Asphalt (USA) (GameShark).cht
+Reel Fishing (USA, Europe) (GameShark).cht
+Reel Fishing II (USA, Europe) (GameShark).cht
+Renegade Racers (USA, Europe) (Game Buster).cht
+Renegade Racers (USA, Europe) (GameShark).cht
+Rescue Shot (Europe) (Game Buster).cht
+Resident Evil - Director's Cut (USA, Europe) (Game Buster).cht
+Resident Evil - Director's Cut - Dual Shock Ver. (USA) (GameShark).cht
+Resident Evil - Survivor (USA, Europe) (Game Buster).cht
+Resident Evil - Survivor (USA, Europe) (GameShark).cht
+Resident Evil 2 (Europe) (Preview) (GameShark).cht
+Resident Evil 2 - Dual Shock Ver. (Claire) (It) (USA) (Game Buster).cht
+Resident Evil 2 - Dual Shock Ver. (Claire) (USA) (Game Buster).cht
+Resident Evil 2 - Dual Shock Ver. (Leon) (USA) (Game Buster).cht
+Resident Evil 3 - Nemesis (Demo) (USA) (Game Buster).cht
+Resident Evil 3 - Nemesis (Demo) (USA, Europe) (GameShark).cht
+Resident Evil 3 - Nemesis (NTSC-U) (USA, Europe) (GameShark).cht
+Retro Force (Europe) (Game Buster).cht
+Return Fire (USA, Europe) (GameShark).cht
+Revolution X - Music Is the Weapon (World) (Game Buster).cht
+Revolution X - Music Is the Weapon (World) (GameShark).cht
+Ridge Racer (World) (Game Buster).cht
+Ridge Racer (World) (GameShark).cht
+Ridge Racer Revolution (World) (Game Buster).cht
+Ridge Racer Revolution (World) (GameShark).cht
+Ridge Racer Type 4 (Europe) (Game Buster).cht
+Rise 2 - Resurrection (World) (Game Buster).cht
+Rise 2 - Resurrection (World) (GameShark).cht
+Rising Zan - The Samurai Gunman (World) (Game Buster).cht
+Rising Zan - The Samurai Gunman (World) (GameShark).cht
+Risk (Europe) (Game Buster).cht
+Risk - The Game of Global Domination (USA) (Game Buster).cht
+Risk - The Game of Global Domination (USA) (GameShark).cht
+Rittai Ninja Katsugeki - Tenchu - Shinobi Gaisen (Japan) (Xploder).cht
+Rival Schools - United by Fate (Evolution) (USA, Europe) (Game Buster) (diff).cht
+Rival Schools - United by Fate (Evolution) (USA, Europe) (Game Buster).cht
+Road Rash (World) (Game Buster).cht
+Road Rash (World) (GameShark).cht
+Road Rash - Jailbreak (USA, Europe) (Game Buster).cht
+Road Rash - Jailbreak (USA, Europe) (GameShark).cht
+Road Rash 3D (USA, Europe) (Game Buster).cht
+Road Rash 3D (USA, Europe) (GameShark).cht
+Road _ Track Presents - The Need for Speed (USA, Europe) (Game Buster).cht
+Road _ Track Presents - The Need for Speed (USA, Europe) (GameShark).cht
+Roadsters (USA, Europe) (Game Buster).cht
+Roadsters (USA, Europe) (GameShark).cht
+Robotron X (World) (Game Buster).cht
+Robotron X (World) (GameShark).cht
+Rock 'Em Sock 'Em Robots Arena (USA) (GameShark).cht
+Rogue Trip - Vacation 2012 (USA, Europe) (Game Buster).cht
+Roland Garros French Open 2001 (Europe) (Game Buster).cht
+Roll Away (USA) (GameShark).cht
+Rollcage (USA, Europe) (Game Buster).cht
+Rollcage (USA, Europe) (GameShark).cht
+Rollcage Stage II (USA, Europe) (Game Buster).cht
+Rollcage Stage II (USA, Europe) (GameShark).cht
+Ronaldo V-Football (Europe) (Game Buster).cht
+Ronaldo V-Football (Europe) (Xploder).cht
+Ronin Blade (Europe) (GameShark).cht
+Roswell Conspiracies - Aliens, Myths _ Legends (USA, Europe) (Game Buster).cht
+Roswell Conspiracies - Aliens, Myths _ Legends (USA, Europe) (GameShark).cht
+Ruff _ Tumble (Germany, Netherlands) (Game Buster).cht
+Runabout 2 (World) (GameShark).cht
+Running Wild (USA, Europe) (GameShark).cht
+Rush Hour (USA) (GameShark).cht
+Rushdown (USA, Europe) (GameShark).cht
+S.C.A.R.S. (USA, Europe) (Game Buster).cht
+S.C.A.R.S. (USA, Europe) (GameShark).cht
+Saban's Power Rangers - Lightspeed Rescue (USA, Europe) (Game Buster).cht
+Saban's Power Rangers - Lightspeed Rescue (USA, Europe) (GameShark).cht
+Saban's Power Rangers - Time Force (USA, Europe) (GameShark).cht
+Sabrina the Teenage Witch - A Twitch in Time! (USA, Europe) (GameShark).cht
+Saltwater Sportfishing (USA, Europe) (GameShark).cht
+Sammy Sosa High Heat Baseball 2001 (USA) (GameShark).cht
+Sammy Sosa Softball Slam (USA) (GameShark).cht
+Sampras Extreme Tennis (Europe, Japan) (Game Buster).cht
+Samurai Shodown - Warriors Rage (USA) (GameShark).cht
+Samurai Shodown III (Europe) (Game Buster).cht
+Samurai Shodown III (Europe) (GameShark).cht
+San Francisco Rush - Extreme Racing (USA, Europe) (Game Buster).cht
+San Francisco Rush - Extreme Racing (USA, Europe) (GameShark).cht
+Sanvein (Europe) (Game Buster).cht
+Sanvein (Europe) (GameShark).cht
+Scooby-Doo and the Cyber Chase (USA, Europe) (GameShark).cht
+Scooter Racing (Europe) (Game Buster).cht
+Scrabble (USA, Europe) (GameShark).cht
+Sentinel Returns (USA, Europe) (Game Buster).cht
+Sentinel Returns (USA, Europe) (GameShark).cht
+Sesame Street - Elmo's Letter Adventure (USA, Europe) (GameShark).cht
+Sesame Street - Elmo's Number Journey (USA, Europe) (GameShark).cht
+Shadow Gunner - The Robot Wars (Europe) (Game Buster).cht
+Shadow Gunner - The Robot Wars (Europe) (GameShark).cht
+Shadow Madness (USA, Europe) (Game Buster).cht
+Shadow Madness (USA, Europe) (GameShark).cht
+Shadow Man (USA, Europe) (Game Buster).cht
+Shadow Man (USA, Europe) (GameShark).cht
+Shadow Master (USA, Europe) (Game Buster).cht
+Shadow Master (USA, Europe) (GameShark).cht
+Shadow Tower (USA, Japan) (GameShark).cht
+Shaolin (Europe) (Game Buster).cht
+Sheep (Europe) (Xploder).cht
+Sheep (World) (Game Buster).cht
+Sheep, Dog 'n' Wolf (Europe) (Game Buster).cht
+Shellshock (USA, Europe) (Game Buster).cht
+Shellshock (USA, Europe) (GameShark) (diff).cht
+Shellshock (USA, Europe) (GameShark).cht
+Shockwave Assault (USA, Europe) (Game Buster) (diff).cht
+Shockwave Assault (USA, Europe) (Game Buster).cht
+Shockwave Assault (USA, Europe) (GameShark).cht
+Shrek Treasure Hunt (USA, Europe) (GameShark).cht
+Silent Bomber (Europe) (Xploder).cht
+Silent Bomber (World) (Game Buster).cht
+Silent Bomber (World) (GameShark).cht
+Silent Hill (World) (Game Buster).cht
+Silent Hill (World) (GameShark).cht
+Silhouette Mirage - Reprogrammed Hope (Japan) (GameShark).cht
+Sim Theme Park (USA) (GameShark).cht
+SimCity 2000 (World) (Game Buster).cht
+Simple 1500 Series Vol. 35 - The Shooting (Japan) (GameShark).cht
+Simpsons Wrestling, The (USA, Europe) (GameShark).cht
+Skeleton Warriors (USA, Europe) (Game Buster).cht
+Skeleton Warriors (USA, Europe) (GameShark).cht
+Skullmonkeys (USA, Europe) (Game Buster).cht
+Skullmonkeys (USA, Europe) (GameShark).cht
+Skullmonkeys (USA, Europe) (Xploder).cht
+Skydiving Extreme (USA) (GameShark).cht
+Slam 'n Jam '96 featuring Magic _ Kareem (USA, Europe) (GameShark).cht
+Slamscape (USA, Europe) (GameShark).cht
+Sled Storm (USA, Europe) (Game Buster).cht
+Sled Storm (USA, Europe) (GameShark).cht
+Slots (USA) (GameShark).cht
+Small Soldiers (USA, Europe) (Game Buster).cht
+Small Soldiers (USA, Europe) (GameShark).cht
+Smurf Racer! (USA) (GameShark).cht
+Smurfs, The (USA, Europe) (GameShark).cht
+SnoCross Championship Racing (USA, Europe) (Game Buster).cht
+SnoCross Championship Racing (USA, Europe) (GameShark).cht
+Snowboarding (USA) (GameShark).cht
+Sol Divide (USA, Japan) (GameShark).cht
+Sonic Wings Special (Europe, Japan) (GameShark).cht
+Sony - PlayStation (GameShark).cht
+Sorcerer's Maze (USA, Europe) (GameShark).cht
+Soul Blade (Europe) (Xploder).cht
+Soul Blade (USA) (GameShark).cht
+Soul Blade (USA, Europe) (Game Buster).cht
+Soul Blade (USA, Europe) (GameShark).cht
+Soul Edge (Japan) (GameShark).cht
+Soul of the Samurai (USA) (GameShark).cht
+South Park (USA, Europe) (Game Buster).cht
+South Park (USA, Europe) (GameShark).cht
+South Park - Chef's Luv Shack (Europe) (Xploder).cht
+South Park - Chef's Luv Shack (USA, Europe) (Game Buster).cht
+South Park - Chef's Luv Shack (USA, Europe) (GameShark).cht
+South Park Rally (USA, Europe) (Game Buster).cht
+South Park Rally (USA, Europe) (GameShark).cht
+South Park Rally (USA, Europe) (Xploder).cht
+Soviet Strike (USA, Europe) (Game Buster).cht
+Soviet Strike (USA, Europe) (GameShark).cht
+Space Debris (Europe) (Game Buster).cht
+Space Griffon VF-9 (USA, Japan) (Game Buster).cht
+Space Griffon VF-9 (USA, Japan) (GameShark).cht
+Space Hulk - Vengeance of the Blood Angels (USA, Europe) (Game Buster).cht
+Space Hulk - Vengeance of the Blood Angels (USA, Europe) (GameShark).cht
+Space Invaders (World) (Game Buster).cht
+Space Invaders (World) (GameShark).cht
+Space Jam (World) (Game Buster).cht
+Space Jam (World) (GameShark).cht
+Spawn - The Eternal (Europe) (Xploder).cht
+Spawn - The Eternal (World) (Game Buster).cht
+Spawn - The Eternal (World) (GameShark).cht
+Spec Ops - Airborne Commando (USA, Europe) (GameShark).cht
+Spec Ops - Covert Assault (USA, Europe) (Game Buster).cht
+Spec Ops - Ranger Elite (Beta) (USA, Europe) (Game Buster).cht
+Spec Ops - Ranger Elite (USA, Europe) (Game Buster).cht
+Spec Ops - Ranger Elite (USA, Europe) (GameShark).cht
+Spec Ops - Stealth Patrol (USA, Europe) (Game Buster).cht
+Speed Freaks (Europe) (Game Buster).cht
+Speed Freaks (Europe) (GameShark).cht
+Speed Punks (USA) (GameShark).cht
+Speed Racer (USA) (GameShark).cht
+Speedball 2100 (USA, Europe) (Game Buster).cht
+Speedball 2100 (USA, Europe) (GameShark).cht
+Speedster (Europe) (Game Buster).cht
+Speedster (Europe) (GameShark).cht
+Spice World (USA, Europe) (GameShark).cht
+Spider - The Video Game (World) (Game Buster).cht
+Spider - The Video Game (World) (GameShark).cht
+Spider-Man (World) (Game Buster).cht
+Spider-Man (World) (GameShark).cht
+Spider-Man (World) (Xploder).cht
+Spider-Man 2 - Enter - Electro (World) (Game Buster).cht
+Spider-Man 2 - Enter - Electro (World) (GameShark).cht
+Spin Jam (USA, Europe) (Game Buster).cht
+Spin Jam (USA, Europe) (GameShark).cht
+Sports Car GT (USA, Europe) (Game Buster).cht
+Sports Car GT (USA, Europe) (GameShark).cht
+Sports Superbike 2 (USA, Europe) (GameShark).cht
+Spot Goes to Hollywood (World) (GameShark).cht
+Spyro - Year of the Dragon (USA, Europe) (Game Buster).cht
+Spyro - Year of the Dragon (USA, Europe) (GameShark).cht
+Spyro 2 - Gateway to Glimmer (Demo) (Europe) (Game Buster).cht
+Spyro 2 - Gateway to Glimmer (Europe) (Game Buster).cht
+Spyro 2 - Gateway to Glimmer (Europe) (GameShark).cht
+Spyro 2 - Ripto's Rage! (USA) (GameShark).cht
+Spyro 2 - Ripto's Rage! (USA).cht
+Spyro the Dragon (USA).cht
+Spyro the Dragon (World) (Game Buster).cht
+Spyro the Dragon (World) (GameShark).cht
+Star Gladiator - Episode I - Final Crusade (World) (Game Buster).cht
+Star Gladiator - Episode I - Final Crusade (World) (GameShark).cht
+Star Ixiom (Europe, Japan) (Game Buster).cht
+Star Ocean - The Second Story (World) (Xploder).cht
+Star Trek - Invasion (USA, Europe) (GameShark).cht
+Star Trek - Invasion (USA, Europe) (Xploder).cht
+Star Wars - Dark Forces (World) (Game Buster).cht
+Star Wars - Dark Forces (World) (GameShark).cht
+Star Wars - Demolition (USA, Europe) (GameShark).cht
+Star Wars - Episode I - Jedi Power Battles (France) (Xploder).cht
+Star Wars - Episode I - Jedi Power Battles (USA, Europe) (Xploder).cht
+Star Wars - Episode I - The Phantom Menace (World) (GameShark) (diff).cht
+Star Wars - Episode I - The Phantom Menace (World) (GameShark).cht
+Star Wars - Masters of Teras Kasi (World) (GameShark) (diff).cht
+Star Wars - Masters of Teras Kasi (World) (GameShark).cht
+Star Wars - Rebel Assault II - The Hidden Empire (Spanish) (Game Buster).cht
+Star Wars - Rebel Assault II - The Hidden Empire (World) (GameShark) (diff).cht
+Star Wars - Rebel Assault II - The Hidden Empire (World) (GameShark) (diff2).cht
+Star Wars - Rebel Assault II - The Hidden Empire (World) (GameShark).cht
+StarFighter 3000 (Europe, Japan) (GameShark).cht
+Starblade Alpha (World) (GameShark).cht
+Starwinder - The Ultimate Space Race (World) (GameShark).cht
+Steel Harbinger (USA, Europe) (GameShark).cht
+Steel Reign (USA, Europe) (GameShark).cht
+Streak Hoverboard Racing (USA, Europe) (GameShark) (diff).cht
+Streak Hoverboard Racing (USA, Europe) (GameShark).cht
+Street Fighter - The Movie (USA, Europe) (GameShark).cht
+Street Fighter Alpha - Warriors' Dreams (USA, Europe) (GameShark) (diff).cht
+Street Fighter Alpha - Warriors' Dreams (USA, Europe) (GameShark).cht
+Street Fighter Alpha 2 (Gold) (USA, Europe) (GameShark).cht
+Street Fighter Alpha 2 (USA, Europe) (GameShark).cht
+Street Fighter Alpha 3 (USA, Europe) (GameShark).cht
+Street Fighter Collection 2 (USA, Europe) (GameShark) (diff).cht
+Street Fighter Collection 2 (USA, Europe) (GameShark).cht
+Street Fighter EX Plus Alpha (World) (GameShark) (diff).cht
+Street Fighter EX Plus Alpha (World) (GameShark).cht
+Street Racer (USA, Europe) (GameShark).cht
+Street Racquetball (USA) (GameShark).cht
+Street Sk8er (USA) (GameShark).cht
+Street Sk8er 2 (USA) (GameShark).cht
+Street Skater (Europe) (GameShark).cht
+Strider (USA, Europe) (GameShark).cht
+Strider 2 (USA, Europe) (GameShark).cht
+Strike Point (USA) (GameShark).cht
+Striker 96 (USA, Europe) (GameShark).cht
+Striker Pro 2000 (USA) (GameShark).cht
+Strikers 1945 (USA, Japan) (GameShark).cht
+Stuart Little 2 (USA, Europe) (GameShark).cht
+Suikoden (USA, Europe) (GameShark).cht
+Super Bubble Pop (USA) (GameShark).cht
+Super Pang Collection (Europe) (GameShark).cht
+Super Puzzle Fighter II Turbo (USA, Europe) (GameShark).cht
+Super Shot Soccer (USA) (GameShark).cht
+SuperCross Circuit (USA) (GameShark).cht
+Superstar Dance Club - -1 Hits!!! (USA, Europe) (GameShark).cht
+Surf Riders (USA, Europe) (GameShark).cht
+Swagman (USA, Europe) (GameShark).cht
+Sydney 2000 (World) (GameShark).cht
+Syndicate Wars (USA, Europe) (GameShark).cht
+Syphon Filter (World) (GameShark).cht
+Syphon Filter 2 (USA, Europe) (GameShark).cht
+Syphon Filter 2 (USA, Europe) (Xploder).cht
+T'ai Fu - Wrath of the Tiger (USA, Europe) (GameShark).cht
+T.R.A.G. - Mission of Mercy (USA) (GameShark).cht
+TNN Motorsports HardCore TR (USA) (GameShark).cht
+TOCA 2 Touring Car Challenge (USA) (GameShark).cht
+TOCA Championship Racing (USA) (GameShark).cht
+Tail Concerto (USA, France, Japan) (GameShark).cht
+Tail of the Sun (USA) (GameShark).cht
+Tales of Phantasia (USA) (GameShark).cht
+Tall - Infinity (USA) (GameShark).cht
+Team Buddies (USA, Europe) (GameShark).cht
+Team Losi RC Racer (USA) (GameShark).cht
+Tecmo Super Bowl (USA, Japan) (GameShark).cht
+Tecmo's Deception - Invitation to Darkness (USA) (GameShark).cht
+Tekken (World) (GameShark).cht
+Tekken 2 (World) (GameShark).cht
+Tekken 3 (World) (GameShark).cht
+Ten Pin Alley (USA, Europe) (GameShark).cht
+Tenchu - Stealth Assassins (USA, Europe) (GameShark).cht
+Tenchu 2 - Birth of the Stealth Assassins (USA, Europe) (GameShark).cht
+Tennis (USA) (GameShark).cht
+Tennis Arena (World) (GameShark).cht
+Test Drive 4 (Europe) (Xploder).cht
+Test Drive 4 (World) (GameShark).cht
+Test Drive 5 (World) (GameShark).cht
+Test Drive 6 (USA, Europe) (GameShark).cht
+Test Drive Le Mans (USA) (GameShark).cht
+Test Drive Off-Road 2 (USA) (GameShark) (diff).cht
+Test Drive Off-Road 2 (USA) (GameShark).cht
+Test Drive Off-Road 3 (USA) (GameShark).cht
+Tetris Plus (World) (GameShark).cht
+Theme Hospital (USA, Europe) (Xploder).cht
+Theme Hospital (World) (GameShark).cht
+Theme Park (World) (GameShark).cht
+This Is Football (Europe) (Xploder).cht
+Thrasher - Skate and Destroy (USA, Europe) (GameShark).cht
+Threads of Fate (USA) (GameShark).cht
+Three Stooges, The (USA) (GameShark).cht
+Thrill Kill (Cancelled) (GameShark).cht
+Thunder Force V - Perfect System (USA, Japan) (GameShark).cht
+Thunder Truck Rally (USA) (GameShark).cht
+Thunderstrike 2 (USA) (GameShark).cht
+Tiger Woods 99 PGA Tour Golf (World) (GameShark).cht
+Tiger Woods PGA Tour 2000 (USA, Europe) (GameShark).cht
+Tiger Woods PGA Tour Gold (USA, Europe) (GameShark).cht
+Tigershark (World) (GameShark).cht
+Time Commando (World) (GameShark).cht
+Time Crisis (World) (GameShark).cht
+Time Crisis - Project Titan (World) (GameShark).cht
+Tiny Tank (USA, Europe) (GameShark).cht
+Tiny Toon Adventures - Buster and the Beanstalk (Europe) (Game Buster).cht
+Tiny Toon Adventures - Plucky's Big Adventure (USA, Europe) (GameShark).cht
+Tiny Toon Adventures - Toonenstein - Dare to Scare! (USA, Europe) (GameShark).cht
+Tokyo Highway Battle (USA, Europe) (GameShark).cht
+Tokyo Highway Battle (USA, Europe) (Xploder).cht
+Tom Clancy's Rainbow Six (USA, Europe) (Game Buster).cht
+Tom Clancy's Rainbow Six (USA, Europe) (GameShark).cht
+Tom Clancy's Rainbow Six - Lone Wolf (USA, Europe) (Game Buster).cht
+Tom Clancy's Rainbow Six - Rogue Spear (USA, Europe) (Game Buster).cht
+Tom Clancy's Rainbow Six - Rogue Spear (USA, Europe) (GameShark).cht
+Tom and Jerry in House Trap (World) (GameShark).cht
+Tomb Raider - The Last Revelation (USA, Europe) (GameShark).cht
+Tomb Raider Chronicles (USA, Europe) (GameShark).cht
+Tomb Raider II - Starring Lara Croft (USA, Europe) (GameShark).cht
+Tomb Raider III - Adventures of Lara Croft (World) (GameShark) (diff).cht
+Tomb Raider III - Adventures of Lara Croft (World) (GameShark).cht
+Tomb Raider V - Chronicles (Japan) (Xploder).cht
+Tomba! (USA) (GameShark).cht
+Tomba! 2 - The Evil Swine Return (USA) (GameShark).cht
+Tommi Maekinen Rally (Europe) (Xploder).cht
+Tony Hawk's Pro Skater (USA, Japan) (GameShark) (diff).cht
+Tony Hawk's Pro Skater (USA, Japan) (GameShark).cht
+Tony Hawk's Pro Skater 2 (World) (GameShark).cht
+Tony Hawk's Pro Skater 4 (USA, Europe) (GameShark).cht
+Top Gun - Fire at Will! (World) (GameShark).cht
+Torc - Legend of the Ogre Crown (Cancelled) (GameShark).cht
+Total Eclipse Turbo (World) (GameShark).cht
+Transformers - Beast Wars (Japan) (GameShark).cht
+Transformers - Beast Wars Transmetals (USA) (GameShark).cht
+Trap Gunner (USA, Japan) (GameShark).cht
+Trap Runner (Europe) (GameShark).cht
+Treasures of the Deep (USA, Europe) (GameShark).cht
+Trick'n Snowboarder (USA, Europe) (GameShark).cht
+Triple Play 2000 (USA) (GameShark).cht
+Triple Play 2001 (USA) (GameShark).cht
+Triple Play 97 (USA, Japan) (GameShark).cht
+Triple Play 98 (USA, Japan) (GameShark).cht
+Triple Play 99 (USA) (GameShark).cht
+Triple Play Baseball (USA) (GameShark).cht
+True Pinball (USA, Europe) (GameShark).cht
+Tunnel B1 (USA, Europe) (GameShark).cht
+Turbo Prop Racing (USA) (GameShark).cht
+Turnabout (USA, Europe) (GameShark).cht
+Twisted Metal (World) (GameShark).cht
+Twisted Metal - Small Brawl (USA) (GameShark).cht
+Twisted Metal 4 (USA) (GameShark).cht
+Twisted Metal III (USA) (GameShark).cht
+Tyco R-C - Assault with a Battery (USA) (GameShark).cht
+UEFA Euro 2000 (Europe) (Game Buster).cht
+Ultimate 8 Ball (USA) (GameShark).cht
+Ultimate Fighting Championship (USA, Europe) (GameShark).cht
+Um Jammer Lammy (World) (GameShark).cht
+Uprising X (USA) (GameShark).cht
+Urban Chaos (USA, Europe) (GameShark).cht
+VIP Demo (Europe) (GameShark).cht
+VMX Racing (USA, Europe) (GameShark).cht
+VR Baseball '97 (USA, Europe) (GameShark).cht
+VR Baseball 99 (USA, Europe) (GameShark).cht
+VR Golf '97 (USA) (GameShark).cht
+VR Soccer '96 (USA) (GameShark).cht
+VR Sports Powerboat Racing (USA, Europe) (GameShark).cht
+Vagrant Story (World) (GameShark).cht
+Vampire Hunter D (World) (GameShark).cht
+Vanark (USA) (GameShark).cht
+Vandal Hearts II (USA, Europe) (GameShark) (diff).cht
+Vandal Hearts II (USA, Europe) (GameShark) (diff2).cht
+Vandal Hearts II (USA, Europe) (GameShark) (diff3).cht
+Vandal Hearts II (USA, Europe) (GameShark).cht
+Vanishing Point (USA, Europe) (GameShark).cht
+Vegas Games 2000 (USA) (GameShark).cht
+Viewpoint (USA, Europe) (GameShark).cht
+Vigilante 8 (World) (GameShark).cht
+Vigilante 8 - 2nd Offense (USA, Europe) (GameShark).cht
+Viper (Europe) (Xploder).cht
+Virtual Kasparov (USA, Europe) (GameShark).cht
+Virtual Pool (USA, Europe) (GameShark).cht
+Viva Soccer (USA) (GameShark).cht
+Vs. (USA, Europe) (GameShark).cht
+WCW Backstage Assault (USA, Europe) (GameShark).cht
+WCW Mayhem (USA, Europe) (GameShark).cht
+WCW Nitro (USA, Europe) (GameShark) (diff).cht
+WCW Nitro (USA, Europe) (GameShark).cht
+WCW-nWo Thunder (USA, Europe) (GameShark).cht
+WWF Attitude (USA, Europe) (GameShark).cht
+WWF In Your House (USA, Europe) (GameShark).cht
+WWF SmackDown! 2 - Know Your Role (USA, Europe) (GameShark).cht
+WWF War Zone (USA, Europe) (GameShark).cht
+WWF WrestleMania - The Arcade Game (USA, Europe) (GameShark) (diff).cht
+WWF WrestleMania - The Arcade Game (USA, Europe) (GameShark).cht
+Walt Disney World Quest - Magical Racing Tour (USA, Europe) (GameShark).cht
+Walt Disneys Das Dschungelbuch - Groove Party (Germany) (Game Buster).cht
+War Gods (USA, Europe) (GameShark).cht
+WarGames - Defcon 1 (USA, Europe) (GameShark).cht
+Warhammer - Shadow of the Horned Rat (USA, Europe) (GameShark).cht
+Warhawk - The Red Mercury Missions (USA, Europe) (GameShark).cht
+Warpath - Jurassic Park (USA, Europe) (GameShark).cht
+Warriors of Might and Magic (USA, Europe) (GameShark).cht
+Warzone 2100 (USA, Europe) (GameShark).cht
+Wayne Gretzky's 3D Hockey '98 (USA, Europe) (GameShark).cht
+Weakest Link, The (USA, Europe) (GameShark).cht
+Wheel of Fortune (USA) (GameShark).cht
+Wheel of Fortune - 2nd Edition (USA) (GameShark).cht
+Who Wants to Be a Millionaire - 2nd Edition (USA, Europe) (GameShark).cht
+Who Wants to Be a Millionaire - 3rd Edition (USA) (GameShark).cht
+Wild 9 (Europe) (Xploder).cht
+Wild 9 (USA, Europe) (GameShark).cht
+Wild Arms (Germany) (Xploder).cht
+Wild Thornberrys, The - Animal Adventures (USA) (GameShark).cht
+Wing Commander III - Heart of the Tiger (World) (GameShark).cht
+Wing Commander IV - The Price of Freedom (USA, Europe) (GameShark).cht
+WipEout 2097 (Europe) (GameShark).cht
+WipEout 3 (USA, Japan) (GameShark).cht
+Wipeout XL (USA, Japan) (GameShark) (diff).cht
+Wipeout XL (USA, Japan) (GameShark).cht
+Woody Woodpecker Racing (USA, Europe) (GameShark).cht
+World Championship Snooker (Europe) (Xploder).cht
+World Cup 98 (USA, Europe) (GameShark) (diff).cht
+World Cup 98 (USA, Europe) (GameShark).cht
+World Cup Golf - Professional Edition (USA, Europe) (GameShark).cht
+World Destruction League - Thunder Tanks (USA, Europe) (GameShark).cht
+World Destruction League - WarJetz (USA, Europe) (GameShark).cht
+World League Soccer (Japan) (GameShark).cht
+World of Dragon Warrior - Torneko - The Last Hope (USA) (GameShark).cht
+World's Scariest Police Chases (USA, Europe) (GameShark).cht
+Worms (USA, Europe) (GameShark).cht
+Worms Armageddon (USA, Europe) (GameShark).cht
+Wreckin Crew - Drive Dangerously (USA, Europe) (GameShark).cht
+Wu-Tang - Shaolin Style (USA, France, Germany, Japan) (GameShark).cht
+Wu-Tang - Taste the Pain (Europe) (GameShark).cht
+X Games Pro Boarder (World) (GameShark) (diff).cht
+X Games Pro Boarder (World) (GameShark).cht
+X-Bladez - Inline Skater (USA, Europe) (GameShark).cht
+X-COM - Terror from the Deep (Europe) (GameShark).cht
+X-COM - UFO Defense (USA) (GameShark).cht
+X-Files, The (USA, Europe) (GameShark).cht
+X-Men - Children of the Atom (USA, Europe) (GameShark).cht
+X-Men - Mutant Academy (World) (GameShark).cht
+X-Men - Mutant Academy (World) (Xploder).cht
+X-Men - Mutant Academy 2 (World) (GameShark).cht
+X-Men vs. Street Fighter (USA, Europe) (GameShark).cht
+X2 - No Relief (Europe, Japan) (GameShark).cht
+XS Junior League Dodgeball (USA) (GameShark).cht
+XS Moto (USA, Europe) (GameShark).cht
+Xena - Warrior Princess (USA, Europe) (GameShark).cht
+Xenogears (USA).cht
+Xploder CD9000 Version 2.0 (Germany) (GameShark).cht
+YoYo's Puzzle Park (Europe) (GameShark).cht
+YoYo's Puzzle Park (Europe) (Xploder).cht
+You Don't Know Jack (USA, Germany) (GameShark).cht
+You Don't Know Jack - Mock 2 (USA) (GameShark).cht
+Yu-Gi-Oh! Forbidden Memories (USA) (GameShark).cht
+Zero Divide (World) (GameShark).cht
+Zero Divide 2 - The Secret Wish (Europe, Japan) (GameShark).cht
+Zoboomafoo - Leapin' Lemurs! (USA) (GameShark).cht

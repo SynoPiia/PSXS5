@@ -695,6 +695,10 @@ int main(void)
         }
         count_play_time();
         remote_frame();
+        /* a game's cheat file arrived from libretro-database */
+        if (cheats_fetch_finished() && app.game && !ra_hardcore() &&
+            cheats_load(&app.cheats, app.game, app.paths.cheats))
+            cheats_apply(&app.cheats);
         if (app.screen != SCREEN_GAME)
             ra_idle();
         draw_achievement();

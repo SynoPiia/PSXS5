@@ -12,6 +12,10 @@
 #include "i18n.h"
 
 #include "libretro.h"
+#include "net.h"
+#include "platform/platform.h"
+
+#include <SDL2/SDL.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -92,27 +96,106 @@ static bool parse_cht(CheatList *list, const char *path)
 
 /* ---------------------------------------------------------------- matching */
 
-/* "Final Fantasy VII (USA) (Disc 1)" -> "finalfantasyvii" */
-static void normalize(const char *in, char *out, size_t size)
+/* A title as words: lower case, without the parts in brackets, roman numerals
+ * as digits, and without the words release names add or drop ("the", "of",
+ * "Disney-Pixar's"...). "Final Fantasy VII (USA) (Disc 1)" -> final fantasy 7 */
+#define MAX_WORDS 24
+typedef struct
 {
-    size_t w = 0;
+    char w[MAX_WORDS][24];
+    int n;
+} Words;
+
+static void title_words(const char *in, Words *out)
+{
+    static const char *const stop[] = {"the", "a", "an", "of", "and", "s", "disney", "pixar", NULL};
+    static const char *const roman[][2] = {{"ii", "2"},  {"iii", "3"}, {"iv", "4"},  {"v", "5"}, {"vi", "6"},
+                                           {"vii", "7"}, {"viii", "8"}, {"ix", "9"}, {"x", "10"}};
+    out->n = 0;
     int depth = 0;
-    for (const char *p = in; *p && w + 1 < size; ++p)
+    char word[24];
+    size_t len = 0;
+    for (const char *p = in;; ++p)
     {
-        if (*p == '(' || *p == '[')
+        char c = *p;
+        if (c == '(' || c == '[')
             ++depth;
-        else if ((*p == ')' || *p == ']') && depth > 0)
+        else if ((c == ')' || c == ']') && depth > 0)
             --depth;
-        else if (depth == 0 && isalnum((unsigned char)*p))
-            out[w++] = (char)tolower((unsigned char)*p);
+        bool letter = c && depth == 0 && isalnum((unsigned char)c);
+        if (letter && len + 1 < sizeof(word))
+        {
+            word[len++] = (char)tolower((unsigned char)c);
+            continue;
+        }
+        if (letter)
+            continue; /* overlong word: truncated */
+        if (len)
+        {
+            word[len] = '\0';
+            len = 0;
+            bool skip = false;
+            for (int i = 0; stop[i] && !skip; ++i)
+                skip = strcmp(word, stop[i]) == 0;
+            for (size_t i = 0; i < sizeof(roman) / sizeof(roman[0]); ++i)
+                if (strcmp(word, roman[i][0]) == 0)
+                    str_copy(word, sizeof(word), roman[i][1]);
+            if (!skip && out->n < MAX_WORDS)
+                str_copy(out->w[out->n++], sizeof(out->w[0]), word);
+        }
+        if (!c)
+            break;
     }
-    out[w] = '\0';
-    /* ignore a leading article so "The Legend of Dragoon" == "Legend of Dragoon, The" */
-    if (strncmp(out, "the", 3) == 0 && strlen(out) > 6)
-        memmove(out, out + 3, strlen(out + 3) + 1);
-    size_t len = strlen(out);
-    if (len > 3 && strcmp(out + len - 3, "the") == 0)
-        out[len - 3] = '\0';
+}
+
+static bool has_word(const Words *w, const char *word)
+{
+    for (int i = 0; i < w->n; ++i)
+        if (strcmp(w->w[i], word) == 0)
+            return true;
+    return false;
+}
+
+/* 0, or up to 300 for the same words: every word of the shorter title is in
+ * the longer, the numbers are the same (Crash 2 isn't Crash 3) and most words
+ * are shared ("Legend of Dragoon" isn't "Legend"). */
+static int title_match(const Words *a, const Words *b)
+{
+    if (!a->n || !b->n)
+        return 0;
+    char na[64] = "", nb[64] = "";
+    for (int i = 0; i < a->n; ++i)
+        if (isdigit((unsigned char)a->w[i][0]))
+            snprintf(na + strlen(na), sizeof(na) - strlen(na), "%s.", a->w[i]);
+    for (int i = 0; i < b->n; ++i)
+        if (isdigit((unsigned char)b->w[i][0]))
+            snprintf(nb + strlen(nb), sizeof(nb) - strlen(nb), "%s.", b->w[i]);
+    if (strcmp(na, nb) != 0)
+        return 0;
+    const Words *small = a->n <= b->n ? a : b, *large = a->n <= b->n ? b : a;
+    int shared = 0;
+    for (int i = 0; i < small->n; ++i)
+    {
+        bool dup = false;
+        for (int j = 0; j < i && !dup; ++j)
+            dup = strcmp(small->w[j], small->w[i]) == 0;
+        if (dup)
+            continue;
+        if (!has_word(large, small->w[i]))
+            return 0;
+        ++shared;
+    }
+    int unique_large = 0;
+    for (int i = 0; i < large->n; ++i)
+    {
+        bool dup = false;
+        for (int j = 0; j < i && !dup; ++j)
+            dup = strcmp(large->w[j], large->w[i]) == 0;
+        unique_large += !dup;
+    }
+    /* Jaccard: shared / union, union = the larger set here */
+    int score = unique_large ? 300 * shared / unique_large : 0;
+    return score >= 210 ? score : 0; /* at least 70 % */
 }
 
 static const char *region_of_serial(const char *serial)
@@ -120,44 +203,47 @@ static const char *region_of_serial(const char *serial)
     if (!serial[0])
         return NULL;
     if (strncmp(serial, "SLUS", 4) == 0 || strncmp(serial, "SCUS", 4) == 0)
-        return "(USA)";
+        return "(USA";
     if (strncmp(serial, "SLES", 4) == 0 || strncmp(serial, "SCES", 4) == 0 ||
         strncmp(serial, "SCED", 4) == 0)
-        return "(Europe)";
-    return "(Japan)";
+        return "Europe";
+    return "Japan";
 }
 
-static int score_candidate(const char *file, const Game *game, const char *want_title,
-                           const char *want_disc)
+typedef struct
+{
+    Words title, disc;
+} Wanted;
+
+static void wanted_for(const Game *game, Wanted *w)
+{
+    title_words(game->title, &w->title);
+    title_words(game->disc_name, &w->disc);
+}
+
+/* How well a cheat file name fits the game: 0 for another game. */
+static int score_candidate(const char *file, const Game *game, const Wanted *want)
 {
     char stem[256];
     str_copy(stem, sizeof(stem), file);
     char *dot = strrchr(stem, '.');
     if (dot)
         *dot = '\0';
-
     if (str_icmp(stem, game->disc_name) == 0)
         return 1000; /* exact No-Intro / Redump name */
-
-    char norm[256];
-    normalize(stem, norm, sizeof(norm));
-    int score = 0;
-    if (strcmp(norm, want_disc) == 0 || strcmp(norm, want_title) == 0)
-        score = 500;
-    else
+    Words have;
+    title_words(stem, &have);
+    int a = title_match(&want->title, &have), b = title_match(&want->disc, &have);
+    int score = a > b ? a : b;
+    if (!score)
         return 0;
-
-    /* Same region as the disc beats other releases. */
-    static const char *regions[] = {"(USA)", "(Europe)", "(Japan)"};
+    /* The disc's region beats other releases; "World" is the next best. */
     const char *region = region_of_serial(game->serial);
-    bool same_region = region && strstr(stem, region);
-    for (size_t r = 0; r < 3 && !same_region; ++r)
-        same_region = strstr(game->disc_name, regions[r]) && strstr(stem, regions[r]);
-    if (same_region)
+    if (region && strstr(stem, region))
         score += 100;
     else if (strstr(stem, "(World)"))
         score += 90;
-    else if (!region && strstr(stem, "(USA)"))
+    else if (!region && strstr(stem, "(USA"))
         score += 20;
     /* GameShark sets use the plain code format; prefer them over other devices. */
     if (strstr(stem, "(GameShark)"))
@@ -165,6 +251,11 @@ static int score_candidate(const char *file, const Game *game, const char *want_
     /* Codes are usually filed under disc 1 or under no disc number. */
     if (strstr(stem, "(Disc 1)") || !strstr(stem, "(Disc"))
         score += 10;
+    /* demos and previews have other addresses: only for a demo disc */
+    static const char *const trial[] = {"(Demo)", "(Preview)", "(Beta)", "(Proto", "(Sample)"};
+    for (size_t i = 0; i < sizeof(trial) / sizeof(trial[0]); ++i)
+        if (strstr(stem, trial[i]) && !strstr(game->disc_name, trial[i]) && !strstr(game->title, trial[i]))
+            return 0;
     return score;
 }
 
@@ -174,16 +265,15 @@ static bool find_in_dir(const char *dir, const Game *game, char *best_path, size
     DIR *d = opendir(dir);
     if (!d)
         return false;
-    char want_title[256], want_disc[256];
-    normalize(game->title, want_title, sizeof(want_title));
-    normalize(game->disc_name, want_disc, sizeof(want_disc));
+    Wanted want;
+    wanted_for(game, &want);
     bool found = false;
     struct dirent *e;
     while ((e = readdir(d)))
     {
         if (str_icmp(path_ext(e->d_name), "cht") != 0)
             continue;
-        int score = score_candidate(e->d_name, game, want_title, want_disc);
+        int score = score_candidate(e->d_name, game, &want);
         if (score > *best_score)
         {
             *best_score = score;
@@ -193,6 +283,86 @@ static bool find_in_dir(const char *dir, const Game *game, char *best_path, size
     }
     closedir(d);
     return found;
+}
+
+/* ---------------------------------------------------------------- the built-in index */
+
+/* assets/cheats-index.txt: every PlayStation cheat file of libretro-database
+ * (tools/make-cheat-index.py). The best name for the game, without listing
+ * any folder. */
+static bool best_from_index(const Game *game, char *name, size_t size)
+{
+    char path[PSXS5_PATH_MAX];
+    plat_asset_path(path, sizeof(path), "cheats-index.txt");
+    FILE *f = fopen(path, "r");
+    if (!f)
+        return false;
+    Wanted want;
+    wanted_for(game, &want);
+    char line[256];
+    int best = 0;
+    while (fgets(line, sizeof(line), f))
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (!line[0] || line[0] == '#')
+            continue;
+        int score = score_candidate(line, game, &want);
+        if (score > best)
+        {
+            best = score;
+            str_copy(name, size, line);
+        }
+    }
+    fclose(f);
+    return best > 0;
+}
+
+/* One file from libretro-database, on a thread: the game starts meanwhile and
+ * its cheats appear as soon as the file is in (cheats_fetch_finished). */
+static SDL_atomic_t fetch_state; /* 0 idle, 1 downloading, 2 done */
+static char fetch_url[600], fetch_dest[PSXS5_PATH_MAX];
+
+static int fetch_main(void *unused)
+{
+    (void)unused;
+    char temp[PSXS5_PATH_MAX + 8];
+    snprintf(temp, sizeof(temp), "%s.part", fetch_dest);
+    NetResult r = net_download(fetch_url, temp);
+    bool ok = r == NET_OK && rename(temp, fetch_dest) == 0;
+    if (!ok)
+        remove(temp);
+    psxs5_log("cheats: download %s: %s", fetch_dest, ok ? "ok" : r == NET_NOT_FOUND ? "not found" : "failed");
+    SDL_AtomicSet(&fetch_state, ok ? 2 : 0);
+    return 0;
+}
+
+static void fetch_start(const char *name, const char *dest)
+{
+    if (!net_available() || !SDL_AtomicCAS(&fetch_state, 0, 1))
+        return;
+    static const char base[] =
+        "https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Sony%20-%20PlayStation/";
+    str_copy(fetch_url, sizeof(fetch_url), base);
+    size_t w = strlen(fetch_url);
+    for (const unsigned char *p = (const unsigned char *)name; *p && w + 4 < sizeof(fetch_url); ++p)
+    {
+        if (isalnum(*p) || strchr("-._~", *p))
+            fetch_url[w++] = (char)*p;
+        else
+            w += (size_t)snprintf(fetch_url + w, sizeof(fetch_url) - w, "%%%02X", *p);
+    }
+    fetch_url[w] = '\0';
+    str_copy(fetch_dest, sizeof(fetch_dest), dest);
+    SDL_Thread *t = SDL_CreateThread(fetch_main, "cheat-download", NULL);
+    if (t)
+        SDL_DetachThread(t);
+    else
+        SDL_AtomicSet(&fetch_state, 0);
+}
+
+bool cheats_fetch_finished(void)
+{
+    return SDL_AtomicCAS(&fetch_state, 2, 0);
 }
 
 static bool find_any_cht(const char *dir, char *out, size_t size)
@@ -262,52 +432,6 @@ static bool file_opens(const char *path)
     return f != NULL;
 }
 
-/* A sandboxed PSXS5 can't list the library, so it tries the names libretro-
- * database gives its files: "<title> (<region>) (<device>).cht", e.g.
- * "Parasite Eve (World) (GameShark).cht". */
-static bool guess_in_dir(const char *dir, const Game *game, char *out, size_t size)
-{
-    char base[96];
-    str_copy(base, sizeof(base), game->title);
-    char *paren = strstr(base, " (");
-    if (paren)
-        *paren = '\0';
-    static const char *const us[] = {"USA", "USA, Europe", "World", "USA, Japan", "Europe, USA", NULL};
-    static const char *const eu[] = {"Europe", "USA, Europe", "World", "Europe, Japan", "Germany", "France",
-                                     "Italy", NULL};
-    static const char *const jp[] = {"Japan", "Europe, Japan", "USA, Japan", "World", "Japan, Asia", NULL};
-    static const char *const any[] = {"USA", "Europe", "Japan", "World", "USA, Europe", NULL};
-    const char *const *regions = !strncmp(game->serial, "SLUS", 4) || !strncmp(game->serial, "SCUS", 4) ? us
-                                 : !strncmp(game->serial, "SLES", 4) || !strncmp(game->serial, "SCES", 4) ? eu
-                                 : game->serial[0] ? jp
-                                                   : any;
-    static const char *const devices[] = {"GameShark", "Game Buster", "Xploder", "Action Replay", NULL};
-    char name[160];
-    for (const char *const *r = regions; *r; ++r)
-    {
-        for (const char *const *d = devices; *d; ++d)
-        {
-            snprintf(name, sizeof(name), "%s (%s) (%s).cht", base, *r, *d);
-            path_join(out, size, dir, name);
-            if (file_opens(out))
-                return true;
-        }
-        snprintf(name, sizeof(name), "%s (%s).cht", base, *r);
-        path_join(out, size, dir, name);
-        if (file_opens(out))
-            return true;
-    }
-    const char *plain[] = {game->disc_name, game->title, base};
-    for (int i = 0; i < 3; ++i)
-    {
-        snprintf(name, sizeof(name), "%.150s.cht", plain[i]);
-        path_join(out, size, dir, name);
-        if (file_opens(out))
-            return true;
-    }
-    return false;
-}
-
 bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
 {
     cheats_clear(list);
@@ -335,8 +459,22 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
         path_join(sub, sizeof(sub), cheats_dir, "Sony - PlayStation");
         found = find_in_dir(sub, game, path, sizeof(path), &score);
     }
-    if (!found) /* folders can't be listed in the sandbox: try the usual names */
-        found = guess_in_dir(cheats_dir, game, path, sizeof(path));
+    /* 3. The best name in the built-in index of libretro-database: the file
+     *    if it's here, else downloaded for next time (needs no listing). */
+    if (!found)
+    {
+        char name[256];
+        if (best_from_index(game, name, sizeof(name)))
+        {
+            path_join(path, sizeof(path), cheats_dir, name);
+            found = file_opens(path);
+            if (!found)
+            {
+                make_dirs(cheats_dir);
+                fetch_start(name, path);
+            }
+        }
+    }
     if (!found || !parse_cht(list, path))
         return false;
 
