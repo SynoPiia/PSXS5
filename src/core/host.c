@@ -119,6 +119,7 @@ static struct retro_system_av_info av_info;
 static struct retro_disk_control_ext_callback disk;
 static bool disk_available;
 static bool loaded;
+static size_t state_size; /* host_state_size(), measured once per game */
 static unsigned game_fixes; /* GDB_* fixes for the next game (gamedb.h) */
 static int lid_open_frames;   /* frames left before the lid closes after a disc change */
 static bool speculative;      /* run-ahead's look-ahead frames: run, drawn, not heard or felt */
@@ -597,7 +598,13 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
     case RETRO_ENVIRONMENT_SET_SUPPORT_ACHIEVEMENTS:
+        return true;
     case RETRO_ENVIRONMENT_SET_SERIALIZATION_QUIRKS:
+        /* Beetle then gives its real state size (about 5 MB) rather than a
+         * flat 16 MB: rewind's 40 states took 640 MB of the 1 GB heap, and
+         * save states failed for want of memory */
+        if (data)
+            *(uint64_t *)data |= RETRO_SERIALIZATION_QUIRK_FRONT_VARIABLE_SIZE;
     case RETRO_ENVIRONMENT_SET_CONTENT_INFO_OVERRIDE:
     case RETRO_ENVIRONMENT_SET_SUBSYSTEM_INFO:
         return true;
@@ -1003,6 +1010,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
         psxs5_log("host: port 1 is a %s", gun_device == 1 ? "GunCon" : "Justifier");
     }
     loaded = true;
+    state_size = 0;
     card_load();
     STEP("running");
 #undef STEP
@@ -1023,6 +1031,7 @@ void host_unload(void)
 #endif
     core->deinit();
     loaded = false;
+    state_size = 0;
     frame_data = NULL;
     for (int i = 0; i < PSXS5_MAX_PADS; ++i)
         plat_rumble(i, 0, 0);
@@ -1166,7 +1175,7 @@ const void *host_frame(int *width, int *height, size_t *pitch, int *format, bool
 
 bool host_save_state(const char *path)
 {
-    size_t size = loaded ? core->serialize_size() : 0;
+    size_t size = host_state_size();
     if (size == 0)
     {
         psxs5_log("host: save state: the emulator gives no state size");
@@ -1206,7 +1215,17 @@ void host_set_patches_dir(const char *dir)
 
 size_t host_state_size(void)
 {
-    return loaded ? core->serialize_size() : 0;
+    if (!loaded)
+        return 0;
+    if (state_size == 0)
+    {
+        /* Beetle measures by saving a whole state: once per game, with room
+         * to spare in case a later state is a little larger */
+        size_t size = core->serialize_size();
+        state_size = size && core == &BEETLE ? size + 512 * 1024 : size;
+        psxs5_log("host: states take %zu KB", state_size / 1024);
+    }
+    return state_size;
 }
 
 bool host_serialize(void *buffer, size_t size)
