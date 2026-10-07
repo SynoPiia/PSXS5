@@ -361,7 +361,7 @@ bool plat_prepare_storage(char *error, size_t size)
     if (status == 0 && ps5_data_listable())
         return true;
     /* 3. Sandboxed: files in /data still open and save, folders can't be listed. */
-    snprintf(error, size, "etaHEN %s; Lapy code %d via %s", ps5_unlock_describe(hen), status,
+    snprintf(error, size, "%s; Lapy code %d via %s", ps5_unlock_describe(hen), status,
              route);
     return false;
 #else

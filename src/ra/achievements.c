@@ -203,6 +203,17 @@ static void *RC_CCONV cd_open_track(const char *path, uint32_t track)
     return (void *)1;
 }
 
+/* rcheevos prefers this one; its own reader only implements this form */
+static void *RC_CCONV cd_open_track_iterator(const char *path, uint32_t track,
+                                             const struct rc_hash_iterator *iterator)
+{
+    if (!core_disc())
+        return file_reader.open_track_iterator ? file_reader.open_track_iterator(path, track, iterator)
+                                               : cd_open_track(path, track);
+    (void)track;
+    return (void *)1;
+}
+
 static size_t RC_CCONV cd_read_sector(void *handle, uint32_t sector, void *buffer,
                                       size_t requested)
 {
@@ -371,7 +382,7 @@ void ra_init(const Paths *p)
     snprintf(agent, sizeof(agent), PSXS5_NAME "/" PSXS5_VERSION " (PS5) %s", clause);
 
     static rc_hash_cdreader_t reader = {cd_open_track, cd_read_sector, cd_close_track,
-                                        cd_first_track_sector, NULL};
+                                        cd_first_track_sector, cd_open_track_iterator};
     rc_hash_get_default_cdreader(&file_reader);
     rc_hash_init_custom_cdreader(&reader);
     rc_hash_init_error_message_callback(hash_error);
