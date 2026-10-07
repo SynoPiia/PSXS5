@@ -35,9 +35,21 @@ lld=$(command -v ld.lld-18 || command -v ld.lld)
 
 mkdir -p "$out"
 archive="$out/libmednafen_psx_hw.a"
-# Rebuild only when the source revision or this script changed.
+
+# PSXS5's small changes to the core live as patches (the submodule stays
+# pristine); each is applied once.
+for patch in "$root"/tools/patches/beetle-psx-*.patch; do
+    [[ -f $patch ]] || continue
+    if git -C "$core" apply --ignore-whitespace --reverse --check "$patch" 2>/dev/null; then
+        continue # already applied
+    fi
+    echo "==> [beetle] applying $(basename "$patch")"
+    git -C "$core" apply --ignore-whitespace "$patch"
+done
+
+# Rebuild only when the source revision, this script or a patch changed.
 stamp="$out/.stamp"
-want="$(git -C "$core" rev-parse HEAD) $(cat "$0" "$root/tools/beetle-archive.mk" | sha256sum | cut -c1-16)"
+want="$(git -C "$core" rev-parse HEAD) $(cat "$0" "$root/tools/beetle-archive.mk" "$root"/tools/patches/beetle-psx-*.patch 2>/dev/null | sha256sum | cut -c1-16)"
 if [[ ! -f $out/libbeetle_psx.a || ! -f $stamp || $(cat "$stamp") != "$want" ]]; then
     echo "==> [beetle] building Beetle PSX HW ($jobs jobs)"
     make -C "$core" clean >/dev/null 2>&1 || true
