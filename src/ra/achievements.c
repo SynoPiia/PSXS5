@@ -47,6 +47,29 @@ typedef struct
 static Message messages[MESSAGES];
 static int msg_head, msg_count;
 static SDL_mutex *msg_lock;
+/* the progress indicator rcheevos raises when a counted achievement moves */
+static struct
+{
+    char title[96], progress[24];
+    float percent;
+    Uint64 until;
+} tracker;
+
+bool ra_tracker(char *title, size_t title_size, char *progress, size_t progress_size, float *percent)
+{
+    if (!msg_lock)
+        return false;
+    SDL_LockMutex(msg_lock);
+    bool on = tracker.until > SDL_GetTicks64() && tracker.progress[0];
+    if (on)
+    {
+        str_copy(title, title_size, tracker.title);
+        str_copy(progress, progress_size, tracker.progress);
+        *percent = tracker.percent;
+    }
+    SDL_UnlockMutex(msg_lock);
+    return on;
+}
 
 static void post(const char *title, const char *detail)
 {
@@ -259,6 +282,20 @@ static void RC_CCONV on_event(const rc_client_event_t *e, rc_client_t *c)
                  e->achievement->points);
         post(e->achievement->title, detail);
         break;
+    case RC_CLIENT_EVENT_ACHIEVEMENT_PROGRESS_INDICATOR_SHOW:
+    case RC_CLIENT_EVENT_ACHIEVEMENT_PROGRESS_INDICATOR_UPDATE:
+        if (msg_lock && e->achievement)
+        {
+            SDL_LockMutex(msg_lock);
+            str_copy(tracker.title, sizeof(tracker.title), e->achievement->title ? e->achievement->title : "");
+            str_copy(tracker.progress, sizeof(tracker.progress), e->achievement->measured_progress);
+            tracker.percent = e->achievement->measured_percent;
+            tracker.until = SDL_GetTicks64() + 4000;
+            SDL_UnlockMutex(msg_lock);
+        }
+        break;
+    case RC_CLIENT_EVENT_ACHIEVEMENT_PROGRESS_INDICATOR_HIDE:
+        break; /* shown for 4 s anyway, long enough to read */
     case RC_CLIENT_EVENT_GAME_COMPLETED:
     {
         const rc_client_game_t *g = rc_client_get_game_info(c);
@@ -589,6 +626,7 @@ int ra_list(RaAchievement *out, int max)
             str_copy(r->title, sizeof(r->title), a->title ? a->title : "");
             str_copy(r->description, sizeof(r->description), a->description ? a->description : "");
             str_copy(r->progress, sizeof(r->progress), a->measured_progress);
+            r->percent = a->measured_percent;
             r->points = a->points;
             r->unlocked = a->unlocked != 0;
             r->id = a->id;

@@ -229,8 +229,30 @@ void app_save_settings(void)
 /* ---------------------------------------------------------------- achievements banner */
 
 /* Top right, one message at a time: slides in, holds, fades. */
+/* A small card bottom right while a counted achievement moves. */
+static void draw_tracker(void)
+{
+    char title[96], progress[24];
+    float percent;
+    if (!ra_tracker(title, sizeof(title), progress, sizeof(progress), &percent))
+        return;
+    const float w = 440, h = 92, x = plat_width() - w - 48, y = plat_height() - h - 48;
+    draw_rrect(x, y, w, h, TH_RADIUS, 0xe8151a3du);
+    icon_draw(ICON_TROPHY, x + 18, y + 18, 32, TH_GOLD);
+    text_draw_fit(x + 62, y + 16, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, w - 180, title);
+    char right[48];
+    snprintf(right, sizeof(right), "%s  %d%%", progress, (int)(percent + 0.5f));
+    text_draw(x + w - 20, y + 18, 20, FONT_REGULAR, TH_FOCUS, ALIGN_RIGHT, right);
+    float bw = w - 40, k = percent < 0 ? 0 : percent > 100 ? 1 : percent / 100.0f;
+    draw_rrect(x + 20, y + 62, bw, 10, 5, 0xff1c2250u);
+    if (k > 0)
+        draw_rrect(x + 20, y + 62, bw * k < 10 ? 10 : bw * k, 10, 5, TH_GOLD);
+}
+
 static void draw_achievement(void)
 {
+    if (app.screen == SCREEN_GAME)
+        draw_tracker();
     static char title[96], detail[192];
     static uint64_t shown_at;
     const uint64_t length = 4500000;

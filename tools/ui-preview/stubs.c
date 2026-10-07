@@ -1,3 +1,4 @@
+#include <stdio.h>
 /*
  * PSXS5 interface preview - stand-ins for the emulator and RetroAchievements,
  * so the screens run on a PC with a fake game picture.
@@ -105,6 +106,14 @@ bool ra_next_message(char *title, size_t title_size, char *detail, size_t detail
     return true;
 }
 
+bool ra_tracker(char *title, size_t ts, char *progress, size_t ps, float *percent)
+{
+    snprintf(title, ts, "Dragon Rescuer");
+    snprintf(progress, ps, "18/80");
+    *percent = 22.5f;
+    return true;
+}
+
 int ra_list(RaAchievement *out, int max)
 {
     static const char *const names[][2] = {
@@ -127,7 +136,9 @@ int ra_list(RaAchievement *out, int max)
         r->points = (unsigned)(5 + i * 5);
         r->unlocked = i < 3;
         if (i == 3)
-            strcpy(r->progress, "1/3");
+            strcpy(r->progress, "1/3"), r->percent = 33.3f;
+        if (i == 6)
+            strcpy(r->progress, "18/80"), r->percent = 22.5f;
     }
     return n;
 }

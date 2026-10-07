@@ -30,6 +30,7 @@ typedef struct
     char title[96];
     char description[192];
     char progress[24];   /* "3/10" for counted ones, else "" */
+    float percent;       /* 0..100 for counted ones */
     char badge_url[160]; /* the badge picture (locked or unlocked) */
     unsigned points, id;
     bool unlocked;
@@ -43,5 +44,9 @@ void ra_game_summary(char *out, size_t size);
 
 /* Messages for the UI (unlocks, leaderboards...). Returns false when empty. */
 bool ra_next_message(char *title, size_t title_size, char *detail, size_t detail_size);
+
+/* While playing: the counted achievement that just moved (18/80 dragons).
+ * False when there's nothing to show. */
+bool ra_tracker(char *title, size_t title_size, char *progress, size_t progress_size, float *percent);
 
 #endif
