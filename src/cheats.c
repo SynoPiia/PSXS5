@@ -98,7 +98,7 @@ static bool parse_cht(CheatList *list, const char *path)
 
 /* DuckStation's chtdb format: [Name] (groups as "Group\\Name"), then
  * "Key = Value" options, then the code lines. GameShark codes only. */
-static bool parse_chtdb(CheatList *list, const char *path)
+static bool parse_chtdb(CheatList *list, const char *path, bool patch)
 {
     FILE *f = fopen(path, "r");
     if (!f)
@@ -114,8 +114,12 @@ static bool parse_chtdb(CheatList *list, const char *path)
         if (!more || t[0] == '[')
         {
             /* the previous code is complete */
-            if (open && gameshark && !too_long && cur.code[0] && list->count < CHEATS_MAX)
+            /* "Use 8MB RAM..." needs the dev kit's memory, which neither emulator has */
+            if (open && gameshark && !too_long && cur.code[0] && list->count < CHEATS_MAX && !strstr(cur.desc, "8MB"))
+            {
+                cur.patch = patch;
                 list->items[list->count++] = cur;
+            }
             if (!more)
                 break;
             memset(&cur, 0, sizeof(cur));
@@ -419,6 +423,7 @@ static int fetch_main(void *unused)
 static const char LIBRETRO_BASE[] =
     "https://raw.githubusercontent.com/libretro/libretro-database/master/cht/Sony%20-%20PlayStation/";
 static const char CHTDB_BASE[] = "https://raw.githubusercontent.com/duckstation/chtdb/master/cheats/";
+static const char PATCHES_BASE[] = "https://raw.githubusercontent.com/duckstation/chtdb/master/patches/";
 
 static void fetch_start(const char *base, const char *name, const char *dest)
 {
@@ -447,11 +452,12 @@ bool cheats_fetch_finished(void)
     return SDL_AtomicCAS(&fetch_state, 2, 0);
 }
 
-/* assets/chtdb-index.txt (tools/make-chtdb-index.py): serial<TAB>file. */
-static bool chtdb_file_for(const char *serial, char *name, size_t size)
+/* assets/chtdb-index.txt and chtdb-patches-index.txt (tools/make-chtdb-index.py):
+ * serial<TAB>file. */
+static bool chtdb_file_for(const char *index, const char *serial, char *name, size_t size)
 {
     char path[PSXS5_PATH_MAX];
-    plat_asset_path(path, sizeof(path), "chtdb-index.txt");
+    plat_asset_path(path, sizeof(path), index);
     FILE *f = fopen(path, "r");
     if (!f)
         return false;
@@ -615,17 +621,47 @@ bool cheats_load(CheatList *list, const Game *game, const char *cheats_dir)
     if (!library && game->serial[0])
     {
         char name[96], serial[16];
-        if (disc_format_serial(game->serial, serial, sizeof(serial)) && chtdb_file_for(serial, name, sizeof(name)))
+        if (disc_format_serial(game->serial, serial, sizeof(serial)) &&
+            chtdb_file_for("chtdb-index.txt", serial, name, sizeof(name)))
         {
             char dir[PSXS5_PATH_MAX];
             path_join(dir, sizeof(dir), cheats_dir, "duckstation");
             path_join(path, sizeof(path), dir, name);
             if (file_opens(path))
-                library = parse_chtdb(list, path);
+                library = parse_chtdb(list, path, false);
             else if (!found)
             {
                 make_dirs(dir);
                 fetch_start(CHTDB_BASE, name, path);
+            }
+        }
+    }
+    /* 5. Patches (widescreen, 60 fps, NTSC mode, fixes) from the same database */
+    {
+        char name[96], serial[16];
+        if (game->serial[0] && disc_format_serial(game->serial, serial, sizeof(serial)) &&
+            chtdb_file_for("chtdb-patches-index.txt", serial, name, sizeof(name)))
+        {
+            char dir[PSXS5_PATH_MAX], patch_path[PSXS5_PATH_MAX];
+            path_join(dir, sizeof(dir), cheats_dir, "duckstation/patches");
+            path_join(patch_path, sizeof(patch_path), dir, name);
+            if (file_opens(patch_path))
+            {
+                int before = list->count;
+                parse_chtdb(list, patch_path, true);
+                /* the patches go first in the list */
+                Cheat moved[CHEATS_MAX];
+                int n = 0;
+                for (int i = before; i < list->count; ++i)
+                    moved[n++] = list->items[i];
+                for (int i = 0; i < before; ++i)
+                    moved[n++] = list->items[i];
+                memcpy(list->items, moved, sizeof(Cheat) * (size_t)n);
+            }
+            else
+            {
+                make_dirs(dir);
+                fetch_start(PATCHES_BASE, name, patch_path); /* if no other download is running */
             }
         }
     }

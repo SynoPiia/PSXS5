@@ -2,7 +2,9 @@
 """PSXS5 - writes assets/chtdb-index.txt: which file of DuckStation's cheat
 database (github.com/duckstation/chtdb, cheats/) holds the codes for each disc
 serial. The second source of cheats, for games libretro-database has nothing
-for (Persona, Diablo...); PSXS5 downloads only that game's file.
+for (Persona, Diablo...); PSXS5 downloads only that game's file. Also
+assets/chtdb-patches-index.txt, the same for patches/ (widescreen, 60 fps,
+NTSC mode, fixes: changes that don't make a game easier).
 
     python tools/make-chtdb-index.py        (rerun now and then for new files)
 
@@ -25,12 +27,17 @@ def main():
     req = urllib.request.Request(ZIP, headers={"User-Agent": "PSXS5"})
     with urllib.request.urlopen(req, timeout=120) as r:
         data = r.read()
+    write(data, "cheats", "chtdb-index.txt")
+    write(data, "patches", "chtdb-patches-index.txt")
+
+
+def write(data, folder, out_name):
     index = {}
     files = 0
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         for info in sorted(z.infolist(), key=lambda i: i.filename):
             parts = info.filename.split("/")
-            if len(parts) != 3 or parts[1] != "cheats" or not parts[2].endswith(".cht"):
+            if len(parts) != 3 or parts[1] != folder or not parts[2].endswith(".cht"):
                 continue
             name = parts[2]
             text = z.read(info).decode("utf-8", "replace")
@@ -49,9 +56,9 @@ def main():
                 # a plain SERIAL.cht beats a SERIAL-HASH.cht variant
                 if s not in index or (stem.upper() == s and index[s].upper() != s + ".CHT"):
                     index[s] = name
-    out = pathlib.Path(__file__).resolve().parent.parent / "assets" / "chtdb-index.txt"
+    out = pathlib.Path(__file__).resolve().parent.parent / "assets" / out_name
     lines = [f"{s}\t{index[s]}" for s in sorted(index)]
-    out.write_text("# duckstation/chtdb cheats/: serial<TAB>file (" + str(files) + " files)\n" + "\n".join(lines) + "\n",
+    out.write_text(f"# duckstation/chtdb {folder}/: serial<TAB>file (" + str(files) + " files)\n" + "\n".join(lines) + "\n",
                    encoding="utf-8", newline="\n")
     print(f"{len(lines)} serials in {files} files -> {out}")
 

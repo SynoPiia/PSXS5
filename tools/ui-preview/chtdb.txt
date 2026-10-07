@@ -10,7 +10,6 @@ press down
 wait 10
 press cross
 wait 30
-press up
-wait 400
-shot k2-cheats-last
+wait 30
+shot k3-patches
 quit

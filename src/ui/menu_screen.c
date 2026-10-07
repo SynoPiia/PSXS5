@@ -623,7 +623,15 @@ void cheats_screen(uint32_t pressed)
             const Cheat *c = &cl->items[i];
             float y = top + (i - M.cheat_scroll) * row_h;
             draw_switch(x + 24, y + 15, 34, c->enabled ? 1.0f : 0.0f);
-            text_draw_fit(x + 130, y + 17, 26, FONT_REGULAR, TH_TEXT, ALIGN_LEFT, w - 160, c->desc);
+            float tag = 0;
+            if (c->patch)
+            {
+                /* widescreen, 60 fps, fixes: not a cheat */
+                tag = text_width(20, FONT_BOLD, tr("Patch")) + 32;
+                draw_rrect(x + w - 24 - tag, y + 15, tag, 34, 17, TH_PILL);
+                text_draw(x + w - 24 - tag * 0.5f, y + 20, 20, FONT_BOLD, TH_FOCUS, ALIGN_CENTER, tr("Patch"));
+            }
+            text_draw_fit(x + 130, y + 17, 26, FONT_REGULAR, TH_TEXT, ALIGN_LEFT, w - 180 - tag, c->desc);
         }
         plat_set_clip(0, 0, 0, 0);
     }

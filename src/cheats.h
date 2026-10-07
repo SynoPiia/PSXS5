@@ -14,6 +14,7 @@ typedef struct
     char desc[80];
     char code[256]; /* "80012345 0063+D0012345 0001" */
     bool enabled;
+    bool patch;     /* a patch (widescreen, 60 fps, a fix): listed first */
 } Cheat;
 
 typedef struct

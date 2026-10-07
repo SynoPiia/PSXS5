@@ -114,6 +114,11 @@ bool play_widescreen(void)
     for (int i = 0; i < app.cheats.count && !ra_hardcore(); ++i)
     {
         const char *desc = app.cheats.items[i].desc;
+        /* only the 16:9 code when a game offers several ratios */
+        if (contains_icase(desc, "21:9") || contains_icase(desc, "20:9") || contains_icase(desc, "21-9") ||
+            contains_icase(desc, "20-9") || contains_icase(desc, "eye") || contains_icase(desc, "ultra") ||
+            contains_icase(desc, "32:9"))
+            continue;
         if (contains_icase(desc, "widescreen") || contains_icase(desc, "16:9") ||
             contains_icase(desc, "wide screen"))
         {
