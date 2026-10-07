@@ -865,11 +865,14 @@ void shelf_screen(uint32_t pressed)
             app_start_game(game, S.resume);
         }
     }
+    plat_profile("start");
     covers_update_view(S.view, S.view_count, S.cursor);
     update_tint(game);
+    plat_profile("covers-upload");
 
     /* ------------------------------------------------ shelf */
     shelf_backdrop();
+    plat_profile("backdrop");
     float launch = S.launch_t > 0.0f ? S.launch_t / LAUNCH_TIME : 0.0f;
     if (S.view_count > 0)
     {
@@ -899,9 +902,11 @@ void shelf_screen(uint32_t pressed)
                 draw_cover(covers_get(index), &app.library.games[index], CENTER_X + ox, CENTER_Y,
                            COVER_H * scale, squeeze, tint, selected && ad < 0.25f && launch < 0.5f);
             }
+        plat_profile("covers");
         float text_a = (1.0f - launch) * (1.0f - S.title_fade / 0.35f * 0.8f);
         draw_info(&app.library.games[game], text_a);
         draw_details(&app.library.games[game], S.details_t);
+        plat_profile("info");
     }
     else
     {
@@ -928,6 +933,7 @@ void shelf_screen(uint32_t pressed)
     }
 
     draw_header();
+    plat_profile("header");
     int pending = covers_downloading();
     if (pending > 0)
     {
@@ -946,6 +952,7 @@ void shelf_screen(uint32_t pressed)
              shelf_sort_name(app.global.sort_mode));
     app_draw_hints(glyphs, labels, S.view_count ? (S.view_count > 1 && !S.details ? 5 : 4) : 1,
                    S.view_count ? right : NULL);
+    plat_profile("hints");
 
     /* the continue dialog */
     S.dialog_t = fminf(fmaxf(S.dialog_t + (S.dialog ? app.dt : -app.dt) * 8.0f, 0.0f), 1.0f);

@@ -1085,8 +1085,50 @@ void plat_fill_rect(int x, int y, int w, int h, uint32_t argb)
     SDL_RenderFillRect(renderer, &r);
 }
 
+#define PROFILE_SLOTS 8
+static struct
+{
+    const char *name[PROFILE_SLOTS];
+    uint64_t us[PROFILE_SLOTS];
+    int count, frames;
+    uint64_t last;
+} prof;
+
+void plat_profile(const char *name)
+{
+    SDL_RenderFlush(renderer); /* SDL queues drawing: run it, to time it */
+    uint64_t now = plat_ticks_us();
+    if (prof.last)
+    {
+        int i = 0;
+        while (i < prof.count && prof.name[i] != name)
+            ++i;
+        if (i == prof.count && prof.count < PROFILE_SLOTS)
+            prof.name[prof.count++] = name;
+        if (i < PROFILE_SLOTS)
+            prof.us[i] += now - prof.last;
+    }
+    prof.last = now;
+}
+
+static void profile_frame_end(void)
+{
+    if (!prof.count)
+        return;
+    prof.last = 0;
+    if (++prof.frames < 120)
+        return;
+    char line[256];
+    int w = snprintf(line, sizeof(line), "ui profile (ms/frame):");
+    for (int i = 0; i < prof.count && w < (int)sizeof(line) - 24; ++i)
+        w += snprintf(line + w, sizeof(line) - (size_t)w, " %s %.1f", prof.name[i], prof.us[i] / 120 / 1000.0);
+    psxs5_log("%s", line);
+    memset(&prof, 0, sizeof(prof));
+}
+
 void plat_end_frame(void)
 {
+    profile_frame_end();
     SDL_RenderPresent(renderer);
 #if defined(PSXS5_PREVIEW)
     preview_clock += 16667;
