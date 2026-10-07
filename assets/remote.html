@@ -38,6 +38,19 @@
   .info { display:flex; justify-content:space-between; gap:12px; }
   .value { color:var(--dim); text-align:right; }
   #status { color:var(--dim); font-size:13px; text-align:center; margin-top:24px; }
+  input[type=search], input.note { width:100%; border:0; border-radius:10px; padding:10px 12px;
+           background:var(--row); color:var(--text); font:inherit; }
+  details { background:var(--card); border-radius:16px; margin-top:10px; }
+  summary { padding:14px; cursor:pointer; font-weight:500; list-style:none; }
+  summary .count { color:var(--dim); font-weight:400; font-size:13px; margin-left:6px; }
+  .save { display:flex; gap:12px; padding:10px 14px; border-top:1px solid #222a5c; align-items:flex-start; }
+  .save img { width:96px; height:72px; border-radius:8px; object-fit:cover; background:var(--row); flex:none; }
+  .save .body { flex:1; min-width:0; }
+  .actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .actions button, .actions label { border:0; border-radius:999px; padding:7px 12px; background:var(--row);
+           color:var(--text); font:inherit; font-size:14px; }
+  .actions input[type=file] { display:none; }
+  .busy { opacity:.5; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -49,7 +62,7 @@
 <main id="rows"></main>
 <div id="status">Connecting to your PS5…</div>
 <script>
-let data = null, tab = 0, busy = false;
+let data = null, tab = 0, busy = false, saves = null, filter = '', openGame = null;
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -60,6 +73,7 @@ function el(tag, cls, text) {
 
 async function load() {
   if (busy) return;
+  if (data && tab === data.tabs.length) return; /* the Saves tab refreshes itself */
   try {
     const r = await fetch('/api/settings', {cache: 'no-store'});
     data = await r.json();
@@ -86,8 +100,12 @@ function render() {
     b.onclick = () => { tab = i; render(); };
     tabs.appendChild(b);
   });
+  const sb = el('button', tab === data.tabs.length ? 'on' : '', 'Saves');
+  sb.onclick = () => { tab = data.tabs.length; render(); loadSaves(); };
+  tabs.appendChild(sb);
   const rows = document.getElementById('rows');
   rows.replaceChildren();
+  if (tab === data.tabs.length) { renderSaves(rows); return; }
   let card = null;
   for (const r of data.tabs[tab].rows) {
     if (r.group || !card) {
@@ -122,6 +140,114 @@ function render() {
       row.appendChild(line);
     }
     card.appendChild(row);
+  }
+}
+
+/* ---- Saves: memory cards and save states, to and from the phone ---- */
+
+async function loadSaves() {
+  try {
+    const r = await fetch('/api/saves', {cache: 'no-store'});
+    saves = await r.json();
+    render();
+  } catch (e) { document.getElementById('status').textContent = 'Could not read the saves.'; }
+}
+
+function ago(t) {
+  const s = Date.now() / 1000 - t;
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  const d = Math.round(s / 86400);
+  return d === 1 ? 'yesterday' : d + ' days ago';
+}
+
+function q(g, extra) { return '?game=' + encodeURIComponent(g.id) + extra; }
+
+async function upload(g, extra, file, row) {
+  row.classList.add('busy');
+  try {
+    const r = await fetch('/api/save' + q(g, extra), {method: 'POST', body: file});
+    const j = await r.json().catch(() => ({}));
+    document.getElementById('status').textContent = j.ok ? 'Uploaded.' : 'Not uploaded: ' + (j.error || r.status);
+  } finally { row.classList.remove('busy'); loadSaves(); }
+}
+
+function fileButton(label, onFile) {
+  const l = el('label', '', label);
+  const i = document.createElement('input');
+  i.type = 'file';
+  i.onchange = () => { if (i.files[0]) onFile(i.files[0]); };
+  l.appendChild(i);
+  return l;
+}
+
+function download(url) {
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+function renderSaves(rows) {
+  const search = document.createElement('input');
+  search.type = 'search'; search.placeholder = 'Find a game'; search.value = filter;
+  search.oninput = () => { filter = search.value; render(); setTimeout(() => {
+    const s = document.querySelector('input[type=search]'); if (s) { s.focus(); s.selectionStart = s.value.length; } }); };
+  rows.appendChild(search);
+  if (!saves) { rows.appendChild(el('div', 'help', 'Loading…')); return; }
+  const f = filter.toLowerCase();
+  for (const g of saves.games) {
+    if (f && !g.title.toLowerCase().includes(f)) continue;
+    const d = document.createElement('details');
+    d.open = openGame === g.id;
+    d.ontoggle = () => { if (d.open) openGame = g.id; };
+    const sum = el('summary', '', g.title);
+    sum.appendChild(el('span', 'count', (g.states.length ? g.states.length + ' states' : 'no states') +
+                       (g.card ? ' · card' : '') + (saves.running === g.id ? ' · playing now' : '')));
+    d.appendChild(sum);
+    /* the memory card */
+    if (g.serial) {
+      const row = el('div', 'save');
+      const body = el('div', 'body');
+      body.appendChild(el('div', 'name', 'Memory card'));
+      body.appendChild(el('div', 'help', g.card ? 'Saved ' + ago(g.card) : 'Empty'));
+      const act = el('div', 'actions');
+      if (g.card) { const b = el('button', '', 'Download'); b.onclick = () => download('/api/save' + q(g, '&type=card')); act.appendChild(b); }
+      act.appendChild(fileButton('Upload a card', file => upload(g, '&type=card', file, row)));
+      body.appendChild(act);
+      row.appendChild(body);
+      d.appendChild(row);
+    }
+    /* the ten slots */
+    for (let slot = 0; slot < 10; ++slot) {
+      const st = g.states.find(x => x.slot === slot);
+      const row = el('div', 'save');
+      if (st) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.src = '/api/thumb' + q(g, '&slot=' + slot + '&t=' + st.time);
+        img.onerror = () => img.remove();
+        row.appendChild(img);
+      }
+      const body = el('div', 'body');
+      body.appendChild(el('div', 'name', 'Slot ' + slot + (st ? ' · ' + ago(st.time) : ' · empty')));
+      if (st) {
+        const note = document.createElement('input');
+        note.className = 'note'; note.maxLength = 120; note.placeholder = 'A note: “before the boss”';
+        note.value = st.note || '';
+        note.onchange = async () => {
+          await fetch('/api/note' + q(g, '&slot=' + slot), {method: 'POST', body: note.value});
+          document.getElementById('status').textContent = 'Note saved.';
+        };
+        body.appendChild(note);
+      }
+      const act = el('div', 'actions');
+      if (st) { const b = el('button', '', 'Download'); b.onclick = () => download('/api/save' + q(g, '&type=state&slot=' + slot)); act.appendChild(b); }
+      act.appendChild(fileButton(st ? 'Replace' : 'Upload', file => upload(g, '&type=state&slot=' + slot, file, row)));
+      body.appendChild(act);
+      row.appendChild(body);
+      if (st || slot === 0 || g.states.some(x => x.slot === slot - 1)) d.appendChild(row);
+    }
+    rows.appendChild(d);
   }
 }
 

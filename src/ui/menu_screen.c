@@ -120,6 +120,36 @@ static void slot_age(int slot, char *out, size_t size)
         snprintf(out, size, tr("%ld days ago"), ago / 86400);
 }
 
+/* The note written on a slot from the phone (<state>.note), re-read every
+ * two seconds so a note typed while the menu is open shows up. */
+static const char *slot_note(int slot)
+{
+    static char notes[10][124];
+    static uint64_t read_at;
+    static const Game *read_for;
+    uint64_t now = plat_ticks_us();
+    if (read_for != app.game || now - read_at > 2000000)
+    {
+        read_for = app.game;
+        read_at = now;
+        for (int s = 0; s < 10; ++s)
+        {
+            char path[PSXS5_PATH_MAX + 8];
+            app_state_path(path, sizeof(path) - 8, s);
+            strcat(path, ".note");
+            notes[s][0] = '\0';
+            FILE *f = fopen(path, "rb");
+            if (f)
+            {
+                size_t n = fread(notes[s], 1, sizeof(notes[s]) - 1, f);
+                notes[s][n] = '\0';
+                fclose(f);
+            }
+        }
+    }
+    return notes[slot];
+}
+
 static void draw_slots(float x, float y, float w, bool active)
 {
     const int visible = 5;
@@ -152,14 +182,16 @@ static void draw_slots(float x, float y, float w, bool active)
             draw_rrect_outline(cx, y, cw, ch, TH_RADIUS_SMALL, 3, active ? TH_FOCUS : 0xff4a5590u);
         char name[32];
         snprintf(name, sizeof(name), tr("Slot %d"), s);
+        const char *note = age[0] ? slot_note(s) : "";
         if (thumb)
         {
-            text_draw(cx + 14, y + ch - 46, 18, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
+            /* a note replaces the slot's name: "Before the boss" */
+            text_draw_fit(cx + 14, y + ch - 46, 18, FONT_BOLD, TH_TEXT, ALIGN_LEFT, cw - 24, note[0] ? note : name);
             text_draw_fit(cx + 14, y + ch - 24, 16, FONT_REGULAR, TH_TEXT_SOFT, ALIGN_LEFT, cw - 24, age);
         }
         else
         {
-            text_draw(cx + 16, y + 14, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, name);
+            text_draw_fit(cx + 16, y + 14, 22, FONT_BOLD, TH_TEXT, ALIGN_LEFT, cw - 64, note[0] ? note : name);
             text_draw_fit(cx + 16, y + ch - 40, 20, FONT_REGULAR, TH_TEXT_DIM, ALIGN_LEFT, cw - 24,
                           age[0] ? age : tr("Empty"));
             icon_draw(age[0] ? ICON_DEVICE_FLOPPY : ICON_X, cx + cw - 44, y + 12, 28,

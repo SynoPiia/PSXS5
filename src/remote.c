@@ -6,6 +6,10 @@
  *   GET /               assets/remote.html
  *   GET /api/settings   every setting as JSON (a snapshot the main thread keeps fresh)
  *   POST /api/set?key=K&value=V
+ *   GET /api/saves      every game's memory card and save-state slots (+ notes)
+ *   GET|POST /api/save?game=ID&type=card|state&slot=N   download / upload
+ *   GET /api/thumb?game=ID&slot=N   a slot's picture as PNG
+ *   POST /api/note?game=ID&slot=N   a slot's note (the body, one line)
  * Changes are queued and applied by the main thread (remote_frame), so the
  * settings are never touched from two threads.
  */
@@ -37,6 +41,7 @@ const char *remote_address(void) { return ""; }
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define SNAPSHOT_SIZE (96 * 1024)
@@ -116,6 +121,360 @@ static const char *query(const char *q, const char *name, char *out, size_t size
     return NULL;
 }
 
+static void reply_json(int fd, const char *status, const char *json)
+{
+    respond(fd, status, "application/json", json, strlen(json));
+}
+
+/* ---------------------------------------------------------------- saves from the phone */
+
+/* The library as the phone sees it: id, title and serial of every game,
+ * copied by the main thread (remote_frame) so this thread never reads the
+ * Library while it changes. */
+#define REMOTE_GAMES 4096
+typedef struct
+{
+    char id[64], title[96], serial[16];
+} RemoteGame;
+static RemoteGame *games;
+static int game_count;
+static char running_id[64]; /* the game being played, "" on the shelf */
+
+static const RemoteGame *find_game(const char *id)
+{
+    for (int i = 0; i < game_count; ++i)
+        if (!strcmp(games[i].id, id))
+            return &games[i];
+    return NULL;
+}
+
+static void state_file(const RemoteGame *g, int slot, char *out, size_t size)
+{
+    char file[96];
+    snprintf(file, sizeof(file), "%.80s.state%d", g->id, slot);
+    path_join(out, size, app.paths.states, file);
+}
+
+/* PCSX-ReARMed's and Beetle's card: <saves>/<serial>_1.mcd (lower case as some
+ * discs spell it). "" when the game has no serial. */
+static void card_file(const RemoteGame *g, char *out, size_t size)
+{
+    out[0] = '\0';
+    if (!g->serial[0])
+        return;
+    char name[48];
+    snprintf(name, sizeof(name), "%s_1.mcd", g->serial);
+    path_join(out, size, app.paths.saves, name);
+    FILE *f = fopen(out, "rb");
+    if (f)
+    {
+        fclose(f);
+        return;
+    }
+    for (char *c = name; *c; ++c)
+        *c = (char)(*c >= 'A' && *c <= 'Z' ? *c + 32 : *c);
+    char lower[PSXS5_PATH_MAX];
+    path_join(lower, sizeof(lower), app.paths.saves, name);
+    if ((f = fopen(lower, "rb")) != NULL)
+    {
+        fclose(f);
+        str_copy(out, size, lower);
+    }
+}
+
+static long long file_time(const char *path, long *bytes)
+{
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    if (bytes)
+        *bytes = (long)st.st_size;
+    return (long long)st.st_mtime;
+}
+
+/* text into a JSON string (quotes, backslashes, control characters) */
+static size_t json_text(char *out, size_t size, const char *in)
+{
+    size_t w = 0;
+    for (const unsigned char *p = (const unsigned char *)in; *p && w + 7 < size; ++p)
+    {
+        if (*p == '"' || *p == '\\')
+            out[w++] = '\\', out[w++] = (char)*p;
+        else if (*p < 0x20)
+            w += (size_t)snprintf(out + w, size - w, "\\u%04x", *p);
+        else
+            out[w++] = (char)*p;
+    }
+    out[w] = '\0';
+    return w;
+}
+
+static void read_note(const char *state, char *out, size_t size)
+{
+    char path[PSXS5_PATH_MAX + 8];
+    snprintf(path, sizeof(path), "%s.note", state);
+    out[0] = '\0';
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return;
+    size_t n = fread(out, 1, size - 1, f);
+    out[n] = '\0';
+    fclose(f);
+}
+
+/* GET /api/saves: every game with its card and the slots that hold a state */
+static void send_saves(int fd)
+{
+    size_t cap = 64 * 1024 + (size_t)game_count * 2048, w = 0;
+    char *out = malloc(cap);
+    if (!out)
+        return;
+    SDL_LockMutex(lock);
+    w += (size_t)snprintf(out + w, cap - w, "{\"running\":\"");
+    w += json_text(out + w, cap - w, running_id);
+    w += (size_t)snprintf(out + w, cap - w, "\",\"games\":[");
+    for (int i = 0; i < game_count && w + 4096 < cap; ++i)
+    {
+        const RemoteGame *g = &games[i];
+        char path[PSXS5_PATH_MAX], text[400];
+        card_file(g, path, sizeof(path));
+        long long card = path[0] ? file_time(path, NULL) : 0;
+        w += (size_t)snprintf(out + w, cap - w, "%s{\"id\":\"", i ? "," : "");
+        w += json_text(out + w, cap - w, g->id);
+        w += (size_t)snprintf(out + w, cap - w, "\",\"title\":\"");
+        w += json_text(out + w, cap - w, g->title);
+        w += (size_t)snprintf(out + w, cap - w, "\",\"serial\":\"%s\",\"card\":%lld,\"states\":[", g->serial,
+                              card);
+        bool first = true;
+        for (int s = 0; s < 10; ++s)
+        {
+            state_file(g, s, path, sizeof(path));
+            long bytes = 0;
+            long long t = file_time(path, &bytes);
+            if (!t)
+                continue;
+            char note[200];
+            read_note(path, note, sizeof(note));
+            json_text(text, sizeof(text), note);
+            w += (size_t)snprintf(out + w, cap - w, "%s{\"slot\":%d,\"time\":%lld,\"bytes\":%ld,\"note\":\"%s\"}",
+                                  first ? "" : ",", s, t, bytes, text);
+            first = false;
+        }
+        w += (size_t)snprintf(out + w, cap - w, "]}");
+    }
+    SDL_UnlockMutex(lock);
+    w += (size_t)snprintf(out + w, cap - w, "]}");
+    respond(fd, "200 OK", "application/json", out, w);
+    free(out);
+}
+
+static void send_file(int fd, const char *path, const char *download_name)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f)
+    {
+        respond(fd, "404 Not Found", "text/plain", "no such file", 12);
+        return;
+    }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char head[512];
+    int n = snprintf(head, sizeof(head),
+                     "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %ld\r\n"
+                     "Content-Disposition: attachment; filename=\"%s\"\r\nCache-Control: no-store\r\n"
+                     "Connection: close\r\n\r\n",
+                     size, download_name);
+    send_all(fd, head, (size_t)n);
+    char buf[64 * 1024];
+    size_t got;
+    while ((got = fread(buf, 1, sizeof(buf), f)) > 0)
+        send_all(fd, buf, got);
+    fclose(f);
+}
+
+void *tdefl_write_image_to_png_file_in_memory(const void *image, int w, int h, int num_chans, size_t *len_out);
+void mz_free(void *p);
+
+/* GET /api/thumb: the slot's picture (PSXT, raw RGBA) as a PNG */
+static void send_thumb(int fd, const char *state)
+{
+    char path[PSXS5_PATH_MAX + 8];
+    snprintf(path, sizeof(path), "%s.thumb", state);
+    FILE *f = fopen(path, "rb");
+    uint8_t head[8];
+    if (!f || fread(head, 1, 8, f) != 8 || memcmp(head, "PSXT", 4) != 0)
+    {
+        if (f)
+            fclose(f);
+        respond(fd, "404 Not Found", "text/plain", "no picture", 10);
+        return;
+    }
+    int w = head[4] | head[5] << 8, h = head[6] | head[7] << 8;
+    uint8_t *rgba = w > 0 && h > 0 && w <= 1024 && h <= 1024 ? malloc((size_t)w * h * 4) : NULL;
+    size_t len = 0;
+    void *png = NULL;
+    if (rgba && fread(rgba, 1, (size_t)w * h * 4, f) == (size_t)w * h * 4)
+        png = tdefl_write_image_to_png_file_in_memory(rgba, w, h, 4, &len);
+    fclose(f);
+    free(rgba);
+    if (png)
+        respond(fd, "200 OK", "image/png", png, len);
+    else
+        respond(fd, "404 Not Found", "text/plain", "no picture", 10);
+    mz_free(png);
+}
+
+/* The request's body: what came with the headers, then the rest. */
+static char *read_body(int fd, const char *req, size_t req_len, size_t limit, size_t *len)
+{
+    const char *cl = strstr(req, "Content-Length:");
+    if (!cl)
+        cl = strstr(req, "content-length:");
+    const char *end = strstr(req, "\r\n\r\n");
+    if (!cl || !end)
+        return NULL;
+    long want = atol(cl + 15);
+    if (want < 0 || (size_t)want > limit)
+        return NULL;
+    char *body = malloc((size_t)want + 1);
+    if (!body)
+        return NULL;
+    size_t have = req_len - (size_t)(end + 4 - req);
+    if (have > (size_t)want)
+        have = (size_t)want;
+    memcpy(body, end + 4, have);
+    while (have < (size_t)want)
+    {
+        ssize_t n = recv(fd, body + have, (size_t)want - have, 0);
+        if (n <= 0)
+        {
+            free(body);
+            return NULL;
+        }
+        have += (size_t)n;
+    }
+    body[have] = '\0';
+    *len = have;
+    return body;
+}
+
+static bool write_atomic(const char *path, const char *data, size_t len)
+{
+    char temp[PSXS5_PATH_MAX + 8];
+    snprintf(temp, sizeof(temp), "%s.upload", path);
+    FILE *f = fopen(temp, "wb");
+    bool ok = f && fwrite(data, 1, len, f) == len;
+    if (f)
+        ok = fclose(f) == 0 && ok;
+    ok = ok && rename(temp, path) == 0;
+    if (!ok)
+        remove(temp);
+    return ok;
+}
+
+/* /api/save?... : GET downloads, POST uploads; also thumb and note */
+static void serve_saves(int fd, const char *method, const char *path, const char *req, size_t req_len)
+{
+    const char *q = strchr(path, '?');
+    char id[64] = "", kind[8] = "", slot_s[8] = "";
+    if (q)
+    {
+        query(q + 1, "game", id, sizeof(id));
+        query(q + 1, "type", kind, sizeof(kind));
+        query(q + 1, "slot", slot_s, sizeof(slot_s));
+    }
+    /* ids are written by PSXS5 itself (serials or title letters), so no escapes to undo */
+    SDL_LockMutex(lock);
+    const RemoteGame *found = find_game(id);
+    RemoteGame g;
+    if (found)
+        g = *found;
+    bool running = found && !strcmp(running_id, id);
+    SDL_UnlockMutex(lock);
+    int slot = atoi(slot_s);
+    if (!found || slot < 0 || slot > 9)
+    {
+        reply_json(fd, "404 Not Found", "{\"ok\":false,\"error\":\"unknown game\"}");
+        return;
+    }
+    char file[PSXS5_PATH_MAX], name[160];
+    bool card = !strcmp(kind, "card");
+    if (card)
+    {
+        card_file(&g, file, sizeof(file));
+        if (!file[0] && g.serial[0])
+        {
+            char n[48];
+            snprintf(n, sizeof(n), "%s_1.mcd", g.serial);
+            path_join(file, sizeof(file), app.paths.saves, n);
+        }
+        snprintf(name, sizeof(name), "%s.mcd", g.serial[0] ? g.serial : g.id);
+    }
+    else
+    {
+        state_file(&g, slot, file, sizeof(file));
+        snprintf(name, sizeof(name), "%s.state%d", g.id, slot);
+    }
+    if (!file[0])
+    {
+        reply_json(fd, "404 Not Found", "{\"ok\":false,\"error\":\"no card for this game\"}");
+        return;
+    }
+    if (!strncmp(path, "/api/thumb", 10))
+    {
+        send_thumb(fd, file);
+        return;
+    }
+    if (!strcmp(method, "GET"))
+    {
+        send_file(fd, file, name);
+        return;
+    }
+    size_t len = 0;
+    char *body = read_body(fd, req, req_len, !strncmp(path, "/api/note", 9) ? 1024 : 64u << 20, &len);
+    if (!body)
+    {
+        reply_json(fd, "400 Bad Request", "{\"ok\":false,\"error\":\"nothing received\"}");
+        return;
+    }
+    bool ok;
+    if (!strncmp(path, "/api/note", 9))
+    {
+        char note[PSXS5_PATH_MAX + 8];
+        snprintf(note, sizeof(note), "%s.note", file);
+        len = strcspn(body, "\r\n");
+        ok = len ? write_atomic(note, body, len < 120 ? len : 120) : (remove(note), true);
+    }
+    else if (running)
+        ok = false;
+    else
+    {
+        if (card) /* keep the card it replaces */
+        {
+            char backup[PSXS5_PATH_MAX + 8];
+            snprintf(backup, sizeof(backup), "%s.bak", file);
+            FILE *old = fopen(file, "rb");
+            if (old)
+            {
+                fclose(old);
+                remove(backup);
+                rename(file, backup);
+            }
+        }
+        ok = (!card || len == 128 * 1024) && write_atomic(file, body, len);
+    }
+    free(body);
+    psxs5_log("remote: %s %s for %s: %s", !strncmp(path, "/api/note", 9) ? "note" : card ? "card" : "state",
+              !strcmp(method, "POST") ? "uploaded" : "?", id, ok ? "ok" : "refused");
+    if (ok)
+        reply_json(fd, "200 OK", "{\"ok\":true}");
+    else if (running)
+        reply_json(fd, "409 Conflict", "{\"ok\":false,\"error\":\"quit the game first\"}");
+    else
+        reply_json(fd, "400 Bad Request", "{\"ok\":false,\"error\":\"not a memory card (128 KB) or not saved\"}");
+}
+
 static void serve(int fd)
 {
     char req[4096];
@@ -150,6 +509,11 @@ static void serve(int fd)
             respond(fd, "503 Service Unavailable", "application/json", "{}", 2);
         free(copy);
     }
+    else if (!strcmp(path, "/api/saves"))
+        send_saves(fd);
+    else if (!strncmp(path, "/api/save?", 10) || !strncmp(path, "/api/thumb?", 11) ||
+             (!strcmp(method, "POST") && !strncmp(path, "/api/note?", 10)))
+        serve_saves(fd, method, path, req, (size_t)n);
     else if (!strcmp(method, "POST") && !strncmp(path, "/api/set?", 9))
     {
         char key[16], value[16];
@@ -287,6 +651,31 @@ void remote_frame(void)
             app_toast(msg);
             app_save_settings();
         }
+    }
+    static uint64_t games_at;
+    if (!games_at || now - games_at > 5000000)
+    {
+        games_at = now;
+        SDL_LockMutex(lock);
+        if (!games)
+            games = calloc(REMOTE_GAMES, sizeof(RemoteGame));
+        game_count = 0;
+        for (int i = 0; games && i < app.library.count && i < REMOTE_GAMES; ++i)
+        {
+            const Game *g = &app.library.games[i];
+            str_copy(games[game_count].id, sizeof(games[0].id), g->id);
+            str_copy(games[game_count].title, sizeof(games[0].title), g->title);
+            str_copy(games[game_count].serial, sizeof(games[0].serial), g->serial);
+            ++game_count;
+        }
+        str_copy(running_id, sizeof(running_id), app.game ? app.game->id : "");
+        SDL_UnlockMutex(lock);
+    }
+    else if (app.game ? strcmp(running_id, app.game->id) : running_id[0])
+    {
+        SDL_LockMutex(lock);
+        str_copy(running_id, sizeof(running_id), app.game ? app.game->id : "");
+        SDL_UnlockMutex(lock);
     }
     if (count || now - refreshed > 500000)
     {
