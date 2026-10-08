@@ -808,9 +808,18 @@ static void RETRO_CALLCONV input_poll_cb(void)
 {
 }
 
+static unsigned input_reads, input_device_seen; /* logged every 5 s: is the emulator reading the pads? */
+static uint32_t input_buttons_seen;
+
 static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, unsigned index,
                                              unsigned id)
 {
+    if (port == 0)
+    {
+        ++input_reads;
+        input_device_seen = device;
+        input_buttons_seen |= pad_state[0].buttons;
+    }
     if (port >= PSXS5_MAX_PADS || !pad_state[port].connected)
         return 0;
     const PadState *p = &pad_state[port];
@@ -1236,6 +1245,15 @@ void host_run_frame(void)
     if (lid_open_frames > 0 && --lid_open_frames == 0 && disk_available)
         disk.set_eject_state(false); /* the disc change, completed */
     core->run();
+    static int input_log_frames;
+    if (++input_log_frames >= 300)
+    {
+        psxs5_log("host: pad 1 read %u times in 300 frames (as device 0x%x), connected %d, buttons seen %x",
+                  input_reads, input_device_seen, pad_state[0].connected, input_buttons_seen);
+        input_log_frames = 0;
+        input_reads = 0;
+        input_buttons_seen = 0;
+    }
     if (++card_check >= 120) /* every 2 s: games write a save in a burst */
     {
         card_check = 0;
