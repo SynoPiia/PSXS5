@@ -1099,7 +1099,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     core->get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
     /* the DualShock: analog subclass 1 in PCSX-ReARMed and Beetle, 0 in SwanStation */
-    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &SWANSTATION ? 0 : 1)
+    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, !strcmp(core->name, "SwanStation") ? 0 : 1)
                                        : RETRO_DEVICE_JOYPAD;
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
@@ -1107,7 +1107,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     /* NeGcon (analog subclass 3 in Beetle, 2 in PCSX-ReARMed) in every port, or a mouse in port 1 */
     if (special_device == 1)
         for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
-            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &BEETLE ? 3 : 2));
+            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, !strcmp(core->name, "Beetle PSX HW") ? 3 : 2));
     if (special_device == 2)
         core->set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE, 0));
     if (special_device)
