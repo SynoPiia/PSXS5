@@ -428,7 +428,16 @@ static void scan_root(Library *lib, const char *root)
         path_join(full, sizeof(full), root, entries[i]);
         if (path_is_dir(full))
         {
-            scan_game_folder(lib, full, entries[i]);
+            /* a PSXS5 folder copied whole to a USB drive: its bios/, saves/... aren't games
+             * ("games" is scanned as a root of its own) */
+            static const char *const not_games[] = {"bios",  "saves", "states", "cache", "logs",
+                                                     "cheats", "art",  "covers", "games", "bezels",
+                                                     "textures", "profiles", "translations", NULL};
+            bool skip_dir = false;
+            for (const char *const *s = not_games; *s; ++s)
+                skip_dir |= str_icmp(entries[i], *s) == 0;
+            if (!skip_dir)
+                scan_game_folder(lib, full, entries[i]);
             continue;
         }
         int rank = image_rank(entries[i]);

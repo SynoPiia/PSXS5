@@ -185,10 +185,61 @@ void app_restart_covers(void)
     covers_download_loaded = app.global.cover_download;
 }
 
+/* USB drives and extended storage: games in PSXS5/, PSXS5/games/ or
+ * data/PSXS5/games/ (the internal drive's layout), any of them */
+static const char *const MOUNTS[] = {"/mnt/usb0", "/mnt/usb1", "/mnt/usb2", "/mnt/usb3", "/mnt/usb4",
+                                     "/mnt/usb5", "/mnt/usb6", "/mnt/usb7", "/mnt/ext0", "/mnt/ext1"};
+#define MOUNT_COUNT (int)(sizeof(MOUNTS) / sizeof(MOUNTS[0]))
+static const char *const MOUNT_GAMES[] = {"PSXS5", "PSXS5/games", "data/PSXS5/games"};
+static const char *const MOUNT_BIOS[] = {"PSXS5/bios", "data/PSXS5/bios"};
+
+static bool dir_has_bios(const char *dir)
+{
+    DIR *d = opendir(dir);
+    bool found = false;
+    struct dirent *e;
+    while (d && !found && (e = readdir(d)))
+        found = str_icmp(path_ext(e->d_name), "bin") == 0;
+    if (d)
+        closedir(d);
+    return found;
+}
+
+/* No BIOS in the internal bios/ folder: one on a USB drive will do */
+static void find_bios(void)
+{
+    path_join(app.paths.bios, sizeof(app.paths.bios), app.paths.root, "bios");
+    if (dir_has_bios(app.paths.bios))
+        return;
+    for (int m = 0; m < MOUNT_COUNT; ++m)
+        for (size_t b = 0; b < sizeof(MOUNT_BIOS) / sizeof(MOUNT_BIOS[0]); ++b)
+        {
+            char dir[PSXS5_PATH_MAX];
+            path_join(dir, sizeof(dir), MOUNTS[m], MOUNT_BIOS[b]);
+            if (dir_has_bios(dir))
+            {
+                str_copy(app.paths.bios, sizeof(app.paths.bios), dir);
+                psxs5_log("bios: using %s", dir);
+                return;
+            }
+        }
+}
+
 void app_rescan(void)
 {
-    const char *roots[] = {app.paths.games, "/mnt/usb0/PSXS5", "/mnt/usb1/PSXS5",
-                           "/mnt/ext0/PSXS5", "/mnt/ext1/PSXS5"};
+    static char mount_roots[MOUNT_COUNT * 3][PSXS5_PATH_MAX];
+    const char *roots[1 + MOUNT_COUNT * 3];
+    int root_count = 0;
+    roots[root_count++] = app.paths.games;
+    for (int m = 0; m < MOUNT_COUNT; ++m)
+        for (int g = 0; g < 3; ++g)
+        {
+            char *dir = mount_roots[root_count - 1];
+            path_join(dir, PSXS5_PATH_MAX, MOUNTS[m], MOUNT_GAMES[g]);
+            if (strcmp(dir, app.paths.games) != 0) /* data root on this drive */
+                roots[root_count++] = dir;
+        }
+    find_bios();
     char index[PSXS5_PATH_MAX];
     path_join(index, sizeof(index), app.paths.root, "library.txt");
     if (app.sandboxed)
@@ -199,7 +250,7 @@ void app_rescan(void)
     }
     else
     {
-        library_scan(&app.library, roots, sizeof(roots) / sizeof(roots[0]));
+        library_scan(&app.library, roots, root_count);
         if (app.library.count == 0)
             library_load_index(&app.library, index);
     }
