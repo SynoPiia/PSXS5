@@ -808,18 +808,9 @@ static void RETRO_CALLCONV input_poll_cb(void)
 {
 }
 
-static unsigned input_reads, input_device_seen; /* logged every 5 s: is the emulator reading the pads? */
-static uint32_t input_buttons_seen;
-
 static int16_t RETRO_CALLCONV input_state_cb(unsigned port, unsigned device, unsigned index,
                                              unsigned id)
 {
-    if (port == 0)
-    {
-        ++input_reads;
-        input_device_seen = device;
-        input_buttons_seen |= pad_state[0].buttons;
-    }
     if (port >= PSXS5_MAX_PADS || !pad_state[port].connected)
         return 0;
     const PadState *p = &pad_state[port];
@@ -1107,8 +1098,9 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     STEP("retro_get_system_av_info");
     core->get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
-    /* the DualShock: analog subclass 1 in PCSX-ReARMed and Beetle, 0 in SwanStation */
-    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, !strcmp(core->name, "SwanStation") ? 0 : 1)
+    /* the DualShock: analog subclass 1 in PCSX-ReARMed and Beetle, 0 in SwanStation
+     * (bracketed: RETRO_DEVICE_SUBCLASS adds 1 to its id without brackets of its own) */
+    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, (!strcmp(core->name, "SwanStation") ? 0 : 1))
                                        : RETRO_DEVICE_JOYPAD;
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
@@ -1116,7 +1108,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     /* NeGcon (analog subclass 3 in Beetle, 2 in PCSX-ReARMed) in every port, or a mouse in port 1 */
     if (special_device == 1)
         for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
-            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, !strcmp(core->name, "Beetle PSX HW") ? 3 : 2));
+            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, (!strcmp(core->name, "Beetle PSX HW") ? 3 : 2)));
     if (special_device == 2)
         core->set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE, 0));
     if (special_device)
@@ -1245,15 +1237,6 @@ void host_run_frame(void)
     if (lid_open_frames > 0 && --lid_open_frames == 0 && disk_available)
         disk.set_eject_state(false); /* the disc change, completed */
     core->run();
-    static int input_log_frames;
-    if (++input_log_frames >= 300)
-    {
-        psxs5_log("host: pad 1 read %u times in 300 frames (as device 0x%x), connected %d, buttons seen %x",
-                  input_reads, input_device_seen, pad_state[0].connected, input_buttons_seen);
-        input_log_frames = 0;
-        input_reads = 0;
-        input_buttons_seen = 0;
-    }
     if (++card_check >= 120) /* every 2 s: games write a save in a burst */
     {
         card_check = 0;
