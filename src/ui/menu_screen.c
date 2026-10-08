@@ -58,6 +58,24 @@ static void forget_thumbs(void)
     }
 }
 
+/* Which emulator made a save state, from the signature each writes first */
+static bool state_core_read(const char *state, char *out, size_t size)
+{
+    char head[16] = {0};
+    FILE *f = fopen(state, "rb");
+    if (!f)
+        return false;
+    size_t n = fread(head, 1, sizeof(head), f);
+    fclose(f);
+    const char *name = n >= 8 && !memcmp(head, "MDFNSVST", 8)   ? "Beetle PSX HW"
+                       : n >= 4 && !memcmp(head, "DUCC", 4)      ? "SwanStation"
+                       : n >= 9 && !memcmp(head, "STv4 PCSX", 9) ? "PCSX-ReARMed"
+                                                                 : NULL;
+    if (name)
+        str_copy(out, size, name);
+    return name != NULL;
+}
+
 static PlatTexture *slot_thumb(int slot)
 {
     if (!thumbs_loaded[slot])
@@ -289,8 +307,18 @@ void menu_screen(uint32_t pressed)
                 snprintf(msg, sizeof(msg), tr("Loaded slot %d"), app.settings.state_slot);
                 app.screen = SCREEN_GAME;
             }
-            else
+            else if (!path_exists(st))
                 snprintf(msg, sizeof(msg), tr("Slot %d is empty"), app.settings.state_slot);
+            else
+            {
+                /* each emulator has its own state format */
+                char made_by[48];
+                if (state_core_read(st, made_by, sizeof(made_by)) && strcmp(made_by, host_core_name()) != 0)
+                    snprintf(msg, sizeof(msg), tr("Saved with %s: choose it in Settings > System to load this slot"),
+                             made_by);
+                else
+                    snprintf(msg, sizeof(msg), tr("Couldn't load slot %d"), app.settings.state_slot);
+            }
             app_toast(msg);
             sfx_play(SFX_SELECT);
             return;
