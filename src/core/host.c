@@ -95,6 +95,31 @@ size_t beetle_retro_get_memory_size(unsigned);
 void beetle_retro_cheat_reset(void);
 void beetle_retro_cheat_set(unsigned, bool, const char *);
 static const CoreApi BEETLE = CORE_API("Beetle PSX HW", beetle_);
+
+/* SwanStation (libretro's DuckStation fork), its retro_* renamed swanstation_retro_*
+ * by tools/build-swanstation.sh; the PS5 port is darkxex's SwanStationPS5 */
+void swanstation_retro_set_environment(retro_environment_t);
+void swanstation_retro_set_video_refresh(retro_video_refresh_t);
+void swanstation_retro_set_audio_sample(retro_audio_sample_t);
+void swanstation_retro_set_audio_sample_batch(retro_audio_sample_batch_t);
+void swanstation_retro_set_input_poll(retro_input_poll_t);
+void swanstation_retro_set_input_state(retro_input_state_t);
+void swanstation_retro_init(void);
+void swanstation_retro_deinit(void);
+bool swanstation_retro_load_game(const struct retro_game_info *);
+void swanstation_retro_unload_game(void);
+void swanstation_retro_get_system_av_info(struct retro_system_av_info *);
+void swanstation_retro_set_controller_port_device(unsigned, unsigned);
+void swanstation_retro_run(void);
+void swanstation_retro_reset(void);
+size_t swanstation_retro_serialize_size(void);
+bool swanstation_retro_serialize(void *, size_t);
+bool swanstation_retro_unserialize(const void *, size_t);
+void *swanstation_retro_get_memory_data(unsigned);
+size_t swanstation_retro_get_memory_size(unsigned);
+void swanstation_retro_cheat_reset(void);
+void swanstation_retro_cheat_set(unsigned, bool, const char *);
+static const CoreApi SWANSTATION = CORE_API("SwanStation", swanstation_);
 #endif
 
 static const CoreApi *core = &PCSX;
@@ -286,9 +311,76 @@ static void apply_beetle_options(const Settings *s)
 }
 #endif
 
+#if defined(PSXS5_VULKAN)
+/* SwanStation: the Vulkan renderer, the recompiler with LUT fastmem (the MMap
+ * kind does not survive a title's sandbox) */
+static void apply_swanstation_options(const Settings *s)
+{
+    static const char *const regions[] = {"Auto", "NTSC-U", "PAL"};
+    static const char *const scales[] = {"1", "2", "4", "8", "16"};
+    int level = s->internal_res >= 1 && s->internal_res <= 5 ? s->internal_res : 1;
+    if (game_fixes & GDB_NO_UPSCALING)
+        level = 1;
+    bool gpu = vkp_describe()[0] != '\0';
+    if (!gpu && level > 2)
+        level = 2;
+    bool pgxp = s->pgxp && !(game_fixes & GDB_NO_PGXP);
+    set_option("swanstation_GPU_Renderer", gpu ? "Vulkan" : "Software");
+    set_option("swanstation_GPU_ResolutionScale", scales[level - 1]);
+    set_option("swanstation_Console_Region", regions[s->region % REGION_COUNT]);
+    set_option("swanstation_GPU_TrueColor", s->true_colour ? "true" : "false");
+    set_option("swanstation_GPU_ScaledDithering", s->dithering ? "true" : "false");
+    set_option("swanstation_GPU_ChromaSmoothing24Bit", s->fmv_smooth ? "true" : "false");
+    set_option("swanstation_GPU_PGXPEnable", pgxp ? "true" : "false");
+    set_option("swanstation_GPU_PGXPCPU", pgxp && (game_fixes & GDB_PGXP_CPU) ? "true" : "false");
+    set_option("swanstation_GPU_UseSoftwareRendererForReadbacks", s->fast_effects ? "false" : "true");
+    set_option("swanstation_BIOS_PatchFastBoot", s->boot_intro ? "false" : "true");
+    set_option("swanstation_CDROM_ReadSpeedup",
+               s->cd_fast && !(game_fixes & GDB_NO_CD_SPEEDUP) ? "4" : "1");
+    set_option("swanstation_CDROM_SeekSpeedup", s->cd_fast && !(game_fixes & GDB_NO_CD_SPEEDUP) ? "4" : "1");
+    set_option("swanstation_GPU_WidescreenHack", s->widescreen && !(game_fixes & GDB_NO_WIDESCREEN) ? "true" : "false");
+    set_option("swanstation_Display_AspectRatio", "Auto");
+    set_option("swanstation_Display_CropMode", s->crop_edges ? "Overscan" : "None");
+    set_option("swanstation_Display_ShowOSDMessages", "false"); /* PSXS5 shows its own */
+    static const char *const msaa[] = {"1", "2", "4", "8", "16"};
+    int m = s->msaa >= 0 && s->msaa <= 4 && !(game_fixes & GDB_NO_UPSCALING) ? s->msaa : 0;
+    set_option("swanstation_GPU_MSAA", msaa[m]);
+    /* PSXS5's list is Beetle's: nearest, bilinear, xBR, SABR, JINC2, 3-point */
+    static const char *const filters[] = {"Nearest", "Bilinear", "xBR", "xBR", "JINC2", "Bilinear"};
+    int tf = s->texture_filter >= 0 && s->texture_filter <= 5 && !(game_fixes & GDB_NO_TEXTURE_FILTER) ? s->texture_filter : 0;
+    set_option("swanstation_GPU_TextureFilter", filters[tf]);
+    set_option("swanstation_GPU_DownsampleMode", s->supersampling ? "Box" : "Disabled");
+    set_option("swanstation_GPU_DisableInterlacing", s->deinterlace || (game_fixes & GDB_DEINTERLACE) ? "true" : "false");
+    set_option("swanstation_GPU_ForceNTSCTimings", s->pal60 ? "true" : "false");
+    static const char *const cpu[] = {"100", "150", "200"};
+    int oc = s->overclock >= 0 && s->overclock <= 2 ? s->overclock : 0;
+    set_option("swanstation_CPU_Overclock", cpu[oc]);
+    set_option("swanstation_CPU_ExecutionMode", "Recompiler");
+    set_option("swanstation_CPU_FastmemMode", "LUT");
+    set_option("swanstation_Main_ApplyGameSettings", "true"); /* its own per-game fixes */
+    /* card 1 through SAVE_RAM: PSXS5 keeps it in the same file as the other emulators */
+    set_option("swanstation_MemoryCards_Card1Type", "Libretro");
+    set_option("swanstation_MemoryCards_Card2Type", "None");
+    set_option("swanstation_ControllerPorts_MultitapMode", s->multitap ? "Port1Only" : "Disabled");
+    set_option("swanstation_Controller_EnableRumble", "true"); /* Vibration off mutes it in rumble_cb */
+    set_option("swanstation_Controller_ShowCrosshair", "false"); /* PSXS5 draws its own */
+    for (int port = 1; port <= 4; ++port)
+    {
+        char key[56];
+        snprintf(key, sizeof(key), "swanstation_Controller%d_ForceAnalog", port);
+        set_option(key, (game_fixes & GDB_ANALOG) ? "true" : "false");
+    }
+}
+#endif
+
 static void apply_settings_to_options(const Settings *s)
 {
 #if defined(PSXS5_VULKAN)
+    if (core == &SWANSTATION)
+    {
+        apply_swanstation_options(s);
+        return;
+    }
     if (core == &BEETLE)
     {
         apply_beetle_options(s);
@@ -632,7 +724,7 @@ static bool RETRO_CALLCONV environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_SET_HW_RENDER:
     {
         struct retro_hw_render_callback *cb = data;
-        if (core != &BEETLE || cb->context_type != RETRO_HW_CONTEXT_VULKAN || !vkp_describe()[0])
+        if (core == &PCSX || cb->context_type != RETRO_HW_CONTEXT_VULKAN || !vkp_describe()[0])
             return false;
         hw = *cb;
         hw_requested = true;
@@ -820,7 +912,7 @@ static void card_prepare(const char *serial, const char *game_path)
 static uint8_t *beetle_card(void)
 {
 #if defined(PSXS5_VULKAN)
-    if (core == &BEETLE && card_path[0] && core->get_memory_size(RETRO_MEMORY_SAVE_RAM) == sizeof(card_saved))
+    if (core != &PCSX && card_path[0] && core->get_memory_size(RETRO_MEMORY_SAVE_RAM) == sizeof(card_saved))
         return core->get_memory_data(RETRO_MEMORY_SAVE_RAM);
 #endif
     return NULL;
@@ -906,6 +998,8 @@ static const CoreApi *pick_core(const Settings *settings, const char *serial, co
 #if defined(PSXS5_VULKAN)
     if (settings->emulator == EMU_BEETLE)
         return &BEETLE;
+    if (settings->emulator == EMU_SWANSTATION)
+        return &SWANSTATION;
     if (settings->emulator == EMU_AUTO)
     {
         /* Beetle when it can run the game well: on the GPU, with the BIOS */
@@ -1004,7 +1098,8 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     STEP("retro_get_system_av_info");
     core->get_system_av_info(&av_info);
     /* DualShock starts in digital mode, so it is also safe for digital-only games. */
-    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1)
+    /* the DualShock: analog subclass 1 in PCSX-ReARMed and Beetle, 0 in SwanStation */
+    unsigned device = settings->analog ? RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &SWANSTATION ? 0 : 1)
                                        : RETRO_DEVICE_JOYPAD;
     multitap = settings->multitap;
     for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
@@ -1012,7 +1107,7 @@ bool host_load(const char *game_path, const char *serial, const Paths *paths, co
     /* NeGcon (analog subclass 3 in Beetle, 2 in PCSX-ReARMed) in every port, or a mouse in port 1 */
     if (special_device == 1)
         for (unsigned port = 0; port < (multitap ? 4u : 2u); ++port)
-            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &PCSX ? 2 : 3));
+            core->set_controller_port_device(port, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, core == &BEETLE ? 3 : 2));
     if (special_device == 2)
         core->set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_MOUSE, 0));
     if (special_device)
@@ -1318,6 +1413,8 @@ void host_beetle_widescreen(bool on)
         on = false; /* the renderer's widescreen breaks this game */
     if (loaded && core == &BEETLE)
         set_option("beetle_psx_hw_widescreen_hack", on ? "enabled" : "disabled");
+    if (loaded && core == &SWANSTATION)
+        set_option("swanstation_GPU_WidescreenHack", on ? "true" : "false");
 #else
     (void)on;
 #endif

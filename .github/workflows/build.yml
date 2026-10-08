@@ -36,6 +36,7 @@ jobs:
         run: |
           git submodule update --init --recursive --depth=1 third_party/pcsx_rearmed third_party/rcheevos
           git submodule update --init --depth=1 third_party/beetle-psx
+          git submodule update --init --depth=1 third_party/swanstation
 
       - name: Install toolchain
         run: |

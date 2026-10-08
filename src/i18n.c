@@ -1201,6 +1201,9 @@ static const Entry ENTRIES[] = {
     /* ---- 2.2: loading */
     {{"Loading...", "Chargement...", "Carregando...", "Cargando...",
       "読み込み中..."}},
+    /* ---- 2.2: SwanStation */
+    {{"Beetle PSX HW is more accurate and renders on the GPU, but needs your BIOS. SwanStation (from DuckStation) also renders on the GPU and is fast. PCSX-ReARMed also runs without a BIOS.", "Beetle PSX HW est plus fidèle et dessine avec le GPU, mais il lui faut votre BIOS. SwanStation (issu de DuckStation) dessine aussi avec le GPU et il est rapide. PCSX-ReARMed fonctionne aussi sans BIOS.", "O Beetle PSX HW é mais fiel e desenha com a GPU, mas precisa da sua BIOS. O SwanStation (derivado do DuckStation) também desenha com a GPU e é rápido. O PCSX-ReARMed também funciona sem BIOS.", "Beetle PSX HW es más fiel y dibuja con la GPU, pero necesita tu BIOS. SwanStation (derivado de DuckStation) también dibuja con la GPU y es rápido. PCSX-ReARMed también funciona sin BIOS.",
+      "Beetle PSX HW はより正確でGPUで描画しますが、BIOSが必要です。SwanStation（DuckStation系）もGPUで描画し、高速です。PCSX-ReARMed はBIOSなしでも動きます。"}},
 };
 
 #define ENTRY_COUNT (int)(sizeof(ENTRIES) / sizeof(ENTRIES[0]))

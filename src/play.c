@@ -104,7 +104,8 @@ static bool contains_icase(const char *hay, const char *needle)
 bool play_widescreen(void)
 {
     widescreen_on = false;
-    bool beetle = !strcmp(host_core_name(), "Beetle PSX HW");
+    /* the renderers' own widescreen: Beetle PSX HW and SwanStation */
+    bool beetle = strcmp(host_core_name(), "PCSX-ReARMed") != 0;
     if (!app.settings.widescreen)
     {
         if (beetle)
