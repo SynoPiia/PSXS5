@@ -25,6 +25,28 @@
 
 #define APP_DIR "/data/homebrew/PPSA97510"
 
+/* Where the app is installed: /data/homebrew, or an extended / USB drive's
+ * homebrew folder (ShadowMountPlus mounts those too). Every copy found is
+ * updated, as which one is running can't be told. */
+static int app_dirs(char dirs[][PSXS5_PATH_MAX], int max)
+{
+    static const char *const places[] = {APP_DIR,
+                                         "/mnt/ext0/homebrew/PPSA97510", "/mnt/ext1/homebrew/PPSA97510",
+                                         "/mnt/usb0/homebrew/PPSA97510", "/mnt/usb1/homebrew/PPSA97510",
+                                         "/mnt/usb2/homebrew/PPSA97510", "/mnt/usb3/homebrew/PPSA97510"};
+    int n = 0;
+    for (size_t i = 0; i < sizeof(places) / sizeof(places[0]) && n < max; ++i)
+    {
+        char eboot[PSXS5_PATH_MAX];
+        path_join(eboot, sizeof(eboot), places[i], "eboot.bin");
+        if (path_exists(eboot))
+            str_copy(dirs[n++], PSXS5_PATH_MAX, places[i]);
+    }
+    if (n == 0)
+        str_copy(dirs[n++], PSXS5_PATH_MAX, APP_DIR);
+    return n;
+}
+
 static SDL_atomic_t state;
 static char version[32], zip_url[512], message[256];
 
@@ -180,6 +202,10 @@ static int install_thread(void *unused)
     }
     int files = 0;
     bool ok = true;
+    static char dirs[8][PSXS5_PATH_MAX];
+    int dir_count = app_dirs(dirs, 8);
+    for (int d = 0; d < dir_count; ++d)
+        psxs5_log("update: installing into %s", dirs[d]);
     mz_uint count = mz_zip_reader_get_num_files(&archive);
     for (mz_uint i = 0; i < count && ok; ++i)
     {
@@ -191,22 +217,25 @@ static int install_thread(void *unused)
         if (!inside || strstr(inside, ".."))
             continue;
         inside += strlen("PPSA97510/");
-        char target[PSXS5_PATH_MAX], temp[PSXS5_PATH_MAX + 8], parent[PSXS5_PATH_MAX];
-        path_join(target, sizeof(target), APP_DIR, inside);
-        str_copy(parent, sizeof(parent), target);
-        char *slash = strrchr(parent, '/');
-        if (slash)
+        for (int d = 0; d < dir_count && ok; ++d)
         {
-            *slash = '\0';
-            make_dirs(parent);
+            char target[PSXS5_PATH_MAX], temp[PSXS5_PATH_MAX + 8], parent[PSXS5_PATH_MAX];
+            path_join(target, sizeof(target), dirs[d], inside);
+            str_copy(parent, sizeof(parent), target);
+            char *slash = strrchr(parent, '/');
+            if (slash)
+            {
+                *slash = '\0';
+                make_dirs(parent);
+            }
+            snprintf(temp, sizeof(temp), "%s.new", target);
+            /* executable, as an FTP upload makes them: without it the PS5 won't start
+             * the app ("Can't start the game or app"), which 2.0.0's updater did */
+            ok = mz_zip_reader_extract_to_file(&archive, i, temp, 0) && chmod(temp, 0777) == 0 &&
+                 rename(temp, target) == 0;
+            if (!ok)
+                remove(temp);
         }
-        snprintf(temp, sizeof(temp), "%s.new", target);
-        /* executable, as an FTP upload makes them: without it the PS5 won't start
-         * the app ("Can't start the game or app"), which 2.0.0's updater did */
-        ok = mz_zip_reader_extract_to_file(&archive, i, temp, 0) && chmod(temp, 0777) == 0 &&
-             rename(temp, target) == 0;
-        if (!ok)
-            remove(temp);
         files += ok;
     }
     mz_zip_reader_end(&archive);
