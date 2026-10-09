@@ -70,6 +70,7 @@ enum Special
     SP_PLAYERS,
     SP_PROFILE,
     SP_WHO,
+    SP_LOCATION,
 };
 
 typedef struct
@@ -299,6 +300,8 @@ static const Row SYSTEM[] = {
      INT_FIELD(language), NULL, LANG_COUNT, 0},
     {NULL, "Unlock /data with etaHEN", "PSXS5 asks etaHEN for access to your games. Turn off if closing PSXS5 crashes the console.",
      K_TOGGLE, APPLY_NEXT_LAUNCH, SP_UNLOCK, true, NO_FIELD, OFF_ON, 2, 0},
+    {NULL, "Data location", "Where PSXS5 keeps its saves, states, settings, covers and downloads: the console's storage or an extended / USB drive (in its PSXS5 folder). Press Cross for the next one; your files are copied there, and it's used from the next start. Games stay where they are and are still found.",
+     K_ACTION, APPLY_NEXT_LAUNCH, SP_LOCATION, true, NO_FIELD, NULL, 0, 0},
     {NULL, "Allow PSXS5 in PS5SX2 Helper", "PS5SX2 Helper only unlocks the apps listed in /data/whitelist.txt. This adds PSXS5; reload the helper (or restart the console) afterwards.",
      K_ACTION, APPLY_NOW, SP_WHITELIST, true, NO_FIELD, NULL, 0, 0},
 };
@@ -475,6 +478,11 @@ static const char *value_label(const Row *r, char *buf, size_t size)
     case SP_BIOS: app_describe_bios(buf, size); return buf;
     case SP_GAMES: snprintf(buf, size, "%d", app.library.count); return buf;
     case SP_DATA: return app.paths.root;
+    case SP_LOCATION:
+        if (!app.location_next[0])
+            return app.paths.root;
+        snprintf(buf, size, tr("%s (from the next start)"), app.location_next);
+        return buf;
     case SP_HOTKEYS: return tr("Touchpad + R2 / L2");
     case SP_UPDATE:
         switch (update_state())
@@ -1278,6 +1286,10 @@ static void activate(const Row *r)
 {
     switch (r->special)
     {
+    case SP_LOCATION:
+        sfx_play(SFX_SELECT);
+        app_next_data_location();
+        return;
     case SP_REMAP:
         S.remap = true;
         S.remap_cursor = 0;

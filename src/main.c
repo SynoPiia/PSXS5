@@ -185,6 +185,116 @@ void app_restart_covers(void)
     covers_download_loaded = app.global.cover_download;
 }
 
+/* ---------------------------------------------------------------- data location */
+
+/* Settings > System > Data location: PSXS5's folder on the console's storage
+ * (/data/PSXS5) or on an extended / USB drive. <home>/location.txt names it;
+ * the console's folder keeps that file whichever is in use. */
+static const char *const DATA_DRIVES[] = {"/mnt/ext0", "/mnt/ext1", "/mnt/usb0", "/mnt/usb1", "/mnt/usb2",
+                                          "/mnt/usb3", "/mnt/usb4", "/mnt/usb5", "/mnt/usb6", "/mnt/usb7"};
+
+static bool dir_writable(const char *dir)
+{
+    if (!make_dirs(dir))
+        return false;
+    char probe[PSXS5_PATH_MAX];
+    path_join(probe, sizeof(probe), dir, ".write-test");
+    FILE *f = fopen(probe, "w");
+    if (!f)
+        return false;
+    fclose(f);
+    remove(probe);
+    return true;
+}
+
+static void location_file(char *out, size_t size)
+{
+    path_join(out, size, app.home_root, "location.txt");
+}
+
+static void use_data_location(void)
+{
+    char file[PSXS5_PATH_MAX], where[PSXS5_PATH_MAX] = "";
+    location_file(file, sizeof(file));
+    FILE *f = fopen(file, "r");
+    if (!f)
+        return;
+    if (fgets(where, sizeof(where), f))
+        where[strcspn(where, "\r\n")] = '\0';
+    fclose(f);
+    if (!where[0] || !strcmp(where, app.home_root))
+        return;
+    if (dir_writable(where))
+        config_paths(&app.paths, where);
+    else
+        str_copy(app.location_missing, sizeof(app.location_missing), where);
+}
+
+/* Everything but the games (they stay where they are, and are still found) and the log */
+static void copy_tree(const char *from, const char *to, bool top)
+{
+    DIR *d = opendir(from);
+    if (!d)
+        return;
+    make_dirs(to);
+    struct dirent *e;
+    while ((e = readdir(d)))
+    {
+        if (e->d_name[0] == '.' || (top && (!strcmp(e->d_name, "games") || !strcmp(e->d_name, "logs") ||
+                                            !strcmp(e->d_name, "location.txt"))))
+            continue;
+        char a[PSXS5_PATH_MAX], b[PSXS5_PATH_MAX];
+        path_join(a, sizeof(a), from, e->d_name);
+        path_join(b, sizeof(b), to, e->d_name);
+        if (path_is_dir(a))
+            copy_tree(a, b, false);
+        else if (!path_exists(b)) /* never over what is already there */
+            file_copy(a, b);
+    }
+    closedir(d);
+}
+
+/* Cross on Data location: the next place that is there and writable */
+void app_next_data_location(void)
+{
+    if (app.sandboxed)
+    {
+        app_toast("Unlock /data first: PSXS5 can't reach other drives while sandboxed");
+        return;
+    }
+    const char *current = app.location_next[0] ? app.location_next : app.paths.root;
+    /* the choices in order: the console, then each drive's PSXS5 folder */
+    char choices[1 + sizeof(DATA_DRIVES) / sizeof(DATA_DRIVES[0])][PSXS5_PATH_MAX];
+    int count = 0, at = 0;
+    str_copy(choices[count++], PSXS5_PATH_MAX, app.home_root);
+    for (size_t i = 0; i < sizeof(DATA_DRIVES) / sizeof(DATA_DRIVES[0]); ++i)
+        if (path_is_dir(DATA_DRIVES[i]))
+            path_join(choices[count++], PSXS5_PATH_MAX, DATA_DRIVES[i], "PSXS5");
+    for (int i = 0; i < count; ++i)
+        if (!strcmp(choices[i], current))
+            at = i;
+    for (int step = 1; step < count; ++step)
+    {
+        const char *next = choices[(at + step) % count];
+        if (!dir_writable(next))
+            continue;
+        copy_tree(app.paths.root, next, true); /* settings, saves, states, covers... */
+        char file[PSXS5_PATH_MAX];
+        location_file(file, sizeof(file));
+        FILE *f = fopen(file, "w");
+        if (f)
+        {
+            fprintf(f, "%s\n", next);
+            fclose(f);
+        }
+        str_copy(app.location_next, sizeof(app.location_next), strcmp(next, app.paths.root) ? next : "");
+        psxs5_log("data location: %s from the next start", next);
+        app_toast(app.location_next[0] ? "Restart PSXS5 to use the new data location" : "Data location unchanged");
+        return;
+    }
+    app_toast("No other drive found: plug in a USB drive or extended storage");
+}
+
 /* USB drives and extended storage: games in PSXS5/, PSXS5/games/ or
  * data/PSXS5/games/ (the internal drive's layout), any of them */
 static const char *const MOUNTS[] = {"/mnt/usb0", "/mnt/usb1", "/mnt/usb2", "/mnt/usb3", "/mnt/usb4",
@@ -211,6 +321,13 @@ static void find_bios(void)
     path_join(app.paths.bios, sizeof(app.paths.bios), app.paths.root, "bios");
     if (dir_has_bios(app.paths.bios))
         return;
+    char home_bios[PSXS5_PATH_MAX];
+    path_join(home_bios, sizeof(home_bios), app.home_root, "bios");
+    if (dir_has_bios(home_bios)) /* the data moved to a drive; the BIOS stayed on the console */
+    {
+        str_copy(app.paths.bios, sizeof(app.paths.bios), home_bios);
+        return;
+    }
     for (int m = 0; m < MOUNT_COUNT; ++m)
         for (size_t b = 0; b < sizeof(MOUNT_BIOS) / sizeof(MOUNT_BIOS[0]); ++b)
         {
@@ -228,15 +345,19 @@ static void find_bios(void)
 void app_rescan(void)
 {
     static char mount_roots[MOUNT_COUNT * 3][PSXS5_PATH_MAX];
-    const char *roots[1 + MOUNT_COUNT * 3];
+    const char *roots[2 + MOUNT_COUNT * 3];
     int root_count = 0;
     roots[root_count++] = app.paths.games;
+    static char home_games[PSXS5_PATH_MAX];
+    path_join(home_games, sizeof(home_games), app.home_root, "games");
+    if (strcmp(home_games, app.paths.games) != 0) /* the data moved to a drive: the console's games still count */
+        roots[root_count++] = home_games;
     for (int m = 0; m < MOUNT_COUNT; ++m)
         for (int g = 0; g < 3; ++g)
         {
-            char *dir = mount_roots[root_count - 1];
+            char *dir = mount_roots[m * 3 + g];
             path_join(dir, PSXS5_PATH_MAX, MOUNTS[m], MOUNT_GAMES[g]);
-            if (strcmp(dir, app.paths.games) != 0) /* data root on this drive */
+            if (strcmp(dir, app.paths.games) != 0 && strcmp(dir, home_games) != 0) /* already listed */
                 roots[root_count++] = dir;
         }
     find_bios();
@@ -874,11 +995,14 @@ int main(void)
     plat_notify("PSXS5 " PSXS5_VERSION " starting...");
     char root[PSXS5_PATH_MAX];
     plat_default_root(root, sizeof(root));
+    str_copy(app.home_root, sizeof(app.home_root), root);
     config_paths(&app.paths, root);
 
     /* Unlock before SDL starts any thread: the HEN changes this process's
      * credentials, which Porpoise did not survive with threads running. */
     app.sandboxed = !plat_prepare_storage(app.sandbox_reason, sizeof(app.sandbox_reason));
+    if (!app.sandboxed)
+        use_data_location();
 
     if (!plat_init())
     {
@@ -944,6 +1068,13 @@ int main(void)
     if (app.global.update_check && !app.storage_error[0])
         update_check();
     shelf_init(app.global.last_game);
+    if (app.location_missing[0])
+    {
+        char msg[PSXS5_PATH_MAX + 64];
+        snprintf(msg, sizeof(msg), tr("%s isn't there: using the console's storage"), app.location_missing);
+        app_toast(msg);
+        psxs5_log("data location: %s missing, using %s", app.location_missing, app.paths.root);
+    }
     if (!app.storage_error[0])
         app_rescan();
     shelf_select_game(app.global.last_game);

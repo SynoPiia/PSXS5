@@ -776,6 +776,29 @@ def index_remote(host, port, fix_cues):
     print(f"  library.txt: {len(lines) - 2} games. Restart PSXS5 to see them.")
 
 
+def data_location(host: str, port: int) -> str:
+    """Where PSXS5 keeps its data: /data/PSXS5/location.txt names a drive when it moved."""
+    try:
+        ftp = ftp_connect(host, port)
+    except OSError:
+        return REMOTE_ROOT
+    buf = io.BytesIO()
+    try:
+        ftp.retrbinary(f"RETR {REMOTE_ROOT}/location.txt", buf.write)
+    except ftplib.all_errors:
+        return REMOTE_ROOT
+    finally:
+        try:
+            ftp.quit()
+        except ftplib.all_errors:
+            pass
+    where = buf.getvalue().decode("utf-8", "replace").strip()
+    if where and where != REMOTE_ROOT:
+        print(f"PSXS5's data is on {where} (Settings > System > Data location)")
+        return where
+    return REMOTE_ROOT
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["plan", "prepare", "upload", "sync", "covers", "cheats", "bios", "app",
@@ -800,7 +823,14 @@ def main() -> None:
     ap.add_argument("--host", help="PS5 IP address")
     ap.add_argument("--port", type=int, default=2121, help="etaHEN FTP port")
     ap.add_argument("--only", help="limit prepare to titles containing this text")
+    ap.add_argument("--root", help="PSXS5's folder on the PS5 (default: the one chosen in Settings > System > "
+                                   "Data location, else /data/PSXS5)")
     args = ap.parse_args()
+    global REMOTE_ROOT
+    if args.root:
+        REMOTE_ROOT = args.root.rstrip("/")
+    elif args.host and args.command not in ("plan", "prepare", "app"):
+        REMOTE_ROOT = data_location(args.host, args.port)
     if args.staging is None:
         # beside the games: same drive, so place() hard-links instead of copying
         args.staging = (args.source.resolve().parent if args.source else Path.home()) / "PSXS5_ready"

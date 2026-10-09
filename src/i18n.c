@@ -1209,6 +1209,23 @@ static const Entry ENTRIES[] = {
       "%s で保存されています：設定 > システムで選ぶと読み込めます"}},
     {{"Couldn't load slot %d", "Impossible de charger l'emplacement %d", "Não foi possível carregar a ranhura %d", "No se pudo cargar la ranura %d",
       "スロット%dを読み込めませんでした"}},
+    /* ---- 2.3: data location */
+    {{"Data location", "Emplacement des données", "Local dos dados", "Ubicación de los datos",
+      "データの保存場所"}},
+    {{"Where PSXS5 keeps its saves, states, settings, covers and downloads: the console's storage or an extended / USB drive (in its PSXS5 folder). Press Cross for the next one; your files are copied there, and it's used from the next start. Games stay where they are and are still found.", "Là où PSXS5 garde ses sauvegardes, états, réglages, jaquettes et téléchargements : le stockage de la console ou un disque étendu / USB (dans son dossier PSXS5). Croix pour passer au suivant ; vos fichiers y sont copiés, et il sert dès le prochain démarrage. Les jeux restent où ils sont et sont toujours trouvés.", "Onde o PSXS5 guarda gravações, estados, definições, capas e transferências: o armazenamento da consola ou uma unidade expandida / USB (na sua pasta PSXS5). Cruz para o seguinte; os seus ficheiros são copiados para lá, e é usado a partir do próximo arranque. Os jogos ficam onde estão e continuam a ser encontrados.", "Dónde guarda PSXS5 sus partidas, estados, ajustes, carátulas y descargas: el almacenamiento de la consola o una unidad ampliada / USB (en su carpeta PSXS5). Cruz para la siguiente; tus archivos se copian allí y se usa desde el próximo inicio. Los juegos se quedan donde están y se siguen encontrando.",
+      "PSXS5のセーブ、ステート、設定、カバー、ダウンロードの保存場所：本体ストレージか拡張／USBドライブ（そのPSXS5フォルダ）。×で次へ。ファイルはそこにコピーされ、次回の起動から使われます。ゲームはそのままの場所で見つかります。"}},
+    {{"%s (from the next start)", "%s (au prochain démarrage)", "%s (no próximo arranque)", "%s (desde el próximo inicio)",
+      "%s（次回の起動から）"}},
+    {{"%s isn't there: using the console's storage", "%s est introuvable : stockage de la console utilisé", "%s não está ligado: a usar o armazenamento da consola", "%s no está: se usa el almacenamiento de la consola",
+      "%s が見つかりません：本体ストレージを使います"}},
+    {{"Restart PSXS5 to use the new data location", "Redémarrez PSXS5 pour utiliser le nouvel emplacement", "Reinicie o PSXS5 para usar o novo local", "Reinicia PSXS5 para usar la nueva ubicación",
+      "新しい保存場所を使うにはPSXS5を再起動してください"}},
+    {{"Data location unchanged", "Emplacement inchangé", "Local sem alterações", "Ubicación sin cambios",
+      "保存場所は変わりません"}},
+    {{"No other drive found: plug in a USB drive or extended storage", "Aucun autre disque : branchez un disque USB ou un stockage étendu", "Nenhuma outra unidade: ligue uma unidade USB ou armazenamento expandido", "No hay otra unidad: conecta una unidad USB o almacenamiento ampliado",
+      "他のドライブがありません：USBドライブか拡張ストレージを接続してください"}},
+    {{"Unlock /data first: PSXS5 can't reach other drives while sandboxed", "Déverrouillez d'abord /data : PSXS5 n'atteint pas les autres disques en mode restreint", "Desbloqueie primeiro /data: em modo restrito o PSXS5 não chega a outras unidades", "Desbloquea primero /data: en modo restringido PSXS5 no llega a otras unidades",
+      "先に/dataのロックを解除してください：制限モードでは他のドライブに届きません"}},
 };
 
 #define ENTRY_COUNT (int)(sizeof(ENTRIES) / sizeof(ENTRIES[0]))

@@ -42,6 +42,9 @@ typedef struct
     bool sandboxed;           /* /data can't be listed: library.txt is the library */
     bool unlock_setting;      /* Settings > System > Unlock /data with etaHEN */
     char sandbox_reason[200];
+    char home_root[PSXS5_PATH_MAX];      /* /data/PSXS5: holds location.txt, read even when the data moved */
+    char location_next[PSXS5_PATH_MAX];  /* Settings > System > Data location, from the next start ("" = unchanged) */
+    char location_missing[PSXS5_PATH_MAX]; /* the chosen drive wasn't there at start */
     float dt;                 /* seconds since the last frame */
     float fps;                /* emulated frames per second */
     PadState pads[PSXS5_MAX_PADS]; /* this frame's controllers, as read (by player) */
@@ -57,6 +60,7 @@ void app_draw_game(uint8_t dim);
 void app_state_path(char *out, size_t size, int slot);
 void app_describe_bios(char *out, size_t size);
 void app_rescan(void);
+void app_next_data_location(void);
 void app_restart_covers(void);
 /* resume: continue from the quick-resume save */
 void app_start_game(int index, bool resume);
