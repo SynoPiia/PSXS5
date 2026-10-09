@@ -349,7 +349,9 @@ static void apply_swanstation_options(const Settings *s)
     static const char *const filters[] = {"Nearest", "Bilinear", "xBR", "xBR", "JINC2", "Bilinear"};
     int tf = s->texture_filter >= 0 && s->texture_filter <= 5 && !(game_fixes & GDB_NO_TEXTURE_FILTER) ? s->texture_filter : 0;
     set_option("swanstation_GPU_TextureFilter", filters[tf]);
-    set_option("swanstation_GPU_DownsampleMode", s->supersampling ? "Box" : "Disabled");
+    /* off: it brings the upscaled picture back down to the PS1's own resolution
+     * (fuzzy); PSXS5's supersampling works on the screen for every emulator */
+    set_option("swanstation_GPU_DownsampleMode", "Disabled");
     set_option("swanstation_GPU_DisableInterlacing", s->deinterlace || (game_fixes & GDB_DEINTERLACE) ? "true" : "false");
     set_option("swanstation_GPU_ForceNTSCTimings", s->pal60 ? "true" : "false");
     static const char *const cpu[] = {"100", "150", "200"};
