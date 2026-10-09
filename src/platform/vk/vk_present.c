@@ -128,7 +128,6 @@ static struct
     /* frame generation (fg_bridge.h): the game drawn into the interpolator's frame,
      * the frame halfway to the previous one shown first, then this one */
     bool fg_wanted;       /* Settings > Display > Frame generation */
-    bool fg_high_refresh; /* asked before the screen opened: the 120 Hz mode */
     FgInterpolator *fg;
     uint32_t fg_w, fg_h;
     VkRenderPass fg_pass;
@@ -270,9 +269,9 @@ static bool create_surface(char *error, size_t size)
     /* 60 Hz; 120 for frame generation when it was on at start and the TV has it */
     if (at60 >= 0)
         best = at60;
-    if (V.fg_high_refresh && at120 >= 0)
+    if (want_high_refresh && at120 >= 0)
         best = at120;
-    else if (V.fg_high_refresh)
+    else if (want_high_refresh)
         psxs5_log("vulkan: no 120 Hz mode (frame generation needs a 120 Hz TV)");
     if (best < 0)
     {
@@ -327,7 +326,7 @@ static bool create_surface(char *error, size_t size)
     int at = snprintf(V.description, sizeof(V.description), "%ux%u @ %.2f Hz%s; modes:",
                       mode->parameters.visibleRegion.width, mode->parameters.visibleRegion.height,
                       mode->parameters.refreshRate / 1000.0,
-                      V.fg_high_refresh ? (at120 >= 0 ? " (frame generation: 120 Hz)" : " (frame generation: no 120 Hz mode)") : "");
+                      want_high_refresh ? (at120 >= 0 ? " (frame generation: 120 Hz)" : " (frame generation: no 120 Hz mode)") : "");
     for (uint32_t i = 0; i < mode_count && at > 0 && at < (int)sizeof(V.description) - 24; ++i)
         at += snprintf(V.description + at, sizeof(V.description) - at, " %ux%u@%.0f", modes[i].parameters.visibleRegion.width,
                        modes[i].parameters.visibleRegion.height, modes[i].parameters.refreshRate / 1000.0);
@@ -747,9 +746,12 @@ void vkp_set_framegen(bool on)
     V.fg_wanted = on;
 }
 
+/* asked before the screen opens (vkp_open clears V): the 120 Hz mode */
+static bool want_high_refresh;
+
 void vkp_want_high_refresh(bool on)
 {
-    V.fg_high_refresh = on;
+    want_high_refresh = on;
 }
 
 static void fg_free(void)
