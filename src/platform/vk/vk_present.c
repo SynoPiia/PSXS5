@@ -143,6 +143,9 @@ static struct
     bool fg_failed;
 } V;
 
+/* asked before the screen opens (vkp_open clears V): frame generation's 120 Hz mode */
+static bool want_high_refresh;
+
 const char *vkp_describe(void)
 {
     return V.description;
@@ -745,9 +748,6 @@ void vkp_set_framegen(bool on)
 {
     V.fg_wanted = on;
 }
-
-/* asked before the screen opens (vkp_open clears V): the 120 Hz mode */
-static bool want_high_refresh;
 
 void vkp_want_high_refresh(bool on)
 {
