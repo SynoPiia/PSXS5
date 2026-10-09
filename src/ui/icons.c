@@ -66,7 +66,15 @@ static IconAtlas *atlas_for(float size)
         if (atlases[i].px == px)
             return &atlases[i];
     if (atlas_count == MAX_SIZES)
-        return &atlases[atlas_count - 1];
+    {
+        /* every size taken: the nearest one, scaled by icon_draw (it was the last
+         * one made, whatever its size: the PSXS5 menu's icons came out huge) */
+        IconAtlas *best = &atlases[0];
+        for (int i = 1; i < atlas_count; ++i)
+            if (abs(atlases[i].px - px) < abs(best->px - px))
+                best = &atlases[i];
+        return best;
+    }
 
     IconAtlas *a = &atlases[atlas_count];
     a->px = px;
@@ -114,7 +122,8 @@ void icon_draw(int icon, float x, float y, float size, uint32_t argb)
     if (index < 0)
         return;
     const stbtt_packedchar *g = &a->chars[index];
-    float gw = g->xoff2 - g->xoff, gh = g->yoff2 - g->yoff;
+    float k = size / (float)a->px; /* 1 unless the atlas is another size */
+    float gw = (g->xoff2 - g->xoff) * k, gh = (g->yoff2 - g->yoff) * k;
     if (gw <= 0 || gh <= 0)
         return;
     /* centred in the size x size box */

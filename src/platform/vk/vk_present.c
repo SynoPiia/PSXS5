@@ -114,7 +114,7 @@ static struct
     VkSemaphore acquired[FRAMES];
     int frame;
     bool canvas_ready;
-    char description[64];
+    char description[320]; /* the mode in use, then every mode offered (for the log) */
     /* the game picture of a core rendering through Vulkan */
     VkDescriptorSet game_sets[FRAMES];
     VkImageView game_view;
@@ -324,9 +324,13 @@ static bool create_surface(char *error, size_t size)
     info.imageExtent = mode->parameters.visibleRegion;
     CHECK(vkCreateDisplayPlaneSurfaceKHR(V.instance, &info, NULL, &V.surface),
           "vkCreateDisplayPlaneSurfaceKHR");
-    snprintf(V.description, sizeof(V.description), "%ux%u @ %.2f Hz",
-             mode->parameters.visibleRegion.width, mode->parameters.visibleRegion.height,
-             mode->parameters.refreshRate / 1000.0);
+    int at = snprintf(V.description, sizeof(V.description), "%ux%u @ %.2f Hz%s; modes:",
+                      mode->parameters.visibleRegion.width, mode->parameters.visibleRegion.height,
+                      mode->parameters.refreshRate / 1000.0,
+                      V.fg_high_refresh ? (at120 >= 0 ? " (frame generation: 120 Hz)" : " (frame generation: no 120 Hz mode)") : "");
+    for (uint32_t i = 0; i < mode_count && at > 0 && at < (int)sizeof(V.description) - 24; ++i)
+        at += snprintf(V.description + at, sizeof(V.description) - at, " %ux%u@%.0f", modes[i].parameters.visibleRegion.width,
+                       modes[i].parameters.visibleRegion.height, modes[i].parameters.refreshRate / 1000.0);
     return true;
 }
 

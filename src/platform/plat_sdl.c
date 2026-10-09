@@ -59,7 +59,7 @@ const char *plat_init_error(void)
     return init_error;
 }
 
-static char screen_info[256] = "SDL window";
+static char screen_info[400] = "SDL window";
 
 const char *plat_screen_info(void)
 {
