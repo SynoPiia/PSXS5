@@ -1051,6 +1051,24 @@ static float colour_k[3] = {1.0f, 1.0f, 0.0f}; /* brightness, saturation, warmth
 static bool colour_on;
 static uint8_t colour_lut[3][256]; /* per channel: brightness and warmth */
 
+void plat_set_framegen(bool on)
+{
+#if defined(__PROSPERO__)
+    vkp_set_framegen(on);
+#else
+    (void)on;
+#endif
+}
+
+void plat_want_high_refresh(bool on)
+{
+#if defined(__PROSPERO__)
+    vkp_want_high_refresh(on);
+#else
+    (void)on;
+#endif
+}
+
 void plat_set_colour(int brightness, int colour, int sharpen)
 {
     static int last_b = -1, last_c = -1, last_s = -1;

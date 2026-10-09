@@ -22,6 +22,7 @@
 #if defined(PSXS5_VULKAN)
 
 #include "../../psxs5.h"
+#include "fg_bridge.h"
 #include "shaders_spv.h"
 
 #include <stdio.h>
@@ -124,6 +125,23 @@ static struct
     float game_crop; /* share of the picture's height hidden at top and bottom */
     int game_shader;  /* 0 none, 1 sharp bilinear, 2 CRT */
     float game_tex[2], game_lines;
+    /* frame generation (fg_bridge.h): the game drawn into the interpolator's frame,
+     * the frame halfway to the previous one shown first, then this one */
+    bool fg_wanted;       /* Settings > Display > Frame generation */
+    bool fg_high_refresh; /* asked before the screen opened: the 120 Hz mode */
+    FgInterpolator *fg;
+    uint32_t fg_w, fg_h;
+    VkRenderPass fg_pass;
+    VkImageView fg_views[2]; /* the interpolator's two frames, and their framebuffers */
+    VkFramebuffer fg_fbs[2];
+    VkDescriptorSet fg_sets[FRAMES];
+    VkImageView fg_real;  /* the game's last frame, shown after the generated one */
+    bool fg_have, fg_reset;
+    bool game_new;        /* the core gave a frame since the last refresh */
+    uint64_t refresh, last_new;
+    uint8_t intervals[8]; /* refreshes between the core's last frames */
+    int interval_at;
+    bool fg_failed;
 } V;
 
 const char *vkp_describe(void)
@@ -235,19 +253,27 @@ static bool create_surface(char *error, size_t size)
     VkDisplayModePropertiesKHR modes[16];
     uint32_t mode_count = 16;
     vkGetDisplayModePropertiesKHR(V.gpu, display.display, &mode_count, modes);
-    int best = -1;
+    int best = -1, at60 = -1, at120 = -1;
     for (uint32_t i = 0; i < mode_count; ++i)
     {
         const VkDisplayModeParametersKHR *p = &modes[i].parameters;
         psxs5_log("vulkan: display mode %ux%u @ %.2f Hz", p->visibleRegion.width,
                   p->visibleRegion.height, p->refreshRate / 1000.0);
         bool size_ok = p->visibleRegion.width == (uint32_t)V.cw && p->visibleRegion.height == (uint32_t)V.ch;
-        bool rate_ok = p->refreshRate >= 59000 && p->refreshRate <= 61000;
-        if (size_ok && rate_ok)
-            best = (int)i;
-        else if (size_ok && best < 0)
+        if (size_ok && p->refreshRate >= 59000 && p->refreshRate <= 61000)
+            at60 = (int)i;
+        if (size_ok && p->refreshRate >= 119000 && p->refreshRate <= 121000)
+            at120 = (int)i;
+        if (size_ok && best < 0)
             best = (int)i;
     }
+    /* 60 Hz; 120 for frame generation when it was on at start and the TV has it */
+    if (at60 >= 0)
+        best = at60;
+    if (V.fg_high_refresh && at120 >= 0)
+        best = at120;
+    else if (V.fg_high_refresh)
+        psxs5_log("vulkan: no 120 Hz mode (frame generation needs a 120 Hz TV)");
     if (best < 0)
     {
         if (mode_count == 0)
@@ -640,6 +666,7 @@ static bool create_canvas(char *error, size_t size)
     da.descriptorSetCount = FRAMES;
     da.pSetLayouts = layouts;
     CHECK(vkAllocateDescriptorSets(V.device, &da, V.game_sets), "game descriptors");
+    CHECK(vkAllocateDescriptorSets(V.device, &da, V.fg_sets), "frame generation descriptors");
 
     VkCommandPoolCreateInfo cp = {VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     cp.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -692,16 +719,196 @@ void vkp_set_colour(float brightness, float saturation, float warmth, float shar
     colour_k[3] = sharpen;
 }
 
-static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
-                      float v1, const float info[4], const float colour[4])
+static void draw_quad_in(VkCommandBuffer cb, VkDescriptorSet set, float tw, float th, float x, float y, float w,
+                         float h, float v0, float v1, const float info[4], const float colour[4])
 {
-    float k[16] = {x / V.extent.width * 2.0f - 1.0f, y / V.extent.height * 2.0f - 1.0f,
-                   (x + w) / V.extent.width * 2.0f - 1.0f, (y + h) / V.extent.height * 2.0f - 1.0f,
+    float k[16] = {x / tw * 2.0f - 1.0f, y / th * 2.0f - 1.0f, (x + w) / tw * 2.0f - 1.0f, (y + h) / th * 2.0f - 1.0f,
                    0.0f, v0, 1.0f, v1, info[0], info[1], info[2], info[3],
                    colour[0], colour[1], colour[2], colour[3]};
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.layout, 0, 1, &set, 0, NULL);
     vkCmdPushConstants(cb, V.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(k), k);
     vkCmdDraw(cb, 6, 1, 0, 0);
+}
+
+static void draw_quad(VkCommandBuffer cb, VkDescriptorSet set, float x, float y, float w, float h, float v0,
+                      float v1, const float info[4], const float colour[4])
+{
+    draw_quad_in(cb, set, (float)V.extent.width, (float)V.extent.height, x, y, w, h, v0, v1, info, colour);
+}
+
+/* ---------------------------------------------------------------- frame generation */
+
+void vkp_set_framegen(bool on)
+{
+    V.fg_wanted = on;
+}
+
+void vkp_want_high_refresh(bool on)
+{
+    V.fg_high_refresh = on;
+}
+
+static void fg_free(void)
+{
+    for (int i = 0; i < 2; ++i)
+    {
+        if (V.fg_fbs[i])
+            vkDestroyFramebuffer(V.device, V.fg_fbs[i], NULL);
+        V.fg_fbs[i] = VK_NULL_HANDLE;
+        V.fg_views[i] = VK_NULL_HANDLE;
+    }
+    psxs5_fg_destroy(V.fg);
+    V.fg = NULL;
+    V.fg_have = false;
+    V.fg_real = VK_NULL_HANDLE;
+}
+
+/* The interpolator for frames of w x h (the picture's size on screen) */
+static bool fg_ready(uint32_t w, uint32_t h)
+{
+    if (V.fg && V.fg_w == w && V.fg_h == h)
+        return true;
+    if (V.fg_failed)
+        return false;
+    vkDeviceWaitIdle(V.device);
+    fg_free();
+    if (!V.fg_pass)
+    {
+        VkAttachmentDescription color = {0};
+        color.format = V.format;
+        color.samples = VK_SAMPLE_COUNT_1_BIT;
+        color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color.finalLayout = VK_IMAGE_LAYOUT_GENERAL; /* the interpolator's frames stay in GENERAL */
+        VkAttachmentReference ref = {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+        VkSubpassDescription subpass = {0};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &ref;
+        VkRenderPassCreateInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+        rp.attachmentCount = 1;
+        rp.pAttachments = &color;
+        rp.subpassCount = 1;
+        rp.pSubpasses = &subpass;
+        if (vkCreateRenderPass(V.device, &rp, NULL, &V.fg_pass) != VK_SUCCESS)
+        {
+            V.fg_pass = VK_NULL_HANDLE;
+            V.fg_failed = true;
+            psxs5_log("framegen: no render pass");
+            return false;
+        }
+    }
+    char error[160] = "";
+    V.fg = psxs5_fg_create(vkGetInstanceProcAddr, V.instance, V.gpu, V.device, w, h, V.format, error, sizeof(error));
+    if (!V.fg)
+    {
+        V.fg_failed = true; /* not again until the device changes */
+        psxs5_log("framegen: can't start (%s)", error);
+        return false;
+    }
+    V.fg_w = w;
+    V.fg_h = h;
+    V.fg_reset = true;
+    psxs5_log("framegen: %ux%u frames", w, h);
+    return true;
+}
+
+static VkFramebuffer fg_framebuffer(VkImageView view)
+{
+    for (int i = 0; i < 2; ++i)
+        if (V.fg_views[i] == view)
+            return V.fg_fbs[i];
+    int slot = V.fg_views[0] ? 1 : 0;
+    if (V.fg_fbs[slot])
+        vkDestroyFramebuffer(V.device, V.fg_fbs[slot], NULL);
+    VkFramebufferCreateInfo fb = {VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
+    fb.renderPass = V.fg_pass;
+    fb.attachmentCount = 1;
+    fb.pAttachments = &view;
+    fb.width = V.fg_w;
+    fb.height = V.fg_h;
+    fb.layers = 1;
+    V.fg_fbs[slot] = VK_NULL_HANDLE;
+    if (vkCreateFramebuffer(V.device, &fb, NULL, &V.fg_fbs[slot]) != VK_SUCCESS)
+        return VK_NULL_HANDLE;
+    V.fg_views[slot] = view;
+    return V.fg_fbs[slot];
+}
+
+/* Frames are made while the core's frames come steadily every second refresh
+ * (a 60 fps game on a 120 Hz screen): 7 of the last 8 */
+static bool fg_engaged(void)
+{
+    int even = 0;
+    for (int i = 0; i < 8; ++i)
+        even += V.intervals[i] == 2;
+    return even >= 7;
+}
+
+static void point_set(VkDescriptorSet set, VkImageView view, VkImageLayout layout)
+{
+    VkDescriptorImageInfo di = {V.sampler, view, layout};
+    VkWriteDescriptorSet w = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    w.dstSet = set;
+    w.descriptorCount = 1;
+    w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    w.pImageInfo = &di;
+    vkUpdateDescriptorSets(V.device, 1, &w, 0, NULL);
+}
+
+/* The game into the interpolator's frame with the picture's shader (not its colours),
+ * then the frame halfway to the previous one. Returns the view to show this refresh. */
+static VkImageView fg_new_frame(VkCommandBuffer cb, int f)
+{
+    if (V.fg_have)
+        psxs5_fg_advance(V.fg); /* the frame shown last becomes the previous one */
+    psxs5_fg_prepare(V.fg, cb);
+    VkImageView target = psxs5_fg_frame_view(V.fg);
+    VkFramebuffer fb = fg_framebuffer(target);
+    if (!fb)
+        return VK_NULL_HANDLE;
+    VkClearValue clear = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    VkRenderPassBeginInfo rp = {VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
+    rp.renderPass = V.fg_pass;
+    rp.framebuffer = fb;
+    rp.renderArea.extent.width = V.fg_w;
+    rp.renderArea.extent.height = V.fg_h;
+    rp.clearValueCount = 1;
+    rp.pClearValues = &clear;
+    vkCmdBeginRenderPass(cb, &rp, VK_SUBPASS_CONTENTS_INLINE);
+    VkViewport viewport = {0, 0, (float)V.fg_w, (float)V.fg_h, 0, 1};
+    VkRect2D scissor = {{0, 0}, {V.fg_w, V.fg_h}};
+    vkCmdSetViewport(cb, 0, 1, &viewport);
+    vkCmdSetScissor(cb, 0, 1, &scissor);
+    int sh = V.game_shader;
+    VkPipeline pipe = sh >= 1 && sh <= 3 && V.shaded[sh - 1] ? V.shaded[sh - 1] : V.opaque;
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
+    float shown = 1.0f - 2.0f * V.game_crop;
+    float info[4] = {V.game_tex[0], V.game_tex[1],
+                     sh == 2 ? V.game_lines * shown : V.fg_w / (V.game_tex[0] > 0 ? V.game_tex[0] : 1),
+                     V.fg_h / (V.game_tex[1] * shown > 0 ? V.game_tex[1] * shown : 1)};
+    static const float plain[4] = {1, 1, 0, 0}; /* the colours come after, on the screen */
+    draw_quad_in(cb, V.game_sets[f], (float)V.fg_w, (float)V.fg_h, 0, 0, (float)V.fg_w, (float)V.fg_h, V.game_crop,
+                 1.0f - V.game_crop, info, plain);
+    vkCmdEndRenderPass(cb);
+    VkMemoryBarrier mb = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+    mb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &mb, 0, NULL, 0,
+                         NULL);
+    bool made = psxs5_fg_record(V.fg, cb, V.fg_reset || !V.fg_have);
+    V.fg_reset = false;
+    V.fg_have = true;
+    V.fg_real = target;
+    mb.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+    mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &mb, 0, NULL, 0, NULL);
+    return made ? psxs5_fg_output_view(V.fg) : target;
 }
 
 void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
@@ -754,6 +961,23 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
 
     bool game = V.game_shown && V.game_view;
     V.game_shown = false;
+    /* frame generation: is the core's frame new this refresh, and are they steady? */
+    ++V.refresh;
+    bool fresh = V.game_new;
+    V.game_new = false;
+    if (fresh)
+    {
+        uint64_t gap = V.refresh - V.last_new;
+        V.intervals[V.interval_at] = (uint8_t)(gap > 255 ? 255 : gap);
+        V.interval_at = (V.interval_at + 1) % 8;
+        V.last_new = V.refresh;
+    }
+    float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
+    uint32_t want_w = (uint32_t)(V.game_rect[2] * kx + 0.5f), want_h = (uint32_t)(V.game_rect[3] * ky + 0.5f);
+    bool fg = game && V.fg_wanted && fg_engaged() && want_w >= 16 && want_h >= 16 && fg_ready(want_w, want_h);
+    if (!fg && V.fg_have)
+        V.fg_reset = true; /* it starts over when it comes back */
+    VkImageView fg_show = VK_NULL_HANDLE;
     if (game)
     {
         /* the core's rendering on this queue, finished before we sample it */
@@ -769,6 +993,12 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
         w.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         w.pImageInfo = &di;
         vkUpdateDescriptorSets(V.device, 1, &w, 0, NULL);
+        if (fg)
+        {
+            fg_show = fresh || !V.fg_real ? fg_new_frame(cb, f) : V.fg_real;
+            if (fg_show)
+                point_set(V.fg_sets[f], fg_show, VK_IMAGE_LAYOUT_GENERAL);
+        }
     }
 
     VkClearValue clear = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
@@ -783,11 +1013,19 @@ void vkp_present(const uint32_t *pixels, size_t pitch_bytes)
     VkRect2D scissor = {{0, 0}, V.extent};
     vkCmdSetViewport(cb, 0, 1, &viewport);
     vkCmdSetScissor(cb, 0, 1, &scissor);
-    if (game)
+    if (game && fg_show)
+    {
+        /* frame generation: the interpolator's frame (its shader already applied), with the colours */
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.opaque);
+        float info[4] = {(float)V.fg_w, (float)V.fg_h, 1.0f, 1.0f};
+        draw_quad(cb, V.fg_sets[f], V.game_rect[0] * kx, V.game_rect[1] * ky, V.game_rect[2] * kx, V.game_rect[3] * ky,
+                  0.0f, 1.0f, info, colour_k);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, V.blended);
+    }
+    else if (game)
     {
         /* the game picture, then the interface over it: the canvas is
          * transparent (premultiplied) where the game shows */
-        float kx = (float)V.extent.width / V.cw, ky = (float)V.extent.height / V.ch;
         int sh = V.game_shader;
         VkPipeline pipe = sh >= 1 && sh <= 3 && V.shaded[sh - 1] ? V.shaded[sh - 1] : V.opaque;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe);
@@ -833,6 +1071,13 @@ static void destroy_device_objects(void)
     if (!V.device)
         return;
     vkDeviceWaitIdle(V.device);
+    fg_free();
+    if (V.fg_pass)
+        vkDestroyRenderPass(V.device, V.fg_pass, NULL);
+    V.fg_pass = VK_NULL_HANDLE;
+    V.fg_failed = false;
+    for (int f = 0; f < FRAMES; ++f)
+        V.fg_sets[f] = VK_NULL_HANDLE;
     for (int f = 0; f < FRAMES; ++f)
     {
         if (V.done[f])
@@ -956,6 +1201,8 @@ bool vkp_adopt_device(VkDevice device, VkQueue queue, uint32_t family, char *err
 
 void vkp_set_game_image(VkImage image, VkImageView view, VkImageLayout layout)
 {
+    if (view)
+        V.game_new = true; /* frame generation counts the core's frames */
     V.game_image = image;
     V.game_view = view;
     V.game_layout = layout;

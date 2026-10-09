@@ -1226,6 +1226,11 @@ static const Entry ENTRIES[] = {
       "他のドライブがありません：USBドライブか拡張ストレージを接続してください"}},
     {{"Unlock /data first: PSXS5 can't reach other drives while sandboxed", "Déverrouillez d'abord /data : PSXS5 n'atteint pas les autres disques en mode restreint", "Desbloqueie primeiro /data: em modo restrito o PSXS5 não chega a outras unidades", "Desbloquea primero /data: en modo restringido PSXS5 no llega a otras unidades",
       "先に/dataのロックを解除してください：制限モードでは他のドライブに届きません"}},
+    /* ---- 2.3: frame generation */
+    {{"Frame generation", "Génération d'images", "Geração de fotogramas", "Generación de fotogramas",
+      "フレーム生成"}},
+    {{"Experimental, for a 120 Hz TV: a frame is made between two of the game's, so a 60 fps game is shown at 120. Beetle PSX HW and SwanStation. Adds about a frame of lag, and fast movement can smear a little. The 120 Hz mode starts with PSXS5: restart it after turning this on.", "Expérimental, pour une TV 120 Hz : une image est créée entre deux images du jeu, un jeu à 60 i/s est affiché à 120. Beetle PSX HW et SwanStation. Ajoute environ une image de latence, et les mouvements rapides peuvent baver un peu. Le mode 120 Hz démarre avec PSXS5 : relancez-le après l'avoir activé.", "Experimental, para uma TV de 120 Hz: é criado um fotograma entre dois do jogo, e um jogo a 60 fps é mostrado a 120. Beetle PSX HW e SwanStation. Acrescenta cerca de um fotograma de atraso, e movimentos rápidos podem borrar um pouco. O modo de 120 Hz começa com o PSXS5: reinicie-o depois de o ligar.", "Experimental, para una TV de 120 Hz: se crea un fotograma entre dos del juego, y un juego a 60 fps se muestra a 120. Beetle PSX HW y SwanStation. Añade cerca de un fotograma de retraso, y los movimientos rápidos pueden emborronarse un poco. El modo de 120 Hz empieza con PSXS5: reinícialo después de activarlo.",
+      "実験的・120Hzテレビ向け：ゲームの2フレームの間に1フレームを作り、60fpsのゲームを120で表示します。Beetle PSX HWとSwanStation。約1フレームの遅延が増え、速い動きが少しにじむことがあります。120Hzモードは起動時に始まります：オンにした後はPSXS5を再起動してください。"}},
 };
 
 #define ENTRY_COUNT (int)(sizeof(ENTRIES) / sizeof(ENTRIES[0]))

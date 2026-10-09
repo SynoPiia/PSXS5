@@ -537,6 +537,7 @@ void app_draw_game(uint8_t dim)
         }
     }
     plat_set_colour(view.brightness, view.colour, view.sharpen);
+    plat_set_framegen(app.global.framegen);
     plat_draw_game(&view, host_aspect(), dim);
     bezel_draw(&view, dim);
     if (app.screen == SCREEN_GAME)
@@ -1003,6 +1004,8 @@ int main(void)
     app.sandboxed = !plat_prepare_storage(app.sandbox_reason, sizeof(app.sandbox_reason));
     if (!app.sandboxed)
         use_data_location();
+    /* frame generation wants the 120 Hz mode, chosen when the screen opens */
+    plat_want_high_refresh(config_peek_bool(app.paths.config, "framegen"));
 
     if (!plat_init())
     {

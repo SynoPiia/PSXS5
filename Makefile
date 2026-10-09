@@ -26,8 +26,10 @@ PSXS5_BEETLE := build/beetle-ps5/libbeetle_psx.a
 # SwanStation (libretro's DuckStation fork), built by tools/build-swanstation.sh;
 # the PS5 port of it is darkxex's SwanStationPS5 (GPL-3.0)
 PSXS5_SWANSTATION := build/swanstation-ps5/libswanstation.a
+# Frame generation (AMD FSR 3's frame interpolation, from PS5SX2), built by tools/build-framegen.sh
+PSXS5_FRAMEGEN := build/framegen-ps5/libframegen.a
 endif
-APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS) $(PSXS5_BEETLE) $(PSXS5_SWANSTATION)
+APP_STATIC_ARCHIVES ?= $(PSXS5_CORE) $(PSXS5_RCHEEVOS) $(PSXS5_BEETLE) $(PSXS5_SWANSTATION) $(PSXS5_FRAMEGEN)
 APP_RUNTIME_MODULES ?=
 # fcntl: console_curl. The allocator family: ps5_heap.c (the C heap is too small).
 APP_WRAP_SYMBOLS ?= fcntl malloc free calloc realloc reallocf memalign posix_memalign aligned_alloc malloc_usable_size
@@ -263,6 +265,7 @@ ifeq ($(APP_VULKAN),1)
 	@bash tools/build-beetle.sh
 	@bash tools/fetch-radv.sh
 	@bash tools/build-swanstation.sh
+	@bash tools/build-framegen.sh
 endif
 
 core-desktop:

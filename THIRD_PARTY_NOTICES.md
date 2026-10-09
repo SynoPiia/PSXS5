@@ -152,6 +152,8 @@ No proprietary runtime module, encryption key, or game file is included.
 | [PCSX-ReARMed](https://github.com/libretro/pcsx_rearmed) | PlayStation emulation core (`third_party/pcsx_rearmed`) | GPL-2.0-or-later, parts LGPL-2.1-or-later |
 | [SwanStation](https://github.com/libretro/swanstation) (libretro's fork of [DuckStation](https://github.com/stenzek/duckstation)) | PlayStation emulation core (`third_party/swanstation`), patched by `tools/patches/swanstation-*.patch` | GPL-3.0 |
 | [SwanStationPS5](https://github.com/darkxex/SwanStationPS5) by darkxex | the PS5 port of SwanStation PSXS5 builds on: `tools/build-swanstation.sh`, `tools/swanstation-archive.mk` and its patches | GPL-3.0 |
+| Frame generation from [PS5SX2](https://github.com/Swordpdf/PS5SX2) by Swordpdf (from his RPCS3-PS5 / ps5-framegen) | frame interpolation on Vulkan (`third_party/framegen`) | GPL-3.0-or-later |
+| [AMD FidelityFX SDK](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK) 2.3.0 (FSR 3 optical flow and frame interpolation) | the frame generation shaders (`third_party/framegen/framegen`) | MIT (`third_party/framegen/framegen/LICENSE.txt`) |
 | [stb_image, stb_truetype](https://github.com/nothings/stb) | cover decoding, font rendering (`third_party/stb`) | Public domain / MIT |
 | [Inter](https://github.com/rsms/inter) | interface font (`assets/fonts`) | SIL Open Font License 1.1 (`assets/fonts/OFL.txt`) |
 | [xlenore/psx-covers](https://github.com/xlenore/psx-covers) | cover art, downloaded at runtime by serial; not bundled | see that repository |

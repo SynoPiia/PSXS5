@@ -25,6 +25,8 @@ bool vkp_game_image_ready(void);
 /* shader: 0 none, 1 sharp bilinear, 2 CRT, 3 supersampling (averaged down); tex_*: the picture's size; lines: the PS1's */
 /* The game picture's colours (1, 1, 0: unchanged) and sharpening (0 none .. 1). */
 void vkp_set_colour(float brightness, float saturation, float warmth, float sharpen);
+void vkp_set_framegen(bool on);       /* Settings > Display > Frame generation */
+void vkp_want_high_refresh(bool on);  /* before vkp_open: the 120 Hz mode */
 void vkp_show_game(float x, float y, float w, float h, float crop, int shader, int tex_w, int tex_h, int lines);
 
 #endif
