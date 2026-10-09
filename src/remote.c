@@ -627,7 +627,12 @@ static void serve(int fd)
         if (page)
             respond(fd, "200 OK", "text/html; charset=utf-8", page, len);
         else
+        {
+            char where[PSXS5_PATH_MAX];
+            plat_asset_path(where, sizeof(where), "remote.html");
+            psxs5_log("remote: the page isn't at %s", where);
             respond(fd, "404 Not Found", "text/plain", "missing page", 12);
+        }
         free(page);
     }
     else if (!strcmp(path, "/api/settings"))

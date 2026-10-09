@@ -1679,7 +1679,9 @@ void plat_asset_path(char *out, size_t size, const char *relative)
     static const char *const bases[] = {"/app0/assets", "/system_ex/app/PPSA97510/assets",
                                         "/data/homebrew/PPSA97510/assets"};
     static int chosen = -1;
-    if (chosen < 0)
+    /* looked for again when the one found is gone: /app0 disappears when the HEN
+     * frees PSXS5 after start (etaHEN), and the phone page, read on demand, was missing */
+    if (chosen < 0 || !path_is_dir(bases[chosen]))
     {
         chosen = 0;
         for (int i = 0; i < 3; ++i)
