@@ -6,7 +6,7 @@
 
 <p align="center">
   <img alt="Platform: jailbroken PS5" src="https://img.shields.io/badge/platform-jailbroken%20PS5-3d55c8">
-  <img alt="Beetle PSX HW and PCSX-ReARMed" src="https://img.shields.io/badge/emulation-Beetle%20PSX%20HW%20%7C%20PCSX--ReARMed-5a6fe0">
+  <img alt="Beetle PSX HW, SwanStation and PCSX-ReARMed" src="https://img.shields.io/badge/emulation-Beetle%20PSX%20HW%20%7C%20SwanStation%20%7C%20PCSX--ReARMed-5a6fe0">
   <img alt="Vulkan" src="https://img.shields.io/badge/GPU-Vulkan%20up%20to%2016x-c83d5a">
   <img alt="RetroAchievements" src="https://img.shields.io/badge/RetroAchievements-supported-f0b429">
   <img alt="Licence: GPL-3.0-or-later" src="https://img.shields.io/badge/licence-GPL--3.0--or--later-2b2f7a">
@@ -78,7 +78,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
   - Or pick one by hand: on the shelf press **Triangle** (Details), then **Square**, and choose any image from `covers/` or the game's folder.
 - **Plays every common format.** `.cue`/`.bin`, `.chd`, `.pbp` (including multi-disc), `.iso`, `.img`, `.mdf`, `.ccd` and `.m3u` playlists for multi-disc games.
 - **Sharp on a 4K TV.**
-  - Internal resolution: native up to 16x with Beetle PSX HW, up to 2x with PCSX-ReARMed.
+  - Internal resolution: native up to 16x with Beetle PSX HW and SwanStation, up to 2x with PCSX-ReARMed.
   - Upscale: 1x to 4x, with three filters:
     - Sharp pixels
     - Smooth pixels (Scale2x/3x)
@@ -119,7 +119,7 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
 
 ## Getting started
 
-1. **Download** the `PSXS5-v*.zip` from the [latest release](../../releases/latest) and extract it. Inside is a `PPSA97510` folder and the PC tools.
+1. **Download** the `PSXS5-v*.zip` from the [newest release](../../releases) (the top one) and extract it. Inside is a `PPSA97510` folder and the PC tools.
 2. **Install the app.** Copy the `PPSA97510` folder to `/data/homebrew/` on the PS5 over FTP. Then set its permissions to `777`: in FileZilla, right-click the folder → *File permissions* → `777`, recurse into subdirectories. Without this, the PS5 says *"Can't start the game or app"* (CE-107750-0). The PC tool does all of this for you:
    ```bash
    python tools/psxs5_sync.py app --app-dir PPSA97510 --host <PS5 IP>
@@ -132,6 +132,8 @@ PSXS5 is a hobby project, made for the love of the PS1 library. No company or sc
    /data/PSXS5/games/Crash Bandicoot/     Crash Bandicoot.chd
    ```
    Or let the PC tool prepare and upload a whole folder of games (see [PC tool](#pc-tool)).
+
+   **On a USB drive:** put them in `PSXS5/`, `PSXS5/games/` or `data/PSXS5/games/` on the drive (any USB drive or extended storage). A BIOS in `PSXS5/bios` or `data/PSXS5/bios` there is used when the console's `bios` folder has none.
 
    > **Shelf still empty?** When etaHEN doesn't unlock `/data`, PSXS5 can't look into the games folder and only shows the games listed in `/data/PSXS5/library.txt`, which the PC tool writes when it uploads. For games you copied another way (FileZilla, a file manager, a USB drive), let the tool list them:
    > ```bash
@@ -227,7 +229,7 @@ It also shows the time and how long you've been playing.
 | Controls | Controller (digital or DualShock), left stick as D-pad, vibration, light bar, players (multitap), player order, dead zone, stick response, rumble feel, trigger effects, gas and brake on R2 / L2, light gun, button mapping |
 | Achievements | Account, your profile, unlock pop-ups and their style, progress tracker, hardcore mode |
 | Library | Theme, cover style, download missing covers, sort, your library, memory cards, rescan |
-| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed), region, BIOS, fast CD loading, PAL at 60 Hz, known game fixes, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
+| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed, SwanStation), region, BIOS, fast CD loading, PAL at 60 Hz, known game fixes, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
 
 Video settings apply while you play. Emulator, internal resolution, PGXP, region, BIOS and controller apply from the next game.
 
@@ -339,7 +341,7 @@ Licences for everything above are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICE
 
 ## Legal
 
-PSXS5 is free software under the GPL-3.0-or-later. PCSX-ReARMed is GPL-2.0-or-later, with parts under LGPL-2.1-or-later.
+PSXS5 is free software under the GPL-3.0-or-later. PCSX-ReARMed is GPL-2.0-or-later, with parts under LGPL-2.1-or-later. SwanStation is GPL-3.0; its PS5 port builds on darkxex's [SwanStationPS5](https://github.com/darkxex/SwanStationPS5).
 
 PSXS5 is not affiliated with or endorsed by Sony Interactive Entertainment. "PlayStation" is a registered trademark of Sony Interactive Entertainment Inc. It is used here only to describe what the emulator does.
 
