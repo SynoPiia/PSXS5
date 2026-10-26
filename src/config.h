@@ -14,6 +14,10 @@ void config_load(Settings *s, const char *path);
 bool config_load_game(Settings *out, const Settings *global, const char *path);
 bool config_save(const Settings *s, const char *path);
 bool config_peek_bool(const char *path, const char *key);
+/* Returns default_value when the file or key is missing. */
+bool config_peek_bool_default(const char *path, const char *key, bool default_value);
+/* Updates or appends one bool key in a key=value settings file. */
+bool config_set_bool(const char *path, const char *key, bool value);
 void config_paths(Paths *p, const char *root);
 
 /* A profile's own folders (saves, states, psxs5.ini) under dir. */

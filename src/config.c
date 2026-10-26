@@ -256,17 +256,68 @@ bool config_load_game(Settings *out, const Settings *global, const char *path)
  * (frame generation's 120 Hz mode is chosen when the screen opens) */
 bool config_peek_bool(const char *path, const char *key)
 {
+    return config_peek_bool_default(path, key, false);
+}
+
+bool config_peek_bool_default(const char *path, const char *key, bool default_value)
+{
     FILE *f = fopen(path, "r");
     if (!f)
-        return false;
+        return default_value;
+
     char line[256];
     size_t n = strlen(key);
-    bool on = false;
+    bool found = false;
+    bool on = default_value;
+
     while (fgets(line, sizeof(line), f))
         if (!strncmp(line, key, n) && line[n] == '=')
+        {
             on = atoi(line + n + 1) != 0;
+            found = true;
+        }
     fclose(f);
-    return on;
+
+    return found ? on : default_value;
+}
+
+bool config_set_bool(const char *path, const char *key, bool value)
+{
+    char lines[128][256];
+    int count = 0;
+    bool replaced = false;
+    size_t n = strlen(key);
+    FILE *f = fopen(path, "r");
+
+    if (f)
+    {
+        while (count < 128 && fgets(lines[count], sizeof(lines[0]), f))
+        {
+            if (!strncmp(lines[count], key, n) && lines[count][n] == '=')
+            {
+                snprintf(lines[count], sizeof(lines[0]), "%s=%d\n", key, value ? 1 : 0);
+                replaced = true;
+            }
+            ++count;
+        }
+        fclose(f);
+    }
+
+    if (!replaced && count < 128)
+        snprintf(lines[count++], sizeof(lines[0]), "%s=%d\n", key, value ? 1 : 0);
+
+    char temp[PSXS5_PATH_MAX];
+    snprintf(temp, sizeof(temp), "%s.tmp", path);
+    f = fopen(temp, "w");
+
+    if (!f)
+        return false;
+    for (int i = 0; i < count; ++i)
+        fputs(lines[i], f);
+
+    bool ok = fclose(f) == 0;
+    
+    return ok && rename(temp, path) == 0;
 }
 
 bool config_save(const Settings *s, const char *path)

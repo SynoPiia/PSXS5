@@ -36,7 +36,10 @@ desktop)
 esac
 
 # Everything except RAIntegration (a Windows-only toolkit DLL bridge).
-mapfile -t sources < <(cd "$src" && find src -name '*.c' ! -name 'rc_client_raintegration.c' | sort)
+sources=()
+while IFS= read -r line; do
+    sources+=("$line")
+done < <(cd "$src" && find src -name '*.c' ! -name 'rc_client_raintegration.c' | sort)
 mkdir -p "$out/obj"
 objects=()
 for s in "${sources[@]}"; do

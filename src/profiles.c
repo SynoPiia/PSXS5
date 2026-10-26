@@ -7,13 +7,15 @@
  * The main profile is the data root itself (where everything lived before
  * profiles), so nothing moves. Others live in <root>/profiles/<name>/.
  * <root>/profiles.txt lists them (a sandboxed PSXS5 can't list folders) and
- * <root>/profile.txt says whose turn it is.
+ * <root>/profile.txt says whose turn it is when not using PS5 auto-matching.
+ * <root>/profiles-ps5.txt maps PS5 user ids to profile names.
  */
 #include "profiles.h"
 
 #include "app.h"
 #include "config.h"
 #include "i18n.h"
+#include "platform/platform.h"
 #include "ra/achievements.h"
 #include "remote.h"
 #include "stats.h"
@@ -23,6 +25,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static char names[PROFILES_MAX][PROFILE_NAME_LEN]; /* names[0] is "" (the main profile) */
@@ -99,9 +102,169 @@ static void apply_paths(int i)
     make_dirs(app.paths.states);
 }
 
-void profiles_startup(void)
+#if defined(__PROSPERO__)
+static bool ps5_auto_enabled(void)
 {
-    load_list();
+    return app.profile_ps5_auto;
+}
+
+#define PS5_MAP_USERS 8
+
+static void ps5_map_path(char *out, size_t size)
+{
+    path_join(out, size, app.paths.root, "profiles-ps5.txt");
+}
+
+static void load_ps5_map(int *primary, int user_ids[PS5_MAP_USERS], char user_names[PS5_MAP_USERS][PROFILE_NAME_LEN],
+                         int *user_count)
+{
+    *primary = -1;
+    *user_count = 0;
+    char path[PSXS5_PATH_MAX];
+    ps5_map_path(path, sizeof(path));
+    FILE *f = fopen(path, "r");
+
+    if (!f)
+        return;
+    char line[256];
+
+    while (fgets(line, sizeof(line), f))
+    {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (!line[0] || line[0] == '#')
+            continue;
+        char *eq = strchr(line, '=');
+
+        if (!eq)
+            continue;
+        *eq = '\0';
+        const char *key = line;
+        const char *val = eq + 1;
+
+        if (!strcmp(key, "primary"))
+        {
+            *primary = (int)strtol(val, NULL, 0);
+            continue;
+        }
+
+        if (*user_count >= PS5_MAP_USERS)
+            continue;
+        int uid = (int)strtol(key, NULL, 0);
+
+        if (uid <= 0 || !val[0])
+            continue;
+
+        user_ids[*user_count] = uid;
+        str_copy(user_names[*user_count], PROFILE_NAME_LEN, val);
+        ++*user_count;
+    }
+
+    fclose(f);
+}
+
+static void save_ps5_map(int primary, const int user_ids[PS5_MAP_USERS],
+                         const char user_names[PS5_MAP_USERS][PROFILE_NAME_LEN], int user_count)
+{
+    char path[PSXS5_PATH_MAX];
+    ps5_map_path(path, sizeof(path));
+    FILE *f = fopen(path, "w");
+
+    if (!f)
+        return;
+    fprintf(f, "# PSXS5 PS5 user mapping\n");
+
+    if (primary > 0)
+        fprintf(f, "primary=%d\n", primary);
+    for (int i = 0; i < user_count; ++i)
+        if (user_ids[i] > 0 && user_names[i][0])
+            fprintf(f, "%d=%s\n", user_ids[i], user_names[i]);
+    fclose(f);
+}
+
+static bool ps5_map_lookup(int user_id, int primary, const int user_ids[PS5_MAP_USERS],
+                           const char user_names[PS5_MAP_USERS][PROFILE_NAME_LEN], int user_count, char *out,
+                           size_t out_size)
+{
+    for (int i = 0; i < user_count; ++i)
+        if (user_ids[i] == user_id)
+        {
+            str_copy(out, out_size, user_names[i]);
+            return true;
+        }
+
+    (void)primary;
+    return false;
+}
+
+static void ps5_map_upsert(int user_id, const char *name, int *primary, int user_ids[PS5_MAP_USERS],
+                           char user_names[PS5_MAP_USERS][PROFILE_NAME_LEN], int *user_count)
+{
+    for (int i = 0; i < *user_count; ++i)
+    {
+        if (user_ids[i] == user_id)
+        {
+            str_copy(user_names[i], PROFILE_NAME_LEN, name);
+            return;
+        }
+    }
+    if (*user_count < PS5_MAP_USERS)
+    {
+        user_ids[*user_count] = user_id;
+        str_copy(user_names[*user_count], PROFILE_NAME_LEN, name);
+        ++*user_count;
+    }
+    (void)primary;
+}
+
+static bool startup_ps5_auto(void)
+{
+    int uid;
+    if (!plat_ps5_launch_user(&uid))
+        return false;
+
+    int primary = -1;
+    int user_ids[PS5_MAP_USERS];
+    char user_names[PS5_MAP_USERS][PROFILE_NAME_LEN];
+    int user_count = 0;
+    load_ps5_map(&primary, user_ids, user_names, &user_count);
+
+    if (primary < 0 || uid == primary)
+    {
+        current = 0;
+        if (primary < 0)
+            primary = uid;
+        save_ps5_map(primary, user_ids, user_names, user_count);
+        apply_paths(0);
+        psxs5_log("profile: PS5 user %d -> main profile (%s)", uid, app.paths.user);
+        return true;
+    }
+
+    char name[PROFILE_NAME_LEN];
+    if (!ps5_map_lookup(uid, primary, user_ids, user_names, user_count, name, sizeof(name)))
+    {
+        if (!plat_ps5_user_name(uid, name, sizeof(name)) || !name[0])
+            snprintf(name, sizeof(name), "PS5-%08X", (unsigned)uid);
+    }
+
+    int i = profiles_find(name);
+
+    if (i < 0)
+        i = profiles_add(name);
+    if (i < 0)
+        return false;
+
+    current = i;
+    ps5_map_upsert(uid, name, &primary, user_ids, user_names, &user_count);
+    save_ps5_map(primary, user_ids, user_names, user_count);
+    apply_paths(i);
+    psxs5_log("profile: PS5 user %d -> %s (%s)", uid, names[i], app.paths.user);
+    
+    return true;
+}
+#endif
+
+static void startup_manual(void)
+{
     current = 0;
     char path[PSXS5_PATH_MAX];
     current_path(path, sizeof(path));
@@ -121,6 +284,20 @@ void profiles_startup(void)
     apply_paths(current);
     if (current)
         psxs5_log("profile: %s (%s)", names[current], app.paths.user);
+}
+
+void profiles_startup(void)
+{
+    load_list();
+#if defined(__PROSPERO__)
+    if (ps5_auto_enabled())
+    {
+        if (startup_ps5_auto())
+            return;
+        psxs5_log("profile: PS5 user detection failed, using saved selection");
+    }
+#endif
+    startup_manual();
 }
 
 int profiles_count(void)

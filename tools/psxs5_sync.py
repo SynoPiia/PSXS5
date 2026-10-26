@@ -807,7 +807,10 @@ def main() -> None:
                     help="index: point .cue sheets at the folder's .bin when the name they give is missing")
     ap.add_argument("--user", help="ra-login: RetroAchievements user name")
     ap.add_argument("--hardcore", action="store_true", help="ra-login: start in hardcore mode")
-    ap.add_argument("--profile", help="ra-login: sign in a PSXS5 profile (its name, as on the console)")
+    ap.add_argument(
+        "--profile",
+        help="ra-login: PSXS5 profile name (Settings shelf label or profiles/folder name, e.g. a PS5 account name or PS5-xxxxxxxx)",
+    )
     ap.add_argument("--app-dir", type=Path, default=Path(__file__).resolve().parent.parent / "dist" / "PPSA97510",
                     help="app: the built title folder to install")
     ap.add_argument("--all", action="store_true", help="covers: the whole database, not just your games")
