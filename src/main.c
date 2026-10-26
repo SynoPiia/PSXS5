@@ -1117,6 +1117,15 @@ int main(void)
     psxs5_log("storage probe before unlock: %s", plat_sandbox_probe());
     vk_probe(app.paths.root); /* v2: proves the Vulkan driver runs; logs only */
     app.unlock_setting = !plat_unlock_disabled();
+#if defined(__PROSPERO__)
+    {
+        char root_ini[PSXS5_PATH_MAX];
+        path_join(root_ini, sizeof(root_ini), app.home_root, "psxs5.ini");
+        app.profile_ps5_auto = config_peek_bool_default(root_ini, "profile_ps5_auto", true);
+    }
+#else
+    app.profile_ps5_auto = false;
+#endif
 
     if (!app.storage_error[0])
         profiles_startup(); /* whose saves, settings and stats */

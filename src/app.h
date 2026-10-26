@@ -41,6 +41,7 @@ typedef struct
     char storage_error[256];
     bool sandboxed;           /* /data can't be listed: library.txt is the library */
     bool unlock_setting;      /* Settings > System > Unlock /data with etaHEN */
+    bool profile_ps5_auto;    /* root psxs5.ini: match PS5 user at launch (PS5 default on) */
     char sandbox_reason[200];
     char home_root[PSXS5_PATH_MAX];      /* /data/PSXS5: holds location.txt, read even when the data moved */
     char location_next[PSXS5_PATH_MAX];  /* Settings > System > Data location, from the next start ("" = unchanged) */

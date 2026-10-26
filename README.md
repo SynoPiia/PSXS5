@@ -229,7 +229,7 @@ It also shows the time and how long you've been playing.
 | Controls | Controller (digital or DualShock), left stick as D-pad, vibration, light bar, players (multitap), player order, dead zone, stick response, rumble feel, trigger effects, gas and brake on R2 / L2, light gun, button mapping |
 | Achievements | Account, your profile, unlock pop-ups and their style, progress tracker, hardcore mode |
 | Library | Theme, cover style, download missing covers, sort, your library, memory cards, rescan |
-| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed, SwanStation), region, BIOS, fast CD loading, PAL at 60 Hz, known game fixes, overclock, quick resume, rewind, auto-save, who's playing (profiles), settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
+| System | Emulator (Automatic, Beetle PSX HW, PCSX-ReARMed, SwanStation), region, BIOS, fast CD loading, PAL at 60 Hz, known game fixes, overclock, quick resume, rewind, auto-save, who's playing (profiles), match PS5 user automatically, settings from your phone, language, unlocking `/data`, PS5SX2 Helper whitelist |
 
 Video settings apply while you play. Emulator, internal resolution, PGXP, region, BIOS and controller apply from the next game.
 
@@ -243,7 +243,18 @@ python tools/psxs5_sync.py ra-login --host <PS5 IP>
 
 Restart PSXS5 and it signs in by itself. Start a game, and if it has an achievement set, a banner shows how many you have unlocked.
 
-With several profiles (Settings → System → Who's playing), each person signs in for their own profile, using its name as shown on the console:
+### Profiles and PS5 users
+
+On PS5, **Match PS5 user automatically** (Settings → System) is on by default. Each time PSXS5 starts, it uses the PS5 account that launched the app:
+
+- The **first** PS5 account to launch PSXS5 after you update keeps the **main profile** (your existing saves at the data root).
+- Every other PS5 account gets its own profile folder under `profiles/` (named after the PS5 account when possible, otherwise `PS5-xxxxxxxx`).
+- Games, BIOS, covers and cheats stay shared. Memory cards, save states, settings, play time, favourites and RetroAchievements sign-in are per profile.
+- Turn off **Match PS5 user automatically** if you prefer to pick a profile yourself (Settings → System → Who's playing). If user detection fails, PSXS5 falls back to that manual choice instead of loading someone else's saves.
+
+**Multi-user check on hardware:** sign in as user A → launch PSXS5 → save in a game → quit. Sign in as user B → launch PSXS5 → confirm separate saves. Sign back in as A → confirm your original save is still there. See `psxs5.log` for lines like `profile: PS5 user …`.
+
+For RetroAchievements on a secondary profile, use the profile folder name (as shown on the shelf when several profiles exist):
 
 ```bash
 python tools/psxs5_sync.py ra-login --host <PS5 IP> --profile "Player 2"

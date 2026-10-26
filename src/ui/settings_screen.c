@@ -71,6 +71,7 @@ enum Special
     SP_PLAYERS,
     SP_PROFILE,
     SP_WHO,
+    SP_PS5_PROFILE_AUTO,
     SP_LOCATION,
     SP_NETWORK,
 };
@@ -296,8 +297,10 @@ static const Row SYSTEM[] = {
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(run_ahead), RUN_AHEADS, 3, 0},
     {NULL, "Auto-save", "Saves the game by itself every few minutes into three auto-save slots (the oldest is replaced). Load one from the PSXS5 menu > Auto-saves.",
      K_CHOICE, APPLY_NOW, SP_NONE, false, INT_FIELD(autosave), AUTOSAVES, 4, 0},
-    {"People", "Who's playing", "Profiles: each person keeps their own memory cards, save states, settings, play time, favourites and RetroAchievements sign-in. Games and covers are shared.",
+    {"People", "Who's playing", "Profiles: each person keeps their own memory cards, save states, settings, play time, favourites and RetroAchievements sign-in. Games and covers are shared. On PS5, the signed-in user is picked automatically unless you turn that off below.",
      K_ACTION, APPLY_NOW, SP_WHO, true, NO_FIELD, NULL, 0, 0},
+    {NULL, "Match PS5 user automatically", "When you start PSXS5, use the PS5 account that launched it. The first account keeps the main profile and its existing saves, other accounts get their own profile. Turn off to choose a profile yourself each time.",
+     K_TOGGLE, APPLY_NEXT_LAUNCH, SP_PS5_PROFILE_AUTO, true, NO_FIELD, OFF_ON, 2, 0},
     {"Phone", "Settings from your phone", "Change settings from a phone on the same network: scan the code.",
      K_TOGGLE, APPLY_NOW, SP_REMOTE, true, BOOL_FIELD(remote), OFF_ON, 2, 0},
     {"Console", "Language", "The language of PSXS5's menus.", K_CHOICE, APPLY_NOW, SP_LANGUAGE, true,
@@ -383,9 +386,18 @@ static const Tab *tab(void)
     return &TABS[S.tab];
 }
 
+static bool row_shown(const Row *r)
+{
+#if !defined(__PROSPERO__)
+    if (r->special == SP_PS5_PROFILE_AUTO)
+        return false;
+#endif
+    return true;
+}
+
 static bool selectable(const Row *r)
 {
-    return r->kind != K_INFO;
+    return row_shown(r) && r->kind != K_INFO;
 }
 
 static void first_selectable(void)
@@ -411,6 +423,7 @@ static int read_value(const Row *r)
     {
     case SP_HARDCORE: return ra_hardcore();
     case SP_UNLOCK: return app.unlock_setting;
+    case SP_PS5_PROFILE_AUTO: return app.profile_ps5_auto;
     default: break;
     }
     if (r->offset < 0)
@@ -436,6 +449,14 @@ static void write_value(const Row *r, int v)
     case SP_UNLOCK:
         app.unlock_setting = v != 0;
         plat_set_unlock_disabled(!app.unlock_setting);
+        return;
+    case SP_PS5_PROFILE_AUTO:
+        app.profile_ps5_auto = v != 0;
+        {
+            char root_ini[PSXS5_PATH_MAX];
+            path_join(root_ini, sizeof(root_ini), app.home_root, "psxs5.ini");
+            config_set_bool(root_ini, "profile_ps5_auto", app.profile_ps5_auto);
+        }
         return;
     default:
         break;

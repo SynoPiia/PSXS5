@@ -449,11 +449,69 @@ typedef struct
     Ps5TriggerCommand command[2];
 } Ps5TriggerParam;
 _Static_assert(sizeof(Ps5TriggerParam) == 120, "ScePadTriggerEffectParam is 120 bytes");
+int sceUserServiceInitialize(const void *param);
+int sceUserServiceGetInitialUser(int *user);
+int sceUserServiceGetForegroundUser(int *user);
+int sceUserServiceGetUserName(int user_id, char *name, size_t size);
 int sceUserServiceGetLoginUserIdList(int ids[4]);
 int scePadGetHandle(int user_id, int type, int index);
 int scePadReadState(int handle, void *data);
 int scePadSetMotionSensorState(int handle, bool enable);
 int scePadSetTriggerEffect(int handle, const Ps5TriggerParam *param);
+
+static bool user_service_started;
+
+static void user_service_start(void)
+{
+    if (user_service_started)
+        return;
+
+    user_service_started = true;
+    (void)sceUserServiceInitialize(NULL);
+}
+
+bool plat_ps5_launch_user(int *user_id_out)
+{
+    if (!user_id_out)
+        return false;
+
+    user_service_start();
+    int user = 0;
+
+    if (sceUserServiceGetInitialUser(&user) != 0)
+    {
+        user = 0;
+
+        if (sceUserServiceGetForegroundUser(&user) != 0)
+            return false;
+
+        psxs5_log("ps5 user: foreground user %d", user);
+    }
+    else
+        psxs5_log("ps5 user: initial user %d", user);
+    if (user <= 0)
+        return false;
+
+    *user_id_out = user;
+
+    return true;
+}
+
+bool plat_ps5_user_name(int user_id, char *out, size_t out_size)
+{
+    if (!out || out_size < 2 || user_id <= 0)
+        return false;
+    user_service_start();
+    out[0] = '\0';
+    if (sceUserServiceGetUserName(user_id, out, out_size) != 0 || !out[0])
+        return false;
+    out[out_size - 1] = '\0';
+    out[strcspn(out, "\r\n")] = '\0';
+    for (char *p = out; *p; ++p)
+        if (*p == '=' || *p == '#')
+            *p = '_';
+    return out[0] != '\0';
+}
 
 static int pad_handle(int i)
 {
@@ -808,6 +866,23 @@ const char *plat_pad_name(int port)
 {
     int i = physical(port);
     return i >= 0 && controllers[i] ? SDL_GameControllerName(controllers[i]) : NULL;
+}
+
+bool plat_ps5_launch_user(int *user_id_out)
+{
+    (void)user_id_out;
+    return false;
+}
+
+bool plat_ps5_user_name(int user_id, char *out, size_t out_size)
+{
+    (void)user_id;
+    
+    if (out && out_size)
+        out[0] = '\0';
+    (void)out_size;
+
+    return false;
 }
 
 void plat_pad_motion(bool on)

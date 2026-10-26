@@ -127,4 +127,9 @@ uint64_t plat_ticks_us(void);
 void plat_sleep_us(uint32_t us);
 void plat_notify(const char *message); /* PS5 system notification; desktop log */
 
+/* PS5 - the user who launched the title (UserService). Desktop -  always false. */
+bool plat_ps5_launch_user(int *user_id_out);
+/* PS5 account display name, false when not known. Desktop always false. */
+bool plat_ps5_user_name(int user_id, char *out, size_t out_size);
+
 #endif
